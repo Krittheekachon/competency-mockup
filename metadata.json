@@ -1,0 +1,6 @@
+{
+  "name": "Competency & IDP Management",
+  "description": "ระบบบริหารสมรรถนะและแผนพัฒนารายบุคคล คณะวิศวกรรมศาสตร์ มหาวิทยาลัยขอนแก่น (Competency & IDP Management System for Faculty of Engineering, KKU)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
