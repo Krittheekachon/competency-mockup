@@ -217,18 +217,18 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
     const idpStats = {
-        completed: 66,
-        inProgress: 3,
-        submitted: 2,
-        draft: 1,
-        noIdp: 1
+        completed: 18,
+        inProgress: 22,
+        submitted: 13,
+        draft: 10,
+        noIdp: 10
     };
 
     const groupProgress = [
         {
             d: "สนับสนุนการศึกษาและวิชาการ",
             total: 15,
-            hasIDP: 15,
+            hasIDP: 13,
             idpList: [
                 { n: "สมชาย มีสุข", pos: "นักวิชาการศึกษา", topic: "การใช้เทคโนโลยีดิจิทัล", status: "in_progress" },
                 { n: "ชลธิชา วรรณวิทย์", pos: "นักวิชาการวิทยาศาสตร์", topic: "การทำงานเป็นทีม", status: "draft" },
@@ -238,7 +238,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
         {
             d: "เทคโนโลยีสารสนเทศ",
             total: 14,
-            hasIDP: 14,
+            hasIDP: 12,
             idpList: [
                 { n: "วิชัย ระบบดี", pos: "นักวิชาการคอมพิวเตอร์", topic: "AI Literacy", status: "draft" },
                 { n: "ปกรณ์ ศิริวัฒน์", pos: "นักเทคโนโลยีสารสนเทศ", topic: "การบริหารโครงการดิจิทัล", status: "submitted" }
@@ -247,7 +247,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
         {
             d: "บริหารยุทธศาสตร์",
             total: 16,
-            hasIDP: 16,
+            hasIDP: 14,
             idpList: [
                 { n: "นฤมล ใจเย็น", pos: "นักวิชาการแผนและสารสนเทศ", topic: "การวิเคราะห์ข้อมูล", status: "completed" },
                 { n: "จิราพร วัฒนกลยุทธ์", pos: "นักจัดการงานทั่วไป", topic: "การสื่อสารเชิงกลยุทธ์", status: "in_progress" }
@@ -256,7 +256,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
         {
             d: "ทรัพยากรบุคคล",
             total: 14,
-            hasIDP: 14,
+            hasIDP: 12,
             idpList: [
                 { n: "มาลี ดีเสมอ", pos: "นักทรัพยากรบุคคล", topic: "AI Literacy", status: "submitted" },
                 { n: "พรพิมล บุคคลดี", pos: "นักทรัพยากรบุคคล", topic: "การพัฒนาบุคลากร", status: "in_progress" }
@@ -265,7 +265,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
         {
             d: "บริการการเงิน",
             total: 14,
-            hasIDP: 13,
+            hasIDP: 12,
             idpList: [
                 { n: "อดิศร เงินดี", pos: "นักวิชาการเงินและบัญชี", topic: "การควบคุมความเสี่ยง", status: "draft" },
                 { n: "วารุณี พรหมบัญชี", pos: "นักบัญชี", topic: "การวิเคราะห์ข้อมูลการเงิน", status: "completed" }
@@ -274,8 +274,11 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
     ];
 
     const noProgress = [
-        { n: "อดิศร เงินดี", pos: "นักวิชาการเงินและบัญชี", d: "บริการการเงิน", reason: "draft" },
-        { n: "อรพรรณ ศรีสวัสดิ์", pos: "อาจารย์", d: "สายวิชาการ", reason: "no_idp" }
+        { n: "ชลธิชา วรรณวิทย์", pos: "นักวิชาการวิทยาศาสตร์", d: "สนับสนุนการศึกษาและวิชาการ", reason: "draft" },
+        { n: "วิชัย ระบบดี", pos: "นักวิชาการคอมพิวเตอร์", d: "เทคโนโลยีสารสนเทศ", reason: "draft" },
+        { n: "จิราพร วัฒนกลยุทธ์", pos: "นักจัดการงานทั่วไป", d: "บริหารยุทธศาสตร์", reason: "no_idp" },
+        { n: "อดิศร เงินดี", pos: "นักวิชาการเงินและบัญชี", d: "บริการการเงิน", reason: "no_idp" },
+        { n: "อรพรรณ ศรีสวัสดิ์", pos: "อาจารย์", d: "สายวิชาการ", reason: "rejected" }
     ];
 
     const userByName = new Map<string, any>(users.map(user => [user.n, user]));
