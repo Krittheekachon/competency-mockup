@@ -12,12 +12,12 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
     const passPct = Math.round((passed / assessed) * 100);
 
     const deptRows = [
-        { n: "สำนักงานคณะฯ", total: 55, assessed: 55, pass: 43, fail: 12, level: "ต้องเฝ้าระวัง", levelClass: "by" },
-        { n: "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร", total: 52, assessed: 52, pass: 32, fail: 20, level: "⚠ ความเสี่ยงสูง", levelClass: "br" },
-        { n: "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้", total: 43, assessed: 43, pass: 27, fail: 16, level: "⚠ ความเสี่ยงสูง", levelClass: "br" },
-        { n: "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ", total: 38, assessed: 34, pass: 24, fail: 10, level: "ต้องเฝ้าระวัง", levelClass: "by" },
-        { n: "ฝ่ายบริหาร", total: 31, assessed: 28, pass: 21, fail: 7, level: "ปกติ", levelClass: "bg" },
-        { n: "หน่วยงานสายวิชาการ", total: 28, assessed: 8, pass: 0, fail: 8, level: "ข้อมูลไม่พอ", levelClass: "bgr" }
+        { n: "สำนักงานคณะฯ", total: 55, assessed: 55, pass: 43, fail: 12 },
+        { n: "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร", total: 52, assessed: 52, pass: 32, fail: 20 },
+        { n: "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้", total: 43, assessed: 43, pass: 27, fail: 16 },
+        { n: "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ", total: 38, assessed: 34, pass: 24, fail: 10 },
+        { n: "ฝ่ายบริหาร", total: 31, assessed: 28, pass: 21, fail: 7 },
+        { n: "หน่วยงานสายวิชาการ", total: 28, assessed: 8, pass: 0, fail: 8 }
     ];
 
     const problemGroups = [
@@ -46,7 +46,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
     const detailRows: Record<string, { n: string; fail: number; note: string }[]> = {
         "สำนักงานคณะฯ": [
             { n: "การใช้เทคโนโลยีดิจิทัล", fail: 8, note: "ต้องพัฒนาเร่งด่วน" },
-            { n: "การวิเคราะห์ข้อมูล", fail: 4, note: "ต้องเฝ้าระวัง" }
+            { n: "การวิเคราะห์ข้อมูล", fail: 4, note: "ความเสี่ยงกลาง" }
         ],
         "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร": [
             { n: "AI Literacy", fail: 11, note: "ความเสี่ยงสูง" },
@@ -54,11 +54,32 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
         ],
         "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้": [
             { n: "การใช้เทคโนโลยีดิจิทัล", fail: 9, note: "ความเสี่ยงสูง" },
-            { n: "AI Literacy", fail: 7, note: "ต้องเฝ้าระวัง" }
+            { n: "AI Literacy", fail: 7, note: "ความเสี่ยงกลาง" }
         ]
     };
 
     const getPct = (value: number, total: number) => total ? Math.round((value / total) * 100) : 0;
+    const getRiskStatus = (dept: typeof deptRows[number]) => {
+        const failPct = 100 - getPct(dept.pass, dept.assessed);
+
+        if (failPct >= 35) {
+            return { label: "ความเสี่ยงสูง", badge: "br", rank: 0 };
+        }
+        if (failPct >= 20) {
+            return { label: "ความเสี่ยงกลาง", badge: "by", rank: 1 };
+        }
+
+        return { label: "ความเสี่ยงต่ำ", badge: "bg", rank: 2 };
+    };
+
+    const rankedDeptRows = [...deptRows].sort((a, b) => {
+        const aRisk = getRiskStatus(a);
+        const bRisk = getRiskStatus(b);
+        const aFailPct = 100 - getPct(a.pass, a.assessed);
+        const bFailPct = 100 - getPct(b.pass, b.assessed);
+
+        return aRisk.rank - bRisk.rank || bFailPct - aFailPct;
+    });
 
     return (
         <>
@@ -95,48 +116,54 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             <div className="card mb20" style={{ borderRadius: "14px", overflow: "hidden" }}>
                 <div className="ch" style={{ padding: "20px 22px", display: "block" }}>
                     <div className="ct" style={{ fontSize: "16px" }}>ผลรายหน่วยงาน</div>
-                    <div className="cs">กดที่หน่วยงานเพื่อดูรายสายงาน</div>
+                    <div className="cs">เรียงตามความเสี่ยงจาก % ไม่ผ่านของบุคลากรที่ประเมินแล้ว · กดที่หน่วยงานเพื่อดูรายละเอียด</div>
                 </div>
                 <div className="cb" style={{ padding: "18px 22px" }}>
-                    {deptRows.map((d) => {
+                    {rankedDeptRows.map((d) => {
                         const passWidth = getPct(d.pass, d.assessed);
                         const failWidth = 100 - passWidth;
+                        const assessedPct = getPct(d.assessed, d.total);
+                        const riskStatus = getRiskStatus(d);
+                        const isCoverageLow = assessedPct < 50;
                         const isOpen = openDept === d.n;
                         return (
                             <div key={d.n} className="mb14">
                                 <button
                                     type="button"
                                     onClick={() => setOpenDept(isOpen ? null : d.n)}
-                                    style={{ width: "100%", background: "#fff", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px 20px", boxShadow: "var(--sh)", cursor: "pointer", display: "grid", gridTemplateColumns: "minmax(220px, 1fr) 130px 130px minmax(260px, 1.4fr) 132px 20px", gap: "14px", alignItems: "center", textAlign: "left", fontFamily: "inherit" }}
+                                    style={{ width: "100%", background: "#fff", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px 20px", boxShadow: "var(--sh)", cursor: "pointer", display: "grid", gridTemplateColumns: "minmax(220px, 1fr) 142px 120px minmax(260px, 1.4fr) 132px 20px", gap: "14px", alignItems: "center", textAlign: "left", fontFamily: "inherit" }}
                                 >
                                     <div style={{ borderLeft: "4px solid var(--navy)", paddingLeft: "16px" }}>
                                         <div className="fw8 fs14" style={{ color: "var(--navy)" }}>{d.n}</div>
-                                        <div className="muted fs12 mt4">{d.total} คน · ประเมินแล้ว {d.assessed} คน</div>
-                                    </div>
-                                    <div style={{ border: "1px solid var(--green-md)", background: "var(--green-bg)", color: "var(--green)", borderRadius: "8px", padding: "8px 10px", textAlign: "center" }}>
-                                        <div className="fw8" style={{ fontSize: "18px", lineHeight: 1 }}>{d.pass}</div>
-                                        <div className="fs11 fw7 mt4">ผ่าน</div>
+                                        <div className="muted fs12 mt4">{d.total} คน · ประเมินแล้ว {d.assessed} คน ({assessedPct}%)</div>
+                                        {isCoverageLow && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ข้อมูลประเมินยังไม่ครบ</div>}
                                     </div>
                                     <div style={{ border: "1px solid #fca5a5", background: "var(--red-bg)", color: "var(--red)", borderRadius: "8px", padding: "8px 10px", textAlign: "center" }}>
                                         <div className="fw8" style={{ fontSize: "18px", lineHeight: 1 }}>{d.fail}</div>
-                                        <div className="fs11 fw7 mt4">ไม่ผ่าน</div>
+                                        <div className="fs11 fw7 mt4">ไม่ผ่าน ({failWidth}%)</div>
+                                    </div>
+                                    <div style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text2)", borderRadius: "8px", padding: "8px 10px", textAlign: "center" }}>
+                                        <div className="fw8" style={{ fontSize: "18px", lineHeight: 1 }}>{d.pass}</div>
+                                        <div className="fs11 fw7 mt4">ผ่าน</div>
                                     </div>
                                     <div>
-                                        <div style={{ height: "13px", borderRadius: "999px", overflow: "hidden", background: "#e2e8f0", display: "flex" }}>
-                                            <div style={{ width: `${passWidth}%`, background: "var(--green)" }} />
-                                            <div style={{ width: `${failWidth}%`, background: "#fecaca" }} />
+                                        <div className="flex jb fs11 fw7 mb4">
+                                            <span style={{ color: "var(--red)" }}>สัดส่วนไม่ผ่าน</span>
+                                            <span style={{ color: "var(--red)" }}>{failWidth}% ของที่ประเมินแล้ว</span>
                                         </div>
-                                        <div className="flex jb fs11 muted mt4">
-                                            <span>{passWidth}%</span>
-                                            <span>{failWidth}%</span>
+                                        <div style={{ height: "13px", borderRadius: "999px", overflow: "hidden", background: "#fee2e2", border: "1px solid #fecaca" }}>
+                                            <div style={{ width: `${failWidth}%`, height: "100%", background: "var(--red)" }} />
+                                        </div>
+                                        <div className="fs11 muted mt4">
+                                            ผ่าน {d.pass} คน ({passWidth}%)
                                         </div>
                                     </div>
-                                    <span className={`b ${d.levelClass}`} style={{ justifyContent: "center" }}>{d.level}</span>
+                                    <span className={`b ${riskStatus.badge}`} style={{ justifyContent: "center" }}>{riskStatus.label}</span>
                                     <span className="muted" style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: ".15s" }}>⌄</span>
                                 </button>
                                 {isOpen && (
                                     <div style={{ margin: "8px 20px 0 20px", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden", background: "var(--bg)" }}>
-                                        {(detailRows[d.n] || [{ n: "ยังไม่มีรายการสมรรถนะที่ต้องเฝ้าระวัง", fail: 0, note: "ปกติ" }]).map((row) => (
+                                        {(detailRows[d.n] || [{ n: "ยังไม่มีรายการสมรรถนะที่ต้องติดตาม", fail: 0, note: "ความเสี่ยงต่ำ" }]).map((row) => (
                                             <div key={row.n} className="flex ic g12" style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
                                                 <div className="fw6 fs12" style={{ flex: 1 }}>{row.n}</div>
                                                 <span className="b br">{row.fail} คน</span>
