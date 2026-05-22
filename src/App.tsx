@@ -60,6 +60,24 @@ const useStoredState = <T,>(key: string, fallback: T) => {
   return [value, setValue] as const;
 };
 
+const DEFAULT_LEARNING_METHODS = [
+  {
+    key: "experiential",
+    label: "Experiential Learning",
+    desc: "การเรียนรู้ผ่านประสบการณ์จากการทำงานจริง เช่น OJT โครงการพิเศษ หรือ Job Rotation"
+  },
+  {
+    key: "social",
+    label: "Social Learning",
+    desc: "การเรียนรู้ผ่านบุคคลอื่น การปฏิสัมพันธ์ แลกเปลี่ยนความคิดเห็น ประสบการณ์ร่วมกัน หรือการมีผู้คอยให้คำแนะนำ"
+  },
+  {
+    key: "formal",
+    label: "Formal Learning",
+    desc: "การเรียนรู้อย่างเป็นทางการ มีแบบแผน หรือการเรียนในห้องเรียน"
+  }
+];
+
 const SUPPORT_JOB_FAMILY_POSITIONS: Record<string, string[]> = {
   "สนับสนุนการศึกษาและวิชาการ": [
     "นักวิชาการทรัพย์สินทางปัญญา",
@@ -177,6 +195,7 @@ export default function App() {
 
   const [users, setUsers] = useStoredState("mock-users", INITIAL_USERS);
   const [competencies, setCompetencies] = useStoredState("mock-competencies", INITIAL_COMPETENCIES);
+  const [learningMethods, setLearningMethods] = useStoredState("mock-learning-methods", DEFAULT_LEARNING_METHODS);
   const [selectedSupervisorSso, setSelectedSupervisorSso] = useState(
     INITIAL_USERS.find(user => user.r === "supervisor")?.sso || ""
   );
@@ -585,6 +604,7 @@ export default function App() {
           adminRank={adminPosList} setAdminRank={setAdminPosList}
           worklines={worklines} setWorklines={setWorklines}
           competencyTypes={competencyTypes} setCompetencyTypes={setCompetencyTypes}
+          learningMethods={learningMethods} setLearningMethods={setLearningMethods}
         />;
       case "admin-dict":
         return <AdminDict competencies={competencies} setCompetencies={setCompetencies} competencyTypes={competencyTypes} onDirtyChange={setDictHasUnsavedChanges} />;
@@ -632,7 +652,7 @@ export default function App() {
       case "emp-gap":
         return <EmployeeGap setPage={setActivePage} />;
       case "emp-idp":
-        return <EmployeeIDP />;
+        return <EmployeeIDP learningMethods={learningMethods} />;
       case "emp-idp-detail":
         return <EmployeeIDPDetail />;
       case "emp-progress":

@@ -344,7 +344,19 @@ export const EmployeeGap: React.FC<{ setPage: (p: string) => void }> = ({ setPag
 // ==========================================
 // 3. COMPONENT: EmployeeIDP (แผนพัฒนา IDP)
 // ==========================================
-export const EmployeeIDP: React.FC = () => {
+type LearningMethodOption = {
+    key: string;
+    label: string;
+    desc?: string;
+};
+
+const DEFAULT_LEARNING_METHOD_OPTIONS: LearningMethodOption[] = [
+    { key: "experiential", label: "Experiential Learning", desc: "การเรียนรู้ผ่านประสบการณ์จากการทำงานจริง เช่น OJT โครงการพิเศษ หรือ Job Rotation" },
+    { key: "social", label: "Social Learning", desc: "การเรียนรู้ผ่านบุคคลอื่น การปฏิสัมพันธ์ แลกเปลี่ยนความคิดเห็น ประสบการณ์ร่วมกัน หรือการมีผู้คอยให้คำแนะนำ" },
+    { key: "formal", label: "Formal Learning", desc: "การเรียนรู้อย่างเป็นทางการ มีแบบแผน หรือการเรียนในห้องเรียน" },
+];
+
+export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }> = ({ learningMethods = DEFAULT_LEARNING_METHOD_OPTIONS }) => {
     const [gaps, setGaps] = useState(() => readEmployeeStorage(EMPLOYEE_IDP_GAPS_KEY, IDP_GAPS_DATA));
     const [openForms, setOpenForms] = useState<Set<number>>(new Set());
     const [activitiesByGap, setActivitiesByGap] = useState(() => readEmployeeStorage(EMPLOYEE_IDP_ACTIVITIES_KEY, IDP_ACTIVITIES_DATA));
@@ -390,11 +402,18 @@ export const EmployeeIDP: React.FC = () => {
         "[Experiential] Job Rotation",
     ];
 
-    const methods = [
-        { key: "experiential", label: "Experiential Learning", color: "var(--orange)", desc: "การเรียนรู้ผ่านประสบการณ์จากการทำงานจริง เช่น OJT โครงการพิเศษ หรือ Job Rotation" },
-        { key: "social", label: "Social Learning", color: "var(--green)", desc: "การเรียนรู้ผ่านบุคคลอื่น การปฏิสัมพันธ์ แลกเปลี่ยนความคิดเห็น ประสบการณ์ร่วมกัน หรือการมีผู้คอยให้คำแนะนำ" },
-        { key: "formal", label: "Formal Learning", color: "var(--blue)", desc: "การเรียนรู้อย่างเป็นทางการ มีแบบแผน หรือการเรียนในห้องเรียน" },
+    const methodPalette = [
+        { color: "var(--orange)", bg: "#FFF7ED", ic: "EX" },
+        { color: "var(--green)", bg: "#F0FDF4", ic: "SO" },
+        { color: "var(--blue)", bg: "#EFF6FF", ic: "FO" },
+        { color: "#7C3AED", bg: "#F5F3FF", ic: "LR" },
+        { color: "#0F766E", bg: "#F0FDFA", ic: "DV" },
     ];
+    const methods = (learningMethods.length ? learningMethods : DEFAULT_LEARNING_METHOD_OPTIONS).map((method, index) => ({
+        ...method,
+        ...methodPalette[index % methodPalette.length]
+    }));
+    const methodMap = new Map(methods.map(method => [method.key, method]));
 
     const saveIDPDraft = () => {
         writeEmployeeStorage(EMPLOYEE_IDP_GAPS_KEY, gaps);
@@ -426,10 +445,10 @@ export const EmployeeIDP: React.FC = () => {
             return;
         }
         const gap = gaps[idx];
-        const methodTheme =
-            f.method === "experiential" ? { ic: "OJ", bg: "#FFF7ED" } :
-            f.method === "social" ? { ic: "PL", bg: "#F0FDF4" } :
-            { ic: "FL", bg: "#EFF6FF" };
+        const selectedMethod = methodMap.get(f.method);
+        const methodTheme = selectedMethod
+            ? { ic: selectedMethod.ic, bg: selectedMethod.bg }
+            : { ic: "LR", bg: "#EFF6FF" };
 
         setActivitiesByGap(prev => ({
             ...prev,
@@ -438,7 +457,7 @@ export const EmployeeIDP: React.FC = () => {
                 {
                     ...methodTheme,
                     t: f.title.trim(),
-                    m: f.method,
+                    m: selectedMethod?.label || f.method,
                     due: f.endDate,
                     weight: f.weight,
                     note: f.note,
@@ -581,9 +600,9 @@ export const EmployeeIDP: React.FC = () => {
                                             onChange={e => setForm(idx, { method: e.target.value })}
                                         >
                                             <option value="">— เลือกประเภท —</option>
-                                            <option value="experiential">Experiential Learning</option>
-                                            <option value="social">Social Learning</option>
-                                            <option value="formal">Formal Learning</option>
+                                            {methods.map(method => (
+                                                <option key={method.key} value={method.key}>{method.label}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
