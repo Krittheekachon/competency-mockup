@@ -22,7 +22,7 @@ import AdminOrgStructure from './components/AdminOrgStructure';
 import AdminDict from './components/AdminDict';
 import Profile from './components/Profile';
 import { HRCycle, HRCatalog, HRMonitor, HRTemplate } from './components/HRPages';
-import { EmployeeAssess, EmployeeGap, EmployeeIDP, EmployeeProgress } from './components/EmployeePages';
+import { EmployeeAssess, EmployeeGap, EmployeeIDP, EmployeeIDPDetail, EmployeeProgress } from './components/EmployeePages';
 import { SupervisorAssess, TeamGap, TeamIDP } from './components/SupervisorPages';
 import { ManagerGap, ManagerIDP, DeptMonitor } from './components/ManagerPages';
 
@@ -33,6 +33,31 @@ const formatPhone = (val: string) => {
   if (len < 4) return digits;
   if (len < 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
   return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+};
+
+const readStoredState = <T,>(key: string, fallback: T): T => {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const useStoredState = <T,>(key: string, fallback: T) => {
+  const [value, setValue] = useState<T>(() => readStoredState(key, fallback));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Ignore storage write errors in mock mode.
+    }
+  }, [key, value]);
+
+  return [value, setValue] as const;
 };
 
 const SUPPORT_JOB_FAMILY_POSITIONS: Record<string, string[]> = {
@@ -139,14 +164,14 @@ export default function App() {
   const [profileHasUnsavedChanges, setProfileHasUnsavedChanges] = useState(false);
   const [assessHasUnsavedChanges, setAssessHasUnsavedChanges] = useState(false);
   const [teamIDPHasUnsavedChanges, setTeamIDPHasUnsavedChanges] = useState(false);
-  const [supervisorAssessDrafts, setSupervisorAssessDrafts] = useState<Record<string, any>>({});
-  const [supervisorIDPDrafts, setSupervisorIDPDrafts] = useState<Record<string, any>>({});
+  const [supervisorAssessDrafts, setSupervisorAssessDrafts] = useStoredState<Record<string, any>>("mock-supervisor-assess-drafts", {});
+  const [supervisorIDPDrafts, setSupervisorIDPDrafts] = useStoredState<Record<string, any>>("mock-supervisor-idp-drafts", {});
   const [modalType, setModalType] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
 
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [competencies, setCompetencies] = useState(INITIAL_COMPETENCIES);
+  const [users, setUsers] = useStoredState("mock-users", INITIAL_USERS);
+  const [competencies, setCompetencies] = useStoredState("mock-competencies", INITIAL_COMPETENCIES);
   const [selectedSupervisorSso, setSelectedSupervisorSso] = useState(
     INITIAL_USERS.find(user => user.r === "supervisor")?.sso || ""
   );
@@ -579,7 +604,7 @@ export default function App() {
       case "emp-idp":
         return <EmployeeIDP />;
       case "emp-idp-detail":
-        return <EmployeeIDP />;
+        return <EmployeeIDPDetail />;
       case "emp-progress":
         return <EmployeeProgress />;
       case "dh-assess":

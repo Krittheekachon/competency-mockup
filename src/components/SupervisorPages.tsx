@@ -931,7 +931,7 @@ type SupervisorIDPDecision = "approved" | "rejected";
 
 const supervisorIDPPhaseMeta: Record<SupervisorIDPPhase, { label: string; badge: string; tab: string }> = {
     notsent: { label: "ยังไม่ส่งแผน", badge: "bgr", tab: "notsent" },
-    rejected: { label: "แผนไม่ผ่าน", badge: "br", tab: "notsent" },
+    rejected: { label: "แผนไม่ผ่าน", badge: "br", tab: "rejected" },
     pending: { label: "รอคุณตรวจแผน", badge: "by", tab: "pending" },
     forwarded: { label: "รอหัวหน้าฝ่ายตรวจแผน", badge: "bo", tab: "pending" },
     inprogress: { label: "ระหว่างดำเนินการ", badge: "bt", tab: "inprogress" },
@@ -1059,22 +1059,22 @@ const SupervisorIDPHeader: React.FC<{ currentUser?: any, supervisorUsers?: any[]
 
     return (
         <div className="card mb16">
-            <div className="cb" style={{ padding: "12px 16px" }}>
-                <div>
+            <div className="cb flex ic jb g12" style={{ padding: "12px 16px", flexWrap: "nowrap" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                     {supervisorUsers?.length ? (
-                        <select className="sel" value={currentUser?.sso || ""} onChange={event => onSupervisorChange?.(event.target.value)}>
-                            {supervisorUsers.map(user => <option key={user.sso} value={user.sso}>{user.t}{user.n} · {user.p}</option>)}
+                        <select className="sel" style={{ width: "100%" }} value={currentUser?.sso || ""} onChange={event => onSupervisorChange?.(event.target.value)}>
+                            {supervisorUsers.map(user => <option key={user.sso} value={user.sso}>{user.t}{user.n} | {user.p}</option>)}
                         </select>
                     ) : (
                         <div className="fw8 fs13">{supervisorUnit}</div>
                     )}
                 </div>
-                <div className="flex ic" style={{ justifyContent: "flex-end", marginTop: "10px" }}>
+                <div className="flex ic" style={{ justifyContent: "flex-end", flex: "0 0 auto", minWidth: "fit-content" }}>
                     <div className="flex ic g8">
                         <div className="av" style={{ width: "34px", height: "34px", background: "var(--orange)", fontSize: "12px" }}>{currentUser?.n?.[0] || "ส"}</div>
-                        <div className="flex ic g4" style={{ flexWrap: "wrap" }}>
+                        <div className="flex ic g4" style={{ flexWrap: "nowrap", whiteSpace: "nowrap" }}>
                             <div className="fw8 fs12">{supervisorName}</div>
-                            <div className="muted fs11">· {currentUser?.p || "หัวหน้างาน"} · {supervisorUnit}</div>
+                            <div className="muted fs11">| {currentUser?.p || "หัวหน้างาน"} | {supervisorUnit}</div>
                         </div>
                     </div>
                 </div>
@@ -1112,8 +1112,9 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
     });
     const activeStaff = team.find(item => item.id === selectedId);
     const tabs = [
-        { id: "notsent", label: "ยังไม่ส่งแผน", hint: "รวมแผนไม่ผ่าน", c: "bgr" },
+        { id: "notsent", label: "ยังไม่ส่งแผน", hint: "ยังไม่เริ่มส่งแผน", c: "bgr" },
         { id: "pending", label: "รอการตรวจ/ยืนยัน", hint: "ตรวจแผนที่ส่งแล้ว", c: "by" },
+        { id: "rejected", label: "แผนไม่ผ่าน", hint: "กลับไปแก้ไขและส่งใหม่", c: "br" },
         { id: "inprogress", label: "ระหว่างดำเนินการ", hint: "ติดตามกิจกรรม", c: "bt" },
         { id: "done", label: "เสร็จสิ้น", hint: "ปิดแผนแล้ว", c: "bg" }
     ];
@@ -1141,7 +1142,7 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
         const rejected = gapDecisions.some(item => item === "rejected");
         setPhases(prev => ({ ...prev, [staffId]: rejected ? "rejected" : "forwarded" }));
         setSelectedId(null);
-        setActiveTab(rejected ? "notsent" : "pending");
+        setActiveTab(rejected ? "rejected" : "pending");
     };
 
     if (activeStaff) {
@@ -1257,8 +1258,14 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
                 <div className="sec-t">IDP & ติดตามทีม</div>
                 <div className="sec-s">ติดตามความก้าวหน้าแผนพัฒนาบุคลากรในมุมมองหัวหน้างาน</div>
             </div>
-
-            <div className="g4 mb14">
+            <div
+                className="mb14"
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+                    gap: "10px"
+                }}
+            >
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
@@ -1267,15 +1274,17 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
                         style={{
                             textAlign: "left",
                             cursor: "pointer",
-                            borderTop: `3px solid ${tab.id === "notsent" ? "var(--red)" : tab.id === "pending" ? "var(--yellow)" : tab.id === "inprogress" ? "var(--blue)" : "var(--green)"}`,
+                            padding: "12px 14px",
+                            minHeight: "92px",
+                            borderTop: `3px solid ${tab.id === "notsent" ? "var(--text3)" : tab.id === "pending" ? "var(--yellow)" : tab.id === "rejected" ? "var(--red)" : tab.id === "inprogress" ? "var(--blue)" : "var(--green)"}`,
                             borderColor: activeTab === tab.id ? "var(--blue)" : "var(--border)",
                             fontFamily: "inherit"
                         }}
                         onClick={() => setActiveTab(tab.id)}
                     >
-                        <div className="sl">{tab.label}</div>
-                        <div className={`sv ${tab.id === "notsent" ? "rc" : tab.id === "pending" ? "yc" : tab.id === "inprogress" ? "bc" : "gcc"}`}>{getTabCount(tab.id)}</div>
-                        <div className="ss muted">คน</div>
+                        <div className="sl" style={{ fontSize: "11px", marginBottom: "8px" }}>{tab.label}</div>
+                        <div className={`sv ${tab.id === "notsent" ? "" : tab.id === "pending" ? "yc" : tab.id === "rejected" ? "rc" : tab.id === "inprogress" ? "bc" : "gcc"}`} style={{ fontSize: "22px" }}>{getTabCount(tab.id)}</div>
+                        <div className="ss muted" style={{ marginTop: "4px" }}>{"คน"}</div>
                     </button>
                 ))}
             </div>
