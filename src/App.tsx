@@ -35,6 +35,31 @@ const formatPhone = (val: string) => {
   return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
 };
 
+const readStoredState = <T,>(key: string, fallback: T): T => {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const useStoredState = <T,>(key: string, fallback: T) => {
+  const [value, setValue] = useState<T>(() => readStoredState(key, fallback));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Ignore storage write errors in mock mode.
+    }
+  }, [key, value]);
+
+  return [value, setValue] as const;
+};
+
 const SUPPORT_JOB_FAMILY_POSITIONS: Record<string, string[]> = {
   "สนับสนุนการศึกษาและวิชาการ": [
     "นักวิชาการทรัพย์สินทางปัญญา",
@@ -142,12 +167,22 @@ export default function App() {
   } | null>(null);
   const [dictHasUnsavedChanges, setDictHasUnsavedChanges] = useState(false);
   const [profileHasUnsavedChanges, setProfileHasUnsavedChanges] = useState(false);
+  const [assessHasUnsavedChanges, setAssessHasUnsavedChanges] = useState(false);
+  const [teamIDPHasUnsavedChanges, setTeamIDPHasUnsavedChanges] = useState(false);
+  const [supervisorAssessDrafts, setSupervisorAssessDrafts] = useStoredState<Record<string, any>>("mock-supervisor-assess-drafts", {});
+  const [supervisorIDPDrafts, setSupervisorIDPDrafts] = useStoredState<Record<string, any>>("mock-supervisor-idp-drafts", {});
   const [modalType, setModalType] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
 
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [competencies, setCompetencies] = useState(INITIAL_COMPETENCIES);
+  const [users, setUsers] = useStoredState("mock-users", INITIAL_USERS);
+  const [competencies, setCompetencies] = useStoredState("mock-competencies", INITIAL_COMPETENCIES);
+  const [selectedSupervisorSso, setSelectedSupervisorSso] = useState(
+    INITIAL_USERS.find(user => user.r === "supervisor")?.sso || ""
+  );
+  const [selectedManagerDeptSso, setSelectedManagerDeptSso] = useState(
+    INITIAL_USERS.find(user => user.r === "manager_dept")?.sso || ""
+  );
 
   const [workline, setWorkline] = useState("");
   const [dept1, setDept1] = useState("");
@@ -298,6 +333,20 @@ export default function App() {
       activePage === "profile" &&
       profileHasUnsavedChanges &&
       !window.confirm("ยังไม่บันทึกข้อมูล หากยืนยันจะออกจากหน้านี้ข้อมูลจะไม่ถูกบันทึก")
+    ) {
+      return;
+    }
+    if (
+      (activePage === "dh-assess" || activePage === "sup-assess") &&
+      assessHasUnsavedChanges &&
+      !window.confirm("ยังไม่ได้บันทึกผลการประเมิน หากออกจากระบบข้อมูลล่าสุดจะไม่ถูกบันทึก")
+    ) {
+      return;
+    }
+    if (
+      (activePage === "dh-idp" || activePage === "sup-idp") &&
+      teamIDPHasUnsavedChanges &&
+      !window.confirm("ยังไม่ได้บันทึกผล IDP หากออกจากระบบข้อมูลล่าสุดจะไม่ถูกบันทึก")
     ) {
       return;
     }
@@ -453,6 +502,20 @@ export default function App() {
       ) {
         return false;
       }
+      if (
+        (activePage === "dh-assess" || activePage === "sup-assess") &&
+        assessHasUnsavedChanges &&
+        !window.confirm("ยังไม่ได้บันทึกผลการประเมิน หากออกจากหน้านี้ข้อมูลล่าสุดจะไม่ถูกบันทึก")
+      ) {
+        return false;
+      }
+      if (
+        (activePage === "dh-idp" || activePage === "sup-idp") &&
+        teamIDPHasUnsavedChanges &&
+        !window.confirm("ยังไม่ได้บันทึกผล IDP หากออกจากหน้านี้ข้อมูลล่าสุดจะไม่ถูกบันทึก")
+      ) {
+        return false;
+      }
     }
 
     setActivePage(nextPage);
@@ -465,10 +528,32 @@ export default function App() {
     setCurrentRole(role);
   };
 
-  const getCurrentProfileUser = () =>
-    users.find(user => user.r === currentRole) ||
-    users.find(user => user.n === ROLES_CONFIG[currentRole].name.replace("คุณ", "")) ||
-    users[0];
+  const supervisorViewUsers = users.filter(user => user.r === "supervisor");
+  const selectedSupervisor = supervisorViewUsers.find(user => user.sso === selectedSupervisorSso) || supervisorViewUsers[0];
+  const managerDeptViewUsers = users.filter(user => user.r === "manager_dept");
+  const selectedManagerDept = managerDeptViewUsers.find(user => user.sso === selectedManagerDeptSso) || managerDeptViewUsers[0];
+
+  useEffect(() => {
+    if (supervisorViewUsers.length > 0 && !supervisorViewUsers.some(user => user.sso === selectedSupervisorSso)) {
+      setSelectedSupervisorSso(supervisorViewUsers[0].sso);
+    }
+  }, [selectedSupervisorSso, supervisorViewUsers]);
+
+  useEffect(() => {
+    if (managerDeptViewUsers.length > 0 && !managerDeptViewUsers.some(user => user.sso === selectedManagerDeptSso)) {
+      setSelectedManagerDeptSso(managerDeptViewUsers[0].sso);
+    }
+  }, [selectedManagerDeptSso, managerDeptViewUsers]);
+
+  const getCurrentProfileUser = () => {
+    if (currentRole === "supervisor" && selectedSupervisor) return selectedSupervisor;
+    if (currentRole === "manager_dept" && selectedManagerDept) return selectedManagerDept;
+    return (
+      users.find(user => user.r === currentRole) ||
+      users.find(user => user.n === ROLES_CONFIG[currentRole].name.replace("คุณ", "")) ||
+      users[0]
+    );
+  };
 
   const renderPage = () => {
     const profileUser = getCurrentProfileUser();
@@ -549,23 +634,65 @@ export default function App() {
       case "emp-idp":
         return <EmployeeIDP />;
       case "emp-idp-detail":
-        return <EmployeeIDP />;
+        return <EmployeeIDPDetail />;
       case "emp-progress":
         return <EmployeeProgress />;
       case "dh-assess":
       case "sup-assess": {
         let boss;
         if (currentRole === 'manager') boss = users.find(u => u.p === 'คณบดี') || users.find(u => u.r === 'manager');
-        else if (currentRole === 'manager_dept') boss = users.find(u => u.p.includes('รองคณบดี')) || users.find(u => u.r === 'manager_dept');
-        else boss = users.find(u => u.r === 'supervisor');
+        else if (currentRole === 'manager_dept') boss = selectedManagerDept || users.find(u => u.r === 'manager_dept');
+        else boss = selectedSupervisor || users.find(u => u.r === 'supervisor');
         if (!boss) boss = users[0];
-        return <SupervisorAssess users={users} setUsers={setUsers} currentUser={boss} />;
+        return (
+          <SupervisorAssess
+            key={boss.sso}
+            users={users}
+            setUsers={setUsers}
+            currentUser={boss}
+            supervisorUsers={currentRole === "supervisor" ? supervisorViewUsers : currentRole === "manager_dept" ? managerDeptViewUsers : undefined}
+            onSupervisorChange={currentRole === "manager_dept" ? setSelectedManagerDeptSso : setSelectedSupervisorSso}
+            drafts={supervisorAssessDrafts}
+            setDrafts={setSupervisorAssessDrafts}
+            onDirtyChange={setAssessHasUnsavedChanges}
+          />
+        );
       }
       case "sup-gap":
-        return <TeamGap users={users} />;
+        return (
+          <TeamGap
+            users={users}
+            currentUser={currentRole === "supervisor" ? selectedSupervisor : currentRole === "manager_dept" ? selectedManagerDept : undefined}
+            supervisorUsers={currentRole === "supervisor" ? supervisorViewUsers : currentRole === "manager_dept" ? managerDeptViewUsers : undefined}
+            onSupervisorChange={currentRole === "manager_dept" ? setSelectedManagerDeptSso : setSelectedSupervisorSso}
+          />
+        );
       case "dh-idp":
+        return (
+          <TeamIDP
+            users={users}
+            detailed
+            currentUser={selectedSupervisor}
+            supervisorUsers={supervisorViewUsers}
+            onSupervisorChange={setSelectedSupervisorSso}
+            drafts={supervisorIDPDrafts}
+            setDrafts={setSupervisorIDPDrafts}
+            onDirtyChange={setTeamIDPHasUnsavedChanges}
+          />
+        );
       case "sup-idp":
-        return <TeamIDP users={users} />;
+        return (
+          <TeamIDP
+            users={users}
+            detailed
+            currentUser={selectedManagerDept}
+            supervisorUsers={managerDeptViewUsers}
+            onSupervisorChange={setSelectedManagerDeptSso}
+            drafts={supervisorIDPDrafts}
+            setDrafts={setSupervisorIDPDrafts}
+            onDirtyChange={setTeamIDPHasUnsavedChanges}
+          />
+        );
       case "mgr-gap":
         return <ManagerGap users={users} />;
       case "mgr-idp":
