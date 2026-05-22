@@ -12,12 +12,27 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
     const passPct = Math.round((passed / assessed) * 100);
 
     const deptRows = [
-        { n: "สำนักงานคณะฯ", total: 55, assessed: 55, pass: 43, fail: 12 },
-        { n: "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร", total: 52, assessed: 52, pass: 32, fail: 20 },
-        { n: "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้", total: 43, assessed: 43, pass: 27, fail: 16 },
-        { n: "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ", total: 38, assessed: 34, pass: 24, fail: 10 },
-        { n: "ฝ่ายบริหาร", total: 31, assessed: 28, pass: 21, fail: 7 },
-        { n: "หน่วยงานสายวิชาการ", total: 28, assessed: 8, pass: 0, fail: 8 }
+        { n: "สำนักงานคณะฯ", total: 55, assessed: 55, pass: 43, fail: 12, lines: [
+            { n: "สายบริหาร", total: 20, fail: 3, weakDetail: [{ n: "การสื่อสาร", cnt: 3 }] },
+            { n: "สายการเงิน", total: 22, fail: 5, weakDetail: [{ n: "การใช้เทคโนโลยีดิจิทัล", cnt: 4 }, { n: "การวิเคราะห์ข้อมูล", cnt: 3 }] },
+            { n: "สายทรัพยากรบุคคล", total: 13, fail: 4, weakDetail: [{ n: "AI Literacy", cnt: 4 }] }
+        ] },
+        { n: "ภาควิชาวิศวฯ คอม", total: 52, assessed: 52, pass: 32, fail: 20, lines: [
+            { n: "สายวิชาการ", total: 32, fail: 13, weakDetail: [{ n: "AI Literacy", cnt: 9 }, { n: "การวิเคราะห์ข้อมูล", cnt: 7 }] },
+            { n: "สายสนับสนุน", total: 20, fail: 7, weakDetail: [{ n: "การใช้เทคโนโลยีดิจิทัล", cnt: 5 }] }
+        ] },
+        { n: "ภาควิชาวิศวฯ ไฟฟ้า", total: 43, assessed: 43, pass: 27, fail: 16, lines: [
+            { n: "สายวิชาการ", total: 25, fail: 10, weakDetail: [{ n: "AI Literacy", cnt: 7 }] },
+            { n: "สายสนับสนุน", total: 18, fail: 6, weakDetail: [{ n: "การใช้เทคโนโลยีดิจิทัล", cnt: 3 }, { n: "การทำงานเป็นทีม", cnt: 5 }] }
+        ] },
+        { n: "ภาควิชาวิศวฯ โยธา", total: 40, assessed: 40, pass: 22, fail: 18, lines: [
+            { n: "สายวิชาการ", total: 23, fail: 11, weakDetail: [{ n: "การใช้เทคโนโลยีดิจิทัล", cnt: 7 }, { n: "AI Literacy", cnt: 7 }] },
+            { n: "สายสนับสนุน", total: 17, fail: 7, weakDetail: [{ n: "การวิเคราะห์ข้อมูล", cnt: 7 }] }
+        ] },
+        { n: "ภาควิชาวิศวฯ อุตสาหการ", total: 30, assessed: 30, pass: 23, fail: 7, lines: [
+            { n: "สายวิชาการ", total: 18, fail: 5, weakDetail: [{ n: "AI Literacy", cnt: 5 }] },
+            { n: "สายสนับสนุน", total: 12, fail: 2, weakDetail: [{ n: "การใช้เทคโนโลยีดิจิทัล", cnt: 2 }] }
+        ] }
     ];
 
     const problemGroups = [
@@ -25,51 +40,35 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             label: "สายสนับสนุน",
             color: "var(--blue)",
             rows: [
-                { n: "การใช้เทคโนโลยีดิจิทัล", count: 19, color: "var(--red)", width: 100 },
-                { n: "การวิเคราะห์ข้อมูล", count: 16, color: "#f05a0a", width: 84 },
-                { n: "AI Literacy", count: 10, color: "#d97706", width: 53 },
-                { n: "การทำงานเป็นทีม", count: 8, color: "var(--teal)", width: 42 }
+                { n: "การใช้เทคโนโลยีดิจิทัล", count: 19, color: "var(--red)", width: 100, depts: [{ d: "สำนักงานคณะฯ", c: 5 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }, { d: "ภาควิชาวิศวฯ โยธา", c: 4 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 2 }, { d: "ภาควิชาวิศวฯ คอม", c: 5 }] },
+                { n: "การวิเคราะห์ข้อมูล", count: 16, color: "#f05a0a", width: 84, depts: [{ d: "สำนักงานคณะฯ", c: 5 }, { d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ คอม", c: 4 }] },
+                { n: "AI Literacy", count: 10, color: "#d97706", width: 53, depts: [{ d: "สำนักงานคณะฯ", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 3 }] },
+                { n: "การทำงานเป็นทีม", count: 8, color: "var(--teal)", width: 42, depts: [{ d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 5 }, { d: "ภาควิชาวิศวฯ โยธา", c: 3 }] }
             ]
         },
         {
             label: "สายวิชาการ",
             color: "var(--purple)",
             rows: [
-                { n: "AI Literacy", count: 28, color: "var(--red)", width: 100 },
-                { n: "การวิเคราะห์ข้อมูล", count: 14, color: "#f05a0a", width: 50 },
-                { n: "การใช้เทคโนโลยีดิจิทัล", count: 13, color: "#d97706", width: 46 },
-                { n: "การสื่อสารเชิงวิชาการ", count: 9, color: "var(--teal)", width: 32 }
+                { n: "AI Literacy", count: 28, color: "var(--red)", width: 100, depts: [{ d: "ภาควิชาวิศวฯ คอม", c: 9 }, { d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 7 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 5 }] },
+                { n: "การวิเคราะห์ข้อมูล", count: 14, color: "#f05a0a", width: 50, depts: [{ d: "ภาควิชาวิศวฯ คอม", c: 7 }, { d: "ภาควิชาวิศวฯ โยธา", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }] },
+                { n: "การใช้เทคโนโลยีดิจิทัล", count: 13, color: "#d97706", width: 46, depts: [{ d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ คอม", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 2 }] }
             ]
         }
     ];
-
-    const detailRows: Record<string, { n: string; fail: number; note: string }[]> = {
-        "สำนักงานคณะฯ": [
-            { n: "การใช้เทคโนโลยีดิจิทัล", fail: 8, note: "ต้องพัฒนาเร่งด่วน" },
-            { n: "การวิเคราะห์ข้อมูล", fail: 4, note: "ความเสี่ยงกลาง" }
-        ],
-        "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร": [
-            { n: "AI Literacy", fail: 11, note: "ความเสี่ยงสูง" },
-            { n: "การวิเคราะห์ข้อมูล", fail: 9, note: "ความเสี่ยงสูง" }
-        ],
-        "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้": [
-            { n: "การใช้เทคโนโลยีดิจิทัล", fail: 9, note: "ความเสี่ยงสูง" },
-            { n: "AI Literacy", fail: 7, note: "ความเสี่ยงกลาง" }
-        ]
-    };
 
     const getPct = (value: number, total: number) => total ? Math.round((value / total) * 100) : 0;
     const getRiskStatus = (dept: typeof deptRows[number]) => {
         const failPct = 100 - getPct(dept.pass, dept.assessed);
 
         if (failPct >= 35) {
-            return { label: "ความเสี่ยงสูง", badge: "br", rank: 0 };
+            return { label: "⚠ ความเสี่ยงสูง", badge: "br", rank: 0 };
         }
         if (failPct >= 20) {
-            return { label: "ความเสี่ยงกลาง", badge: "by", rank: 1 };
+            return { label: "ต้องเฝ้าระวัง", badge: "by", rank: 1 };
         }
 
-        return { label: "ความเสี่ยงต่ำ", badge: "bg", rank: 2 };
+        return { label: "อยู่ในเกณฑ์ดี", badge: "bg", rank: 2 };
     };
 
     const rankedDeptRows = [...deptRows].sort((a, b) => {
@@ -113,12 +112,14 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                 </div>
             </div>
 
-            <div className="card mb20" style={{ borderRadius: "14px", overflow: "hidden" }}>
-                <div className="ch" style={{ padding: "20px 22px", display: "block" }}>
-                    <div className="ct" style={{ fontSize: "16px" }}>ผลรายหน่วยงาน</div>
-                    <div className="cs">เรียงตามความเสี่ยงจาก % ไม่ผ่านของบุคลากรที่ประเมินแล้ว · กดที่หน่วยงานเพื่อดูรายละเอียด</div>
+            <div className="card mb16">
+                <div className="ch">
+                    <div>
+                        <div className="ct">ผลรายหน่วยงาน</div>
+                        <div className="cs">กดที่หน่วยงานเพื่อดูรายสายงาน</div>
+                    </div>
                 </div>
-                <div className="cb" style={{ padding: "18px 22px" }}>
+                <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: "12px" }}>
                     {rankedDeptRows.map((d) => {
                         const passWidth = getPct(d.pass, d.assessed);
                         const failWidth = 100 - passWidth;
@@ -127,49 +128,73 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                         const isCoverageLow = assessedPct < 50;
                         const isOpen = openDept === d.n;
                         return (
-                            <div key={d.n} className="mb14">
+                            <div key={d.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
                                 <button
                                     type="button"
                                     onClick={() => setOpenDept(isOpen ? null : d.n)}
-                                    style={{ width: "100%", background: "#fff", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px 20px", boxShadow: "var(--sh)", cursor: "pointer", display: "grid", gridTemplateColumns: "minmax(220px, 1fr) 142px 120px minmax(260px, 1.4fr) 132px 20px", gap: "14px", alignItems: "center", textAlign: "left", fontFamily: "inherit" }}
+                                    style={{ width: "100%", padding: "12px 16px", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", border: 0, textAlign: "left", fontFamily: "inherit" }}
                                 >
-                                    <div style={{ borderLeft: "4px solid var(--navy)", paddingLeft: "16px" }}>
-                                        <div className="fw8 fs14" style={{ color: "var(--navy)" }}>{d.n}</div>
-                                        <div className="muted fs12 mt4">{d.total} คน · ประเมินแล้ว {d.assessed} คน ({assessedPct}%)</div>
+                                    <div style={{ width: "4px", height: "36px", borderRadius: "3px", background: "var(--navy)", flexShrink: 0 }} />
+                                    <div style={{ flex: 1, minWidth: "140px" }}>
+                                        <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text)" }}>{d.n}</div>
+                                        <div style={{ fontSize: "11px", color: "var(--text3)", marginTop: "2px" }}>{d.total} คน · ประเมินแล้ว {d.assessed} คน</div>
                                         {isCoverageLow && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ข้อมูลประเมินยังไม่ครบ</div>}
                                     </div>
-                                    <div style={{ border: "1px solid #fca5a5", background: "var(--red-bg)", color: "var(--red)", borderRadius: "8px", padding: "8px 10px", textAlign: "center" }}>
-                                        <div className="fw8" style={{ fontSize: "18px", lineHeight: 1 }}>{d.fail}</div>
-                                        <div className="fs11 fw7 mt4">ไม่ผ่าน ({failWidth}%)</div>
-                                    </div>
-                                    <div style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text2)", borderRadius: "8px", padding: "8px 10px", textAlign: "center" }}>
-                                        <div className="fw8" style={{ fontSize: "18px", lineHeight: 1 }}>{d.pass}</div>
-                                        <div className="fs11 fw7 mt4">ผ่าน</div>
-                                    </div>
-                                    <div>
-                                        <div className="flex jb fs11 fw7 mb4">
-                                            <span style={{ color: "var(--red)" }}>สัดส่วนไม่ผ่าน</span>
-                                            <span style={{ color: "var(--red)" }}>{failWidth}% ของที่ประเมินแล้ว</span>
+                                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                                        <div style={{ textAlign: "center", padding: "4px 12px", background: "var(--green-bg)", borderRadius: "var(--r)", border: "1px solid var(--green-md)" }}>
+                                            <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--green)" }}>{d.pass}</div>
+                                            <div style={{ fontSize: "10px", color: "var(--green)", fontWeight: 700 }}>ผ่าน</div>
                                         </div>
-                                        <div style={{ height: "13px", borderRadius: "999px", overflow: "hidden", background: "#fee2e2", border: "1px solid #fecaca" }}>
-                                            <div style={{ width: `${failWidth}%`, height: "100%", background: "var(--red)" }} />
-                                        </div>
-                                        <div className="fs11 muted mt4">
-                                            ผ่าน {d.pass} คน ({passWidth}%)
+                                        <div style={{ textAlign: "center", padding: "4px 12px", background: "var(--red-bg)", borderRadius: "var(--r)", border: "1px solid #FCA5A5" }}>
+                                            <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--red)" }}>{d.fail}</div>
+                                            <div style={{ fontSize: "10px", color: "var(--red)", fontWeight: 700 }}>ไม่ผ่าน</div>
                                         </div>
                                     </div>
-                                    <span className={`b ${riskStatus.badge}`} style={{ justifyContent: "center" }}>{riskStatus.label}</span>
-                                    <span className="muted" style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: ".15s" }}>⌄</span>
+                                    <div style={{ flex: 1, minWidth: "120px" }}>
+                                        <div style={{ height: "10px", borderRadius: "6px", overflow: "hidden", display: "flex" }}>
+                                            <div style={{ width: `${passWidth}%`, background: "var(--green)", transition: ".3s" }} />
+                                            <div style={{ width: `${failWidth}%`, background: "#FECACA", transition: ".3s" }} />
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "3px" }}>
+                                            <span style={{ fontSize: "10px", color: "var(--text3)" }}>{passWidth}%</span>
+                                            <span style={{ fontSize: "10px", color: "var(--text3)" }}>{failWidth}%</span>
+                                        </div>
+                                    </div>
+                                    <span className={`b ${riskStatus.badge}`} style={{ flexShrink: 0 }}>{riskStatus.label}</span>
+                                    <span style={{ fontSize: "11px", color: "var(--text3)", flexShrink: 0 }}>{isOpen ? "▴" : "▾"}</span>
                                 </button>
                                 {isOpen && (
-                                    <div style={{ margin: "8px 20px 0 20px", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden", background: "var(--bg)" }}>
-                                        {(detailRows[d.n] || [{ n: "ยังไม่มีรายการสมรรถนะที่ต้องติดตาม", fail: 0, note: "ความเสี่ยงต่ำ" }]).map((row) => (
-                                            <div key={row.n} className="flex ic g12" style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                                                <div className="fw6 fs12" style={{ flex: 1 }}>{row.n}</div>
-                                                <span className="b br">{row.fail} คน</span>
-                                                <span className="muted fs12">{row.note}</span>
-                                            </div>
-                                        ))}
+                                    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
+                                        <div style={{ padding: "10px 16px 4px", fontSize: "10px", fontWeight: 800, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em" }}>รายสายงาน</div>
+                                        <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                            {d.lines.map(line => {
+                                                const linePass = line.total - line.fail;
+                                                const linePct = getPct(linePass, line.total);
+                                                return (
+                                                    <div key={line.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden", background: "#fff" }}>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px" }}>
+                                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text)", flex: "0 0 150px" }}>{line.n}</div>
+                                                            <div style={{ display: "flex", gap: "10px", fontSize: "12px" }}>
+                                                                <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ {linePass} ผ่าน</span>
+                                                                <span style={{ color: "var(--red)", fontWeight: 700 }}>✗ {line.fail} ไม่ผ่าน</span>
+                                                            </div>
+                                                            <div style={{ flex: 1, height: "7px", background: "var(--border)", borderRadius: "4px", overflow: "hidden" }}>
+                                                                <div style={{ height: "100%", width: `${linePct}%`, background: "var(--green)" }} />
+                                                            </div>
+                                                            <span style={{ fontSize: "11px", color: "var(--text3)" }}>{line.total} คน</span>
+                                                        </div>
+                                                        <div style={{ borderTop: "1px solid var(--border)", background: "#FFFBEB", padding: "8px 14px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+                                                            <span style={{ fontSize: "10px", fontWeight: 800, color: "var(--yellow)" }}>⚠ สมรรถนะที่ตก:</span>
+                                                            {line.weakDetail.map(weak => (
+                                                                <span key={weak.n} style={{ fontSize: "11px", padding: "2px 8px", background: "var(--red-bg)", color: "var(--red)", borderRadius: "20px", fontWeight: 700 }}>
+                                                                    ⚠ {weak.n} <span style={{ background: "var(--red)", color: "#fff", borderRadius: "10px", padding: "0 5px", fontSize: "10px" }}>{weak.cnt} คน</span>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -210,15 +235,13 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                         </button>
                                         {isOpen && (
                                             <div style={{ margin: "8px 20px 0 72px", padding: "10px 14px", border: "1px solid var(--border)", borderRadius: "8px", background: "var(--bg)" }}>
-                                                <div className="fs12 muted mb8">หน่วยงานที่พบรายการนี้มากที่สุด</div>
-                                                <div className="g3">
-                                                    {["สำนักงานคณะฯ", "ฝ่ายแผนยุทธศาสตร์ฯ", "ฝ่ายการศึกษาฯ"].map((d, i) => (
-                                                        <div key={d} style={{ background: "#fff", border: "1px solid var(--border)", borderRadius: "8px", padding: "10px 12px" }}>
-                                                            <div className="fw7 fs12">{d}</div>
-                                                            <div className="muted fs11 mt4">{Math.max(row.count - (i * 5), 2)} คน</div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                <div className="fs12 muted mb8">รายหน่วยงาน</div>
+                                                {row.depts.map(dep => (
+                                                    <div key={dep.d} className="flex ic" style={{ padding: "7px 0", borderBottom: "1px solid var(--border)" }}>
+                                                        <span style={{ flex: 1, fontSize: "12px", color: "var(--text2)" }}>{dep.d}</span>
+                                                        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--red)" }}>{dep.c} คน</span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
@@ -253,59 +276,59 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
 
     const groupProgress = [
         {
-            d: "สนับสนุนการศึกษาและวิชาการ",
-            total: 15,
-            hasIDP: 13,
+            d: "สำนักงานคณะฯ",
+            total: 12,
+            hasIDP: 10,
             idpList: [
-                { n: "สมชาย มีสุข", pos: "นักวิชาการศึกษา", topic: "การใช้เทคโนโลยีดิจิทัล", status: "in_progress" },
-                { n: "ชลธิชา วรรณวิทย์", pos: "นักวิชาการวิทยาศาสตร์", topic: "การทำงานเป็นทีม", status: "draft" },
-                { n: "กัญญารัตน์ ศรีวิชา", pos: "นักวิชาการศึกษา", topic: "การวิเคราะห์ข้อมูล", status: "completed" }
+                { n: "สมชาย มีสุข", pos: "นักวิชาการ", topic: "ดิจิทัล & AI", status: "in_progress" },
+                { n: "วรรณา เพชรดี", pos: "เจ้าหน้าที่", topic: "การสื่อสาร", status: "completed" },
+                { n: "มานิตย์ แสง", pos: "นักวิชาการ", topic: "วิเคราะห์ข้อมูล", status: "draft" }
             ]
         },
         {
-            d: "เทคโนโลยีสารสนเทศ",
-            total: 14,
-            hasIDP: 12,
+            d: "ภาควิชาวิศวฯ คอม",
+            total: 20,
+            hasIDP: 18,
             idpList: [
-                { n: "วิชัย ระบบดี", pos: "นักวิชาการคอมพิวเตอร์", topic: "AI Literacy", status: "draft" },
-                { n: "ปกรณ์ ศิริวัฒน์", pos: "นักเทคโนโลยีสารสนเทศ", topic: "การบริหารโครงการดิจิทัล", status: "submitted" }
+                { n: "รศ.ดร.วิไล ใจดี", pos: "อาจารย์", topic: "AI Literacy", status: "submitted" },
+                { n: "นภัสสร ทองดี", pos: "นักวิชาการ", topic: "AI & Data", status: "in_progress" }
             ]
         },
         {
-            d: "บริหารยุทธศาสตร์",
+            d: "ภาควิชาวิศวฯ ไฟฟ้า",
             total: 16,
             hasIDP: 14,
             idpList: [
-                { n: "นฤมล ใจเย็น", pos: "นักวิชาการแผนและสารสนเทศ", topic: "การวิเคราะห์ข้อมูล", status: "completed" },
-                { n: "จิราพร วัฒนกลยุทธ์", pos: "นักจัดการงานทั่วไป", topic: "การสื่อสารเชิงกลยุทธ์", status: "in_progress" }
+                { n: "ธนาวุฒิ สว่างใจ", pos: "นักวิเคราะห์", topic: "ดิจิทัล", status: "draft" }
             ]
         },
         {
-            d: "ทรัพยากรบุคคล",
-            total: 14,
-            hasIDP: 12,
+            d: "ภาควิชาวิศวฯ โยธา",
+            total: 18,
+            hasIDP: 15,
             idpList: [
-                { n: "มาลี ดีเสมอ", pos: "นักทรัพยากรบุคคล", topic: "AI Literacy", status: "submitted" },
-                { n: "พรพิมล บุคคลดี", pos: "นักทรัพยากรบุคคล", topic: "การพัฒนาบุคลากร", status: "in_progress" }
+                { n: "อรจิรา พรม", pos: "อาจารย์", topic: "AI Literacy", status: "submitted" }
             ]
         },
         {
-            d: "บริการการเงิน",
-            total: 14,
-            hasIDP: 12,
+            d: "ภาควิชาวิศวฯ อุตสาหการ",
+            total: 7,
+            hasIDP: 6,
             idpList: [
-                { n: "อดิศร เงินดี", pos: "นักวิชาการเงินและบัญชี", topic: "การควบคุมความเสี่ยง", status: "draft" },
-                { n: "วารุณี พรหมบัญชี", pos: "นักบัญชี", topic: "การวิเคราะห์ข้อมูลการเงิน", status: "completed" }
+                { n: "สุภาพร แก้วมะณี", pos: "เจ้าหน้าที่", topic: "ดิจิทัล", status: "completed" }
             ]
         }
     ];
 
     const noProgress = [
-        { n: "ชลธิชา วรรณวิทย์", pos: "นักวิชาการวิทยาศาสตร์", d: "สนับสนุนการศึกษาและวิชาการ", reason: "draft" },
-        { n: "วิชัย ระบบดี", pos: "นักวิชาการคอมพิวเตอร์", d: "เทคโนโลยีสารสนเทศ", reason: "draft" },
-        { n: "จิราพร วัฒนกลยุทธ์", pos: "นักจัดการงานทั่วไป", d: "บริหารยุทธศาสตร์", reason: "no_idp" },
-        { n: "อดิศร เงินดี", pos: "นักวิชาการเงินและบัญชี", d: "บริการการเงิน", reason: "no_idp" },
-        { n: "อรพรรณ ศรีสวัสดิ์", pos: "อาจารย์", d: "สายวิชาการ", reason: "rejected" }
+        { n: "มานิตย์ แสง", pos: "นักวิชาการ", d: "สำนักงานคณะฯ", reason: "draft" },
+        { n: "ชาญวิทย์ ดีงาม", pos: "เจ้าหน้าที่", d: "สำนักงานคณะฯ", reason: "no_idp" },
+        { n: "ธนาวุฒิ สว่างใจ", pos: "นักวิเคราะห์", d: "ภาควิชาวิศวฯ ไฟฟ้า", reason: "draft" },
+        { n: "สุมาลี วงศ์ทอง", pos: "นักวิชาการ", d: "ภาควิชาวิศวฯ ไฟฟ้า", reason: "no_idp" },
+        { n: "วรรณา แสงทอง", pos: "เจ้าหน้าที่", d: "ภาควิชาวิศวฯ โยธา", reason: "no_idp" },
+        { n: "ประภาส ศรีสุข", pos: "อาจารย์", d: "ภาควิชาวิศวฯ โยธา", reason: "draft" },
+        { n: "กิตติพงษ์ ทองมา", pos: "อาจารย์", d: "ภาควิชาวิศวฯ อุตสาหการ", reason: "no_idp" },
+        { n: "รัตนา พรมมา", pos: "เจ้าหน้าที่", d: "ภาควิชาวิศวฯ อุตสาหการ", reason: "draft" }
     ];
 
     const userByName = new Map<string, any>(users.map(user => [user.n, user]));
@@ -338,7 +361,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
     return (
         <>
             <div className="mb20">
-                <div className="sec-t">ภาพรวม IDP คณะ</div>
+                <div className="sec-t">ภาพรวม IDP คณะ 📋</div>
                 <div className="sec-s">สถานะ IDP ของบุคลากรทั้งคณะวิศวกรรมศาสตร์ · รอบ 2568</div>
             </div>
 
@@ -388,7 +411,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
 
             <div className="g2 mb14">
                 <div className="card">
-                    <div className="ch"><div className="ct">ความคืบหน้า IDP รายกลุ่มงาน</div></div>
+                    <div className="ch"><div className="ct">ความคืบหน้า IDP รายหน่วยงาน</div></div>
                     <div className="cb" style={{ padding: 0 }}>
                         {groupProgress.map(group => {
                             const pct = Math.round((group.hasIDP / group.total) * 100);

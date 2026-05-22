@@ -93,6 +93,7 @@ export const NAV_CONFIG = {
     {
       sec: "HR",
       items: [
+        { id: "hr-position-competencies", ic: "🔗", lb: "กำหนดสมรรถนะประจำตำแหน่ง" },
         { id: "hr-cycle", ic: "🗓️", lb: "รอบการประเมิน" },
         { id: "hr-template", ic: "🎯", lb: "กำหนดความคาดหวัง" },
         { id: "hr-catalog", ic: "📚", lb: "Learning Catalog" }
@@ -145,6 +146,7 @@ export const PAGE_TITLES = {
   "mgr-idp": "ติดตาม IDP ภาพรวม",
   "hr-cycle": "รอบการประเมิน",
   "hr-template": "กำหนดความคาดหวัง",
+  "hr-position-competencies": "ผูกสมรรถนะกับตำแหน่ง",
   "hr-catalog": "Learning Catalog",
   "hr-monitor": "ติดตามภาพรวม",
   "hr-comp-overview": "ภาพรวม Competency คณะ",

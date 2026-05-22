@@ -21,7 +21,7 @@ import AdminOrg from './components/AdminOrg';
 import AdminOrgStructure from './components/AdminOrgStructure';
 import AdminDict from './components/AdminDict';
 import Profile from './components/Profile';
-import { HRCycle, HRCatalog, HRMonitor, HRTemplate } from './components/HRPages';
+import { HRCycle, HRCatalog, HRMonitor, HRTemplate, HRPositionCompetencies } from './components/HRPages';
 import { EmployeeAssess, EmployeeGap, EmployeeIDP, EmployeeProgress } from './components/EmployeePages';
 import { SupervisorAssess, TeamGap, TeamIDP } from './components/SupervisorPages';
 import { ManagerGap, ManagerIDP, DeptMonitor } from './components/ManagerPages';
@@ -135,6 +135,11 @@ export default function App() {
   }, []);
 
   const [activePage, setActivePage] = useState("emp-assess");
+  const [hrPositionBindingScope, setHrPositionBindingScope] = useState<{
+    workline: string;
+    jobFamily: string;
+    position: string;
+  } | null>(null);
   const [dictHasUnsavedChanges, setDictHasUnsavedChanges] = useState(false);
   const [profileHasUnsavedChanges, setProfileHasUnsavedChanges] = useState(false);
   const [modalType, setModalType] = useState<string | null>(null);
@@ -499,13 +504,38 @@ export default function App() {
       case "admin-dict":
         return <AdminDict competencies={competencies} setCompetencies={setCompetencies} competencyTypes={competencyTypes} onDirtyChange={setDictHasUnsavedChanges} />;
       case "hr-cycle":
-        return <HRCycle />;
+        return <HRCycle onGoTemplate={() => setActivePage("hr-template")} />;
       case "hr-catalog":
         return <HRCatalog openModal={openModal} />;
       case "hr-monitor":
         return <HRMonitor />;
       case "hr-template":
-        return <HRTemplate />;
+        return (
+          <HRTemplate
+            worklines={worklines}
+            academicPositions={academicPositions}
+            supportPositionGroups={supportPositionGroups}
+            adminPositions={adminPositions}
+            academicLevels={academicPosList}
+            supportLevels={supportPosList}
+            adminLevels={adminPosList}
+            onOpenPositionBinding={(scope) => {
+              setHrPositionBindingScope(scope);
+              setActivePage("hr-position-competencies");
+            }}
+          />
+        );
+      case "hr-position-competencies":
+        return (
+          <HRPositionCompetencies
+            competencies={competencies}
+            worklines={worklines}
+            academicPositions={academicPositions}
+            supportPositionGroups={supportPositionGroups}
+            adminPositions={adminPositions}
+            initialScope={hrPositionBindingScope}
+          />
+        );
       case "hr-comp-overview":
         return <ManagerGap users={users} />;
       case "hr-idp-overview":
@@ -1034,11 +1064,11 @@ export default function App() {
                 <input className="inp" placeholder="เช่น อบรม AI & Data Analytics" />
               </div>
               <div className="fg">
-                <label className="lbl">ประเภท (70:20:10)</label>
+                <label className="lbl">ประเภทกิจกรรม</label>
                 <select className="sel">
-                  <option value="experiential">70% — Experiential Learning (OJT, Project, Job Rotation)</option>
-                  <option value="social">20% — Social Learning (Coaching, Mentoring, Peer)</option>
-                  <option value="formal">10% — Formal Training (อบรม, e-Learning, Workshop)</option>
+                  <option value="experiential">Experiential Learning</option>
+                  <option value="social">Social Learning</option>
+                  <option value="formal">Formal Training</option>
                 </select>
               </div>
               <div className="fg">
@@ -1048,6 +1078,10 @@ export default function App() {
               <div className="fg">
                 <label className="lbl">ค่าใช้จ่าย (บาท)</label>
                 <input className="inp" type="number" placeholder="0" min="0" />
+              </div>
+              <div className="fg">
+                <label className="lbl">คำอธิบายหลักสูตร</label>
+                <textarea className="ta" style={{ fontSize: 12, minHeight: 72, marginTop: 4 }} placeholder="อธิบายวัตถุประสงค์ เนื้อหา และผลลัพธ์ที่คาดหวัง..." />
               </div>
               <div className="fg" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <label className="lbl" style={{ margin: 0 }}>สถานะ</label>
