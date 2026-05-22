@@ -25,36 +25,48 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             label: "สายสนับสนุน",
             color: "var(--blue)",
             rows: [
-                { n: "การใช้เทคโนโลยีดิจิทัล", count: 19, color: "var(--red)", width: 100 },
-                { n: "การวิเคราะห์ข้อมูล", count: 16, color: "#f05a0a", width: 84 },
-                { n: "AI Literacy", count: 10, color: "#d97706", width: 53 },
-                { n: "การทำงานเป็นทีม", count: 8, color: "var(--teal)", width: 42 }
+                { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", count: 19, color: "var(--red)", width: 100 },
+                { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", count: 16, color: "#f05a0a", width: 84 },
+                { n: "AI Literacy", t: "CC", tg: "tag-cc", count: 10, color: "#d97706", width: 53 },
+                { n: "การทำงานเป็นทีม", t: "CC", tg: "tag-cc", count: 8, color: "var(--teal)", width: 42 }
             ]
         },
         {
             label: "สายวิชาการ",
             color: "var(--purple)",
             rows: [
-                { n: "AI Literacy", count: 28, color: "var(--red)", width: 100 },
-                { n: "การวิเคราะห์ข้อมูล", count: 14, color: "#f05a0a", width: 50 },
-                { n: "การใช้เทคโนโลยีดิจิทัล", count: 13, color: "#d97706", width: 46 },
-                { n: "การสื่อสารเชิงวิชาการ", count: 9, color: "var(--teal)", width: 32 }
+                { n: "AI Literacy", t: "CC", tg: "tag-cc", count: 28, color: "var(--red)", width: 100 },
+                { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", count: 14, color: "#f05a0a", width: 50 },
+                { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", count: 13, color: "#d97706", width: 46 },
+                { n: "การสื่อสารเชิงวิชาการ", t: "FC", tg: "tag-fc", count: 9, color: "var(--teal)", width: 32 }
             ]
         }
     ];
 
-    const detailRows: Record<string, { n: string; fail: number; note: string }[]> = {
+    const detailRows: Record<string, { n: string; t: string; tg: string; fail: number; note: string }[]> = {
         "สำนักงานคณะฯ": [
-            { n: "การใช้เทคโนโลยีดิจิทัล", fail: 8, note: "ต้องพัฒนาเร่งด่วน" },
-            { n: "การวิเคราะห์ข้อมูล", fail: 4, note: "ความเสี่ยงกลาง" }
+            { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", fail: 8, note: "ต้องพัฒนาเร่งด่วน" },
+            { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", fail: 4, note: "ความเสี่ยงกลาง" }
         ],
         "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร": [
-            { n: "AI Literacy", fail: 11, note: "ความเสี่ยงสูง" },
-            { n: "การวิเคราะห์ข้อมูล", fail: 9, note: "ความเสี่ยงสูง" }
+            { n: "AI Literacy", t: "CC", tg: "tag-cc", fail: 11, note: "ความเสี่ยงสูง" },
+            { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", fail: 9, note: "ความเสี่ยงสูง" }
         ],
         "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้": [
-            { n: "การใช้เทคโนโลยีดิจิทัล", fail: 9, note: "ความเสี่ยงสูง" },
-            { n: "AI Literacy", fail: 7, note: "ความเสี่ยงกลาง" }
+            { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", fail: 9, note: "ความเสี่ยงสูง" },
+            { n: "AI Literacy", t: "CC", tg: "tag-cc", fail: 7, note: "ความเสี่ยงกลาง" }
+        ],
+        "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ": [
+            { n: "การวิเคราะห์ข้อมูลวิจัย", t: "FC", tg: "tag-fc", fail: 6, note: "ความเสี่ยงกลาง" },
+            { n: "การสื่อสารเชิงวิชาการ", t: "FC", tg: "tag-fc", fail: 4, note: "ความเสี่ยงต่ำ" }
+        ],
+        "ฝ่ายบริหาร": [
+            { n: "Visionary Leadership", t: "MC", tg: "tag-mc", fail: 4, note: "ความเสี่ยงกลาง" },
+            { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", fail: 3, note: "ความเสี่ยงต่ำ" }
+        ],
+        "หน่วยงานสายวิชาการ": [
+            { n: "AI Literacy", t: "CC", tg: "tag-cc", fail: 5, note: "ความเสี่ยงสูง" },
+            { n: "การสื่อสารเชิงวิชาการ", t: "FC", tg: "tag-fc", fail: 3, note: "ความเสี่ยงกลาง" }
         ]
     };
 
@@ -62,14 +74,14 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
     const getRiskStatus = (dept: typeof deptRows[number]) => {
         const failPct = 100 - getPct(dept.pass, dept.assessed);
 
-        if (failPct >= 35) {
-            return { label: "ความเสี่ยงสูง", badge: "br", rank: 0 };
+        if (failPct >= 68) {
+            return { label: "ความเสี่ยงสูง", detail: "", badge: "br", rank: 0 };
         }
-        if (failPct >= 20) {
-            return { label: "ความเสี่ยงกลาง", badge: "by", rank: 1 };
+        if (failPct >= 34) {
+            return { label: "ความเสี่ยงกลาง", detail: "", badge: "by", rank: 1 };
         }
 
-        return { label: "ความเสี่ยงต่ำ", badge: "bg", rank: 2 };
+        return { label: "ความเสี่ยงต่ำ", detail: "", badge: "bg", rank: 2 };
     };
 
     const rankedDeptRows = [...deptRows].sort((a, b) => {
@@ -124,7 +136,8 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                         const failWidth = 100 - passWidth;
                         const assessedPct = getPct(d.assessed, d.total);
                         const riskStatus = getRiskStatus(d);
-                        const isCoverageLow = assessedPct < 50;
+                        const missingAssessments = d.total - d.assessed;
+                        const hasPendingAssessments = missingAssessments > 0;
                         const isOpen = openDept === d.n;
                         return (
                             <div key={d.n} className="mb14">
@@ -136,7 +149,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                     <div style={{ borderLeft: "4px solid var(--navy)", paddingLeft: "16px" }}>
                                         <div className="fw8 fs14" style={{ color: "var(--navy)" }}>{d.n}</div>
                                         <div className="muted fs12 mt4">{d.total} คน · ประเมินแล้ว {d.assessed} คน ({assessedPct}%)</div>
-                                        {isCoverageLow && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ข้อมูลประเมินยังไม่ครบ</div>}
+                                        {hasPendingAssessments && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ยังขาดผลประเมิน {missingAssessments} คน</div>}
                                     </div>
                                     <div style={{ border: "1px solid #fca5a5", background: "var(--red-bg)", color: "var(--red)", borderRadius: "8px", padding: "8px 10px", textAlign: "center" }}>
                                         <div className="fw8" style={{ fontSize: "18px", lineHeight: 1 }}>{d.fail}</div>
@@ -163,13 +176,18 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                 </button>
                                 {isOpen && (
                                     <div style={{ margin: "8px 20px 0 20px", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden", background: "var(--bg)" }}>
-                                        {(detailRows[d.n] || [{ n: "ยังไม่มีรายการสมรรถนะที่ต้องติดตาม", fail: 0, note: "ความเสี่ยงต่ำ" }]).map((row) => (
+                                        {detailRows[d.n] ? detailRows[d.n].map((row) => (
                                             <div key={row.n} className="flex ic g12" style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                                                <div className="fw6 fs12" style={{ flex: 1 }}>{row.n}</div>
+                                                <div className="flex ic g8" style={{ flex: 1 }}>
+                                                    <span className={row.tg}>{row.t}</span>
+                                                    <span className="fw6 fs12">{row.n}</span>
+                                                </div>
                                                 <span className="b br">{row.fail} คน</span>
                                                 <span className="muted fs12">{row.note}</span>
                                             </div>
-                                        ))}
+                                        )) : (
+                                            <div className="muted fs12" style={{ padding: "14px" }}>ยังไม่มีรายการสมรรถนะที่ต้องติดตาม</div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -181,7 +199,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             <div className="card" style={{ borderRadius: "14px", overflow: "hidden" }}>
                 <div className="ch" style={{ padding: "20px 22px", display: "block" }}>
                     <div className="ct" style={{ fontSize: "16px" }}>สมรรถนะที่มีปัญหา แยกตามสายงาน</div>
-                    <div className="cs">กดที่รายการเพื่อดูว่ามาจากหน่วยงานใดบ้าง</div>
+                    <div className="cs">CC = สมรรถนะหลัก · MC = สมรรถนะการบริหาร · FC = สมรรถนะตามสายงาน · กดที่รายการเพื่อดูว่ามาจากหน่วยงานใดบ้าง</div>
                 </div>
                 <div className="cb" style={{ padding: "12px 22px 22px" }}>
                     <div style={{ background: "var(--yellow-bg)", border: "1px solid #fde68a", borderRadius: "9px", color: "var(--yellow)", padding: "12px 16px", marginBottom: "20px", fontSize: "13px" }}>
@@ -201,7 +219,10 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                             style={{ width: "100%", background: "#fff", border: "1px solid var(--border)", borderRadius: "9px", padding: "16px 20px", boxShadow: "var(--sh)", cursor: "pointer", display: "grid", gridTemplateColumns: "52px minmax(220px, 1fr) 250px 88px 20px", gap: "16px", alignItems: "center", textAlign: "left", fontFamily: "inherit" }}
                                         >
                                             <span style={{ width: "32px", height: "32px", borderRadius: "50%", background: row.color, color: "#fff", display: "grid", placeItems: "center", fontWeight: 800 }}>{idx + 1}</span>
-                                            <span className="fw8 fs14" style={{ color: "var(--navy)" }}>{row.n}</span>
+                                            <span className="flex ic g8" style={{ minWidth: 0 }}>
+                                                <span className={row.tg}>{row.t}</span>
+                                                <span className="fw8 fs14" style={{ color: "var(--navy)" }}>{row.n}</span>
+                                            </span>
                                             <span style={{ height: "8px", borderRadius: "999px", background: "#e2e8f0", overflow: "hidden", display: "block" }}>
                                                 <span style={{ display: "block", height: "100%", width: `${row.width}%`, background: row.color, borderRadius: "999px" }} />
                                             </span>
