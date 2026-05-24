@@ -1,15 +1,110 @@
 import React, { useState } from 'react';
+import { ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 import { DEPT_STRUCTURE } from '../data';
 
 export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
     const [openDept, setOpenDept] = useState<string | null>(null);
     const [openProblem, setOpenProblem] = useState<string | null>(null);
+    const [worklineFilter, setWorklineFilter] = useState("all");
+    const [assessmentFilter, setAssessmentFilter] = useState("assessed");
+    const [deptSort, setDeptSort] = useState("risk");
+    const [deptSortDir, setDeptSortDir] = useState<"asc" | "desc">("asc");
 
-    const totalStaff = 247;
-    const assessed = 220;
-    const passed = 147;
-    const failed = 73;
-    const passPct = Math.round((passed / assessed) * 100);
+    const mockCompetencies = {
+        digital: { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC2", tg: "tag-fc2" },
+        data: { n: "การวิเคราะห์ข้อมูล", t: "FC2", tg: "tag-fc2" },
+        ai: { n: "AI Literacy", t: "CC", tg: "tag-cc" },
+        teamwork: { n: "การทำงานเป็นทีม", t: "CC", tg: "tag-cc" },
+        teaching: { n: "การสอนและถ่ายทอด", t: "FC1", tg: "tag-fc1" },
+        leadership: { n: "Visionary Leadership", t: "MC", tg: "tag-mc" },
+        result: { n: "การมุ่งผลสัมฤทธิ์", t: "CC", tg: "tag-cc" }
+    };
+    const mockScenarioUsers = [
+        { n: "ตัวอย่าง เสี่ยงสูง 1", t: "นาย", sso: "MOCK-H01", p: "นักวิชาการคอมพิวเตอร์", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: ความเสี่ยงสูง", evalStatus: "unit_evaluated", act: true, mockFailedCompetencies: [mockCompetencies.digital, mockCompetencies.data] },
+        { n: "ตัวอย่าง เสี่ยงสูง 2", t: "นางสาว", sso: "MOCK-H02", p: "นักวิเคราะห์ข้อมูล", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: ความเสี่ยงสูง", evalStatus: "unit_evaluated", act: true, mockFailedCompetencies: [mockCompetencies.digital] },
+        { n: "ตัวอย่าง เสี่ยงสูง 3", t: "นาย", sso: "MOCK-H03", p: "นักจัดการงานทั่วไป", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: ความเสี่ยงสูง", evalStatus: "self_submitted", act: true, mockFailedCompetencies: [mockCompetencies.ai] },
+        { n: "ตัวอย่าง เสี่ยงสูง 4", t: "นาง", sso: "MOCK-H04", p: "นักทรัพยากรบุคคล", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: ความเสี่ยงสูง", evalStatus: "dept_evaluated", act: true, mockFailedCompetencies: [mockCompetencies.teamwork] },
+        { n: "ตัวอย่าง เสี่ยงสูง 5", t: "นาย", sso: "MOCK-H05", p: "เจ้าหน้าที่บริหารงาน", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: ความเสี่ยงสูง", evalStatus: "unit_evaluated", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง เฝ้าระวัง 1", t: "ผศ.ดร.", sso: "MOCK-W01", p: "อาจารย์", w: "สายวิชาการ", d: "ฝ่ายตัวอย่าง: เฝ้าระวัง", evalStatus: "unit_evaluated", act: true, mockFailedCompetencies: [mockCompetencies.ai] },
+        { n: "ตัวอย่าง เฝ้าระวัง 2", t: "รศ.ดร.", sso: "MOCK-W02", p: "อาจารย์", w: "สายวิชาการ", d: "ฝ่ายตัวอย่าง: เฝ้าระวัง", evalStatus: "unit_evaluated", act: true, mockFailedCompetencies: [mockCompetencies.teaching] },
+        { n: "ตัวอย่าง เฝ้าระวัง 3", t: "ผศ.ดร.", sso: "MOCK-W03", p: "อาจารย์", w: "สายวิชาการ", d: "ฝ่ายตัวอย่าง: เฝ้าระวัง", evalStatus: "dept_evaluated", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง เฝ้าระวัง 4", t: "ดร.", sso: "MOCK-W04", p: "นักวิจัย", w: "สายวิชาการ", d: "ฝ่ายตัวอย่าง: เฝ้าระวัง", evalStatus: "unit_evaluated", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง เฝ้าระวัง 5", t: "อ.", sso: "MOCK-W05", p: "อาจารย์", w: "สายวิชาการ", d: "ฝ่ายตัวอย่าง: เฝ้าระวัง", evalStatus: "self_submitted", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง เกณฑ์ดี 1", t: "รศ.ดร.", sso: "MOCK-G01", p: "รองคณบดี", w: "สายงานบริหาร", d: "ฝ่ายตัวอย่าง: อยู่ในเกณฑ์ดี", evalStatus: "dean_approved", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง เกณฑ์ดี 2", t: "ผศ.ดร.", sso: "MOCK-G02", p: "ผู้ช่วยคณบดี", w: "สายงานบริหาร", d: "ฝ่ายตัวอย่าง: อยู่ในเกณฑ์ดี", evalStatus: "dean_approved", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง เกณฑ์ดี 3", t: "นาย", sso: "MOCK-G03", p: "นักจัดการงานทั่วไป", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: อยู่ในเกณฑ์ดี", evalStatus: "unit_evaluated", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง เกณฑ์ดี 4", t: "นางสาว", sso: "MOCK-G04", p: "นักวิชาการศึกษา", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: อยู่ในเกณฑ์ดี", evalStatus: "unit_evaluated", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง เกณฑ์ดี 5", t: "นาย", sso: "MOCK-G05", p: "นักเทคโนโลยีสารสนเทศ", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: อยู่ในเกณฑ์ดี", evalStatus: "dept_evaluated", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง ยังไม่ประเมิน 1", t: "นาย", sso: "MOCK-N01", p: "เจ้าหน้าที่บริหารงาน", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: ยังไม่มีการประเมิน", evalStatus: "draft", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง ยังไม่ประเมิน 2", t: "นาง", sso: "MOCK-N02", p: "นักวิชาการเงินและบัญชี", w: "สายสนับสนุน", d: "ฝ่ายตัวอย่าง: ยังไม่มีการประเมิน", evalStatus: "draft", act: true, mockFailedCompetencies: [] },
+        { n: "ตัวอย่าง ยังไม่ประเมิน 3", t: "ผศ.ดร.", sso: "MOCK-N03", p: "อาจารย์", w: "สายวิชาการ", d: "ฝ่ายตัวอย่าง: ยังไม่มีการประเมิน", evalStatus: "draft", act: true, mockFailedCompetencies: [] }
+    ];
+    const activeUsers = [...users.filter(user => user.act !== false), ...mockScenarioUsers];
+    const getSeed = (value: string) => value.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const getTopDept = (user: any) => {
+        if (!user.d) return "ไม่ระบุหน่วยงาน";
+        return user.d.includes(" > ") ? user.d.split(" > ")[0] : user.d;
+    };
+    const isAssessedUser = (user: any) => !["draft", "", undefined, null].includes(user.evalStatus);
+    const getMockFailedCompetencies = (user: any) => {
+        if (Array.isArray(user.mockFailedCompetencies)) return user.mockFailedCompetencies;
+        if (!isAssessedUser(user)) return [];
+
+        const seed = getSeed(`${user.sso || ""}${user.n || ""}`);
+        if (seed % 5 === 0 || user.evalStatus === "dean_approved") return [];
+
+        const supportItems = [
+            { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC2", tg: "tag-fc2" },
+            { n: "การวิเคราะห์ข้อมูล", t: "FC2", tg: "tag-fc2" },
+            { n: "AI Literacy", t: "CC", tg: "tag-cc" },
+            { n: "การทำงานเป็นทีม", t: "CC", tg: "tag-cc" }
+        ];
+        const academicItems = [
+            { n: "AI Literacy", t: "CC", tg: "tag-cc" },
+            { n: "การสอนและถ่ายทอด", t: "FC1", tg: "tag-fc1" },
+            { n: "การวิเคราะห์ข้อมูล", t: "FC1", tg: "tag-fc1" },
+            { n: "การสื่อสารเชิงวิชาการ", t: "FC1", tg: "tag-fc1" }
+        ];
+        const managementItems = [
+            { n: "Visionary Leadership", t: "MC", tg: "tag-mc" },
+            { n: "AI Literacy", t: "CC", tg: "tag-cc" },
+            { n: "การมุ่งผลสัมฤทธิ์", t: "CC", tg: "tag-cc" }
+        ];
+        const items = user.w === "สายวิชาการ"
+            ? academicItems
+            : user.w === "สายงานบริหาร"
+                ? managementItems
+                : supportItems;
+        const failCount = (seed % 3) + 1;
+
+        return items
+            .filter((_, index) => (seed + index * 3) % 7 < 4)
+            .slice(0, failCount);
+    };
+    const reportUsers = activeUsers.map(user => ({
+        ...user,
+        topDept: getTopDept(user),
+        assessed: isAssessedUser(user),
+        failedCompetencies: getMockFailedCompetencies(user)
+    }));
+    const worklineOptions = Array.from(new Set(reportUsers.map(user => user.w || "ไม่ระบุสายงาน")));
+    const worklineFilteredUsers = worklineFilter === "all"
+        ? reportUsers
+        : reportUsers.filter(user => (user.w || "ไม่ระบุสายงาน") === worklineFilter);
+    const filteredReportUsers = assessmentFilter === "all"
+        ? worklineFilteredUsers
+        : worklineFilteredUsers.filter(user => assessmentFilter === "assessed" ? user.assessed : !user.assessed);
+    const assessedUsers = filteredReportUsers.filter(user => user.assessed);
+    const passedUsers = assessedUsers.filter(user => user.failedCompetencies.length === 0);
+    const failedUsers = assessedUsers.filter(user => user.failedCompetencies.length > 0);
+    const worklineSummary = Array.from(new Set(filteredReportUsers.map(user => user.w || "ไม่ระบุสายงาน")))
+        .map(workline => `${workline.replace("สาย", "")} ${filteredReportUsers.filter(user => (user.w || "ไม่ระบุสายงาน") === workline).length}`)
+        .join(" · ");
+    const totalStaff = filteredReportUsers.length;
+    const assessed = assessedUsers.length;
+    const passed = passedUsers.length;
+    const failed = failedUsers.length;
+    const passPct = assessed ? Math.round((passed / assessed) * 100) : 0;
 
     const deptRows = [
         { n: "สำนักงานคณะฯ", total: 55, assessed: 55, pass: 43, fail: 12, lines: [
@@ -40,39 +135,24 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             label: "สายสนับสนุน",
             color: "var(--blue)",
             rows: [
-<<<<<<< HEAD
-                { n: "การใช้เทคโนโลยีดิจิทัล", count: 19, color: "var(--red)", width: 100, depts: [{ d: "สำนักงานคณะฯ", c: 5 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }, { d: "ภาควิชาวิศวฯ โยธา", c: 4 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 2 }, { d: "ภาควิชาวิศวฯ คอม", c: 5 }] },
-                { n: "การวิเคราะห์ข้อมูล", count: 16, color: "#f05a0a", width: 84, depts: [{ d: "สำนักงานคณะฯ", c: 5 }, { d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ คอม", c: 4 }] },
-                { n: "AI Literacy", count: 10, color: "#d97706", width: 53, depts: [{ d: "สำนักงานคณะฯ", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 3 }] },
-                { n: "การทำงานเป็นทีม", count: 8, color: "var(--teal)", width: 42, depts: [{ d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 5 }, { d: "ภาควิชาวิศวฯ โยธา", c: 3 }] }
-=======
                 { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", count: 19, color: "var(--red)", width: 100 },
                 { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", count: 16, color: "#f05a0a", width: 84 },
                 { n: "AI Literacy", t: "CC", tg: "tag-cc", count: 10, color: "#d97706", width: 53 },
                 { n: "การทำงานเป็นทีม", t: "CC", tg: "tag-cc", count: 8, color: "var(--teal)", width: 42 }
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
             ]
         },
         {
             label: "สายวิชาการ",
             color: "var(--purple)",
             rows: [
-<<<<<<< HEAD
-                { n: "AI Literacy", count: 28, color: "var(--red)", width: 100, depts: [{ d: "ภาควิชาวิศวฯ คอม", c: 9 }, { d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 7 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 5 }] },
-                { n: "การวิเคราะห์ข้อมูล", count: 14, color: "#f05a0a", width: 50, depts: [{ d: "ภาควิชาวิศวฯ คอม", c: 7 }, { d: "ภาควิชาวิศวฯ โยธา", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }] },
-                { n: "การใช้เทคโนโลยีดิจิทัล", count: 13, color: "#d97706", width: 46, depts: [{ d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ คอม", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 2 }] }
-=======
                 { n: "AI Literacy", t: "CC", tg: "tag-cc", count: 28, color: "var(--red)", width: 100 },
                 { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", count: 14, color: "#f05a0a", width: 50 },
                 { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", count: 13, color: "#d97706", width: 46 },
                 { n: "การสื่อสารเชิงวิชาการ", t: "FC", tg: "tag-fc", count: 9, color: "var(--teal)", width: 32 }
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
             ]
         }
     ];
 
-<<<<<<< HEAD
-=======
     const detailRows: Record<string, { n: string; t: string; tg: string; fail: number; note: string }[]> = {
         "สำนักงานคณะฯ": [
             { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", fail: 8, note: "ต้องพัฒนาเร่งด่วน" },
@@ -100,40 +180,148 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
         ]
     };
 
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
+    const aggregateWeakDetails = (people: typeof reportUsers) => {
+        const weakMap = new Map<string, { n: string; cnt: number }>();
+
+        people.forEach(user => {
+            user.failedCompetencies.forEach(item => {
+                const current = weakMap.get(item.n) || { n: item.n, cnt: 0 };
+                current.cnt += 1;
+                weakMap.set(item.n, current);
+            });
+        });
+
+        return Array.from(weakMap.values()).sort((a, b) => b.cnt - a.cnt);
+    };
+    const reportDeptRows = Array.from(new Set(filteredReportUsers.map(user => user.topDept))).map(dept => {
+        const deptUsers = filteredReportUsers.filter(user => user.topDept === dept);
+        const deptAssessed = deptUsers.filter(user => user.assessed);
+        const deptFailed = deptAssessed.filter(user => user.failedCompetencies.length > 0);
+        const lines = Array.from(new Set(deptUsers.map(user => user.w || "ไม่ระบุสายงาน"))).map(workline => {
+            const lineUsers = deptUsers.filter(user => (user.w || "ไม่ระบุสายงาน") === workline);
+            const lineAssessed = lineUsers.filter(user => user.assessed);
+            const lineFailed = lineAssessed.filter(user => user.failedCompetencies.length > 0);
+
+            return {
+                n: workline,
+                total: lineUsers.length,
+                fail: lineFailed.length,
+                weakDetail: aggregateWeakDetails(lineFailed)
+            };
+        });
+
+        return {
+            n: dept,
+            total: deptUsers.length,
+            assessed: deptAssessed.length,
+            pass: deptAssessed.length - deptFailed.length,
+            fail: deptFailed.length,
+            lines
+        };
+    }).sort((a, b) => b.total - a.total || a.n.localeCompare(b.n, "th"));
+    const reportDetailRows: Record<string, { n: string; t: string; tg: string; fail: number; note: string }[]> = {};
+
+    reportDeptRows.forEach(dept => {
+        const deptUsers = filteredReportUsers.filter(user => user.topDept === dept.n && user.failedCompetencies.length > 0);
+        const compMap = new Map<string, { n: string; t: string; tg: string; fail: number; note: string }>();
+
+        deptUsers.forEach(user => {
+            user.failedCompetencies.forEach(item => {
+                const current = compMap.get(item.n) || { n: item.n, t: item.t, tg: item.tg, fail: 0, note: "" };
+                current.fail += 1;
+                current.note = current.fail > 1 ? "ควรวางแผนพัฒนาร่วมกัน" : "ติดตามรายบุคคล";
+                compMap.set(item.n, current);
+            });
+        });
+
+        reportDetailRows[dept.n] = Array.from(compMap.values()).sort((a, b) => b.fail - a.fail);
+    });
+    const reportProblemGroups = Array.from(new Set(filteredReportUsers.map(user => user.w || "ไม่ระบุสายงาน"))).map((workline, groupIndex) => {
+        const worklineUsers = filteredReportUsers.filter(user => (user.w || "ไม่ระบุสายงาน") === workline);
+        const compMap = new Map<string, { n: string; t: string; tg: string; count: number; depts: Map<string, number> }>();
+
+        worklineUsers.forEach(user => {
+            user.failedCompetencies.forEach(item => {
+                const current = compMap.get(item.n) || { n: item.n, t: item.t, tg: item.tg, count: 0, depts: new Map<string, number>() };
+                current.count += 1;
+                current.depts.set(user.topDept, (current.depts.get(user.topDept) || 0) + 1);
+                compMap.set(item.n, current);
+            });
+        });
+
+        const rows = Array.from(compMap.values()).sort((a, b) => b.count - a.count);
+        const maxCount = Math.max(...rows.map(row => row.count), 1);
+        const colors = ["var(--red)", "#f05a0a", "#d97706", "var(--teal)", "var(--blue)"];
+
+        return {
+            label: workline,
+            color: groupIndex % 2 === 0 ? "var(--blue)" : "var(--purple)",
+            rows: rows.map((row, index) => ({
+                n: row.n,
+                t: row.t,
+                tg: row.tg,
+                count: row.count,
+                color: colors[index % colors.length],
+                width: Math.round((row.count / maxCount) * 100),
+                depts: Array.from(row.depts.entries())
+                    .map(([d, c]) => ({ d, c }))
+                    .sort((a, b) => b.c - a.c)
+            }))
+        };
+    }).filter(group => group.rows.length > 0);
+
     const getPct = (value: number, total: number) => total ? Math.round((value / total) * 100) : 0;
     const getRiskStatus = (dept: typeof deptRows[number]) => {
+        if (!dept.assessed) {
+            return { label: "ยังไม่มีการประเมิน", badge: "muted", rank: 3, color: "#94a3b8" };
+        }
+
         const failPct = 100 - getPct(dept.pass, dept.assessed);
 
-<<<<<<< HEAD
-        if (failPct >= 35) {
-            return { label: "⚠ ความเสี่ยงสูง", badge: "br", rank: 0 };
+        if (failPct > 40) {
+            return { label: "⚠ ความเสี่ยงสูง", badge: "br", rank: 0, color: "var(--red)" };
         }
         if (failPct >= 20) {
-            return { label: "ต้องเฝ้าระวัง", badge: "by", rank: 1 };
+            return { label: "ต้องเฝ้าระวัง", badge: "by", rank: 1, color: "var(--yellow)" };
         }
 
-        return { label: "อยู่ในเกณฑ์ดี", badge: "bg", rank: 2 };
-=======
-        if (failPct >= 68) {
-            return { label: "ความเสี่ยงสูง", detail: "", badge: "br", rank: 0 };
-        }
-        if (failPct >= 34) {
-            return { label: "ความเสี่ยงกลาง", detail: "", badge: "by", rank: 1 };
-        }
-
-        return { label: "ความเสี่ยงต่ำ", detail: "", badge: "bg", rank: 2 };
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
+        return { label: "อยู่ในเกณฑ์ดี", badge: "bg", rank: 2, color: "var(--green)" };
     };
 
-    const rankedDeptRows = [...deptRows].sort((a, b) => {
+    const rankedDeptRows = [...reportDeptRows].sort((a, b) => {
         const aRisk = getRiskStatus(a);
         const bRisk = getRiskStatus(b);
-        const aFailPct = 100 - getPct(a.pass, a.assessed);
-        const bFailPct = 100 - getPct(b.pass, b.assessed);
+        const aFailPct = a.assessed ? 100 - getPct(a.pass, a.assessed) : -1;
+        const bFailPct = b.assessed ? 100 - getPct(b.pass, b.assessed) : -1;
+        const aCoverage = getPct(a.assessed, a.total);
+        const bCoverage = getPct(b.assessed, b.total);
+        const direction = deptSortDir === "asc" ? 1 : -1;
+        let result = 0;
 
-        return aRisk.rank - bRisk.rank || bFailPct - aFailPct;
+        if (deptSort === "risk") result = aRisk.rank - bRisk.rank || bFailPct - aFailPct || b.fail - a.fail;
+        else if (deptSort === "pass") result = b.pass - a.pass || b.total - a.total || a.n.localeCompare(b.n, "th");
+        else result = a.n.localeCompare(b.n, "th") || b.total - a.total;
+
+        return result * direction;
     });
+
+    const getProblemDeptRows = (count: number) => {
+        const deptNames = [
+            "สำนักงานคณะฯ",
+            "ภาควิชาวิศวฯ คอม",
+            "ภาควิชาวิศวฯ ไฟฟ้า",
+            "ภาควิชาวิศวฯ โยธา",
+            "ภาควิชาวิศวฯ อุตสาหการ"
+        ];
+        let remaining = count;
+
+        return deptNames.map((d, index) => {
+            const slotsLeft = deptNames.length - index;
+            const c = Math.max(1, Math.ceil(remaining / slotsLeft));
+            remaining -= c;
+            return { d, c };
+        }).filter(row => row.c > 0);
+    };
 
     return (
         <>
@@ -145,7 +333,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             <div className="mb20" style={{ background: "var(--navy)", borderRadius: "16px", padding: "34px", color: "#fff", display: "grid", gridTemplateColumns: "1fr auto", gap: "20px", alignItems: "center" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(120px, 1fr))", gap: "0" }}>
                     {[
-                        { l: "บุคลากรทั้งหมด", v: totalStaff, s: "วิชาการ 143 · สนับสนุน 104", c: "#fff" },
+                        { l: "บุคลากรทั้งหมด", v: totalStaff, s: worklineSummary || "ยังไม่มีข้อมูลผู้ใช้", c: "#fff" },
                         { l: "ประเมินแล้ว", v: assessed, s: `รอ ${totalStaff - assessed} คน`, c: "#fff" },
                         { l: "ผ่านเกณฑ์", v: passed, s: `${passPct}% ของที่ประเมิน`, c: "#4ade80" },
                         { l: "ไม่ผ่านเกณฑ์", v: failed, s: `${100 - passPct}% ของที่ประเมิน`, c: "#fca5a5" }
@@ -173,95 +361,148 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                         <div className="ct">ผลรายหน่วยงาน</div>
                         <div className="cs">กดที่หน่วยงานเพื่อดูรายสายงาน</div>
                     </div>
+                    <div className="flex ic g6" style={{ flex: "0 0 auto" }}>
+                        <span className="fs11 fw7 muted">สายงาน:</span>
+                        <select
+                            className="sel"
+                            value={worklineFilter}
+                            onChange={event => {
+                                setWorklineFilter(event.target.value);
+                                setOpenDept(null);
+                                setOpenProblem(null);
+                            }}
+                            style={{ width: "160px", height: "32px", padding: "4px 10px", fontSize: "12px" }}
+                        >
+                            <option value="all">ทุกสายงาน</option>
+                            {worklineOptions.map(workline => (
+                                <option key={workline} value={workline}>{workline}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex ic g6" style={{ flex: "0 0 auto" }}>
+                        <span className="fs11 fw7 muted">ผลประเมิน:</span>
+                        <select
+                            className="sel"
+                            value={assessmentFilter}
+                            onChange={event => {
+                                setAssessmentFilter(event.target.value);
+                                setOpenDept(null);
+                                setOpenProblem(null);
+                            }}
+                            style={{ width: "170px", height: "32px", padding: "4px 10px", fontSize: "12px" }}
+                        >
+                            <option value="assessed">มีผลการประเมิน</option>
+                            <option value="unassessed">ยังไม่มีผลการประเมิน</option>
+                            <option value="all">ทั้งหมด</option>
+                        </select>
+                    </div>
+                    <div className="flex ic g6" style={{ flex: "0 0 auto" }}>
+                        <span className="fs11 fw7 muted">เรียงตาม:</span>
+                        <select
+                            className="sel"
+                            value={deptSort}
+                            onChange={event => {
+                                setDeptSort(event.target.value);
+                                setOpenDept(null);
+                            }}
+                            style={{ width: "160px", height: "32px", padding: "4px 10px", fontSize: "12px" }}
+                        >
+                            <option value="all">ทั้งหมด</option>
+                            <option value="risk">ความเสี่ยง</option>
+                            <option value="pass">จำนวนผู้ผ่าน</option>
+                        </select>
+                        <button
+                            type="button"
+                            className="btn btn-s btn-xs"
+                            title={deptSortDir === "asc" ? "เรียงจากน้อยไปมาก" : "เรียงจากมากไปน้อย"}
+                            onClick={() => {
+                                setDeptSortDir(prev => prev === "asc" ? "desc" : "asc");
+                                setOpenDept(null);
+                            }}
+                            style={{ width: "32px", height: "32px", padding: 0, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                            {deptSortDir === "asc" ? <ArrowUpAZ size={15} /> : <ArrowDownAZ size={15} />}
+                        </button>
+                    </div>
+                    <div style={{ marginLeft: "auto", display: "flex", gap: "18px", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center" }}>
+                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                            <span className="fs11 fw7 muted">สีแถบผลประเมิน:</span>
+                            <span className="flex ic g6 fs11 muted"><span style={{ width: "22px", height: "8px", borderRadius: "99px", background: "var(--green)", display: "inline-block" }} /> ผ่าน</span>
+                            <span className="flex ic g6 fs11 muted"><span style={{ width: "22px", height: "8px", borderRadius: "99px", background: "#FECACA", display: "inline-block" }} /> ไม่ผ่าน</span>
+                            <span className="flex ic g6 fs11 muted"><span style={{ width: "22px", height: "8px", borderRadius: "99px", background: "#e2e8f0", display: "inline-block" }} /> ยังไม่มีการประเมิน</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                            <span className="fs11 fw7 muted">เกณฑ์ความเสี่ยง:</span>
+                            <span className="b br" style={{ fontSize: "10px" }}>ไม่ผ่าน &gt; 40% = สูง</span>
+                            <span className="b by" style={{ fontSize: "10px" }}>20-40% = เฝ้าระวัง</span>
+                            <span className="b bg" style={{ fontSize: "10px" }}>&lt; 20% = อยู่ในเกณฑ์ดี</span>
+                            <span className="b muted" style={{ fontSize: "10px" }}>0 คนประเมิน = ยังไม่มีการประเมิน</span>
+                        </div>
+                    </div>
                 </div>
                 <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div className="muted fs11 fw7" style={{ display: "grid", gridTemplateColumns: "4px minmax(220px, 1.4fr) 128px minmax(160px, 1fr) 132px 20px", alignItems: "center", gap: "12px", padding: "0 16px 2px" }}>
+                        <span />
+                        <span>หน่วยงาน</span>
+                        <span style={{ textAlign: "center" }}>ผลประเมิน</span>
+                        <span>สัดส่วนผ่าน / ไม่ผ่าน</span>
+                        <span style={{ textAlign: "center" }}>สถานะ</span>
+                        <span />
+                    </div>
                     {rankedDeptRows.map((d) => {
                         const passWidth = getPct(d.pass, d.assessed);
-                        const failWidth = 100 - passWidth;
+                        const failWidth = d.assessed ? 100 - passWidth : 0;
                         const assessedPct = getPct(d.assessed, d.total);
                         const riskStatus = getRiskStatus(d);
                         const missingAssessments = d.total - d.assessed;
                         const hasPendingAssessments = missingAssessments > 0;
+                        const isCoverageLow = assessedPct < 100;
                         const isOpen = openDept === d.n;
                         return (
                             <div key={d.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
                                 <button
                                     type="button"
                                     onClick={() => setOpenDept(isOpen ? null : d.n)}
-                                    style={{ width: "100%", padding: "12px 16px", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", border: 0, textAlign: "left", fontFamily: "inherit" }}
+                                    style={{ width: "100%", padding: "12px 16px", background: "#fff", cursor: "pointer", display: "grid", gridTemplateColumns: "4px minmax(220px, 1.4fr) 128px minmax(160px, 1fr) 132px 20px", alignItems: "center", gap: "12px", border: 0, textAlign: "left", fontFamily: "inherit" }}
                                 >
-<<<<<<< HEAD
-                                    <div style={{ width: "4px", height: "36px", borderRadius: "3px", background: "var(--navy)", flexShrink: 0 }} />
-                                    <div style={{ flex: 1, minWidth: "140px" }}>
-                                        <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text)" }}>{d.n}</div>
+                                    <div style={{ width: "4px", height: "36px", borderRadius: "3px", background: riskStatus.color, flexShrink: 0 }} />
+                                    <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.n}>{d.n}</div>
                                         <div style={{ fontSize: "11px", color: "var(--text3)", marginTop: "2px" }}>{d.total} คน · ประเมินแล้ว {d.assessed} คน</div>
                                         {isCoverageLow && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ข้อมูลประเมินยังไม่ครบ</div>}
-=======
-                                    <div style={{ borderLeft: "4px solid var(--navy)", paddingLeft: "16px" }}>
-                                        <div className="fw8 fs14" style={{ color: "var(--navy)" }}>{d.n}</div>
-                                        <div className="muted fs12 mt4">{d.total} คน · ประเมินแล้ว {d.assessed} คน ({assessedPct}%)</div>
-                                        {hasPendingAssessments && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ยังขาดผลประเมิน {missingAssessments} คน</div>}
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
                                     </div>
-                                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                                        <div style={{ textAlign: "center", padding: "4px 12px", background: "var(--green-bg)", borderRadius: "var(--r)", border: "1px solid var(--green-md)" }}>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", alignItems: "stretch" }}>
+                                        <div style={{ textAlign: "center", padding: "4px 8px", background: "var(--green-bg)", borderRadius: "var(--r)", border: "1px solid var(--green-md)" }}>
                                             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--green)" }}>{d.pass}</div>
                                             <div style={{ fontSize: "10px", color: "var(--green)", fontWeight: 700 }}>ผ่าน</div>
                                         </div>
-                                        <div style={{ textAlign: "center", padding: "4px 12px", background: "var(--red-bg)", borderRadius: "var(--r)", border: "1px solid #FCA5A5" }}>
+                                        <div style={{ textAlign: "center", padding: "4px 8px", background: "var(--red-bg)", borderRadius: "var(--r)", border: "1px solid #FCA5A5" }}>
                                             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--red)" }}>{d.fail}</div>
                                             <div style={{ fontSize: "10px", color: "var(--red)", fontWeight: 700 }}>ไม่ผ่าน</div>
                                         </div>
                                     </div>
-                                    <div style={{ flex: 1, minWidth: "120px" }}>
+                                    <div style={{ minWidth: 0 }}>
                                         <div style={{ height: "10px", borderRadius: "6px", overflow: "hidden", display: "flex" }}>
-                                            <div style={{ width: `${passWidth}%`, background: "var(--green)", transition: ".3s" }} />
-                                            <div style={{ width: `${failWidth}%`, background: "#FECACA", transition: ".3s" }} />
+                                            {d.assessed ? (
+                                                <>
+                                                    <div style={{ width: `${passWidth}%`, background: "var(--green)", transition: ".3s" }} />
+                                                    <div style={{ width: `${failWidth}%`, background: "#FECACA", transition: ".3s" }} />
+                                                </>
+                                            ) : (
+                                                <div style={{ width: "100%", background: "#e2e8f0", transition: ".3s" }} />
+                                            )}
                                         </div>
                                         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "3px" }}>
                                             <span style={{ fontSize: "10px", color: "var(--text3)" }}>{passWidth}%</span>
                                             <span style={{ fontSize: "10px", color: "var(--text3)" }}>{failWidth}%</span>
                                         </div>
                                     </div>
-                                    <span className={`b ${riskStatus.badge}`} style={{ flexShrink: 0 }}>{riskStatus.label}</span>
-                                    <span style={{ fontSize: "11px", color: "var(--text3)", flexShrink: 0 }}>{isOpen ? "▴" : "▾"}</span>
+                                    <span className={`b ${riskStatus.badge}`} style={{ justifyContent: "center", width: "100%" }}>{riskStatus.label}</span>
+                                    <span style={{ fontSize: "11px", color: "var(--text3)", justifySelf: "center" }}>{isOpen ? "▴" : "▾"}</span>
                                 </button>
                                 {isOpen && (
-<<<<<<< HEAD
-                                    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
-                                        <div style={{ padding: "10px 16px 4px", fontSize: "10px", fontWeight: 800, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em" }}>รายสายงาน</div>
-                                        <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                                            {d.lines.map(line => {
-                                                const linePass = line.total - line.fail;
-                                                const linePct = getPct(linePass, line.total);
-                                                return (
-                                                    <div key={line.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden", background: "#fff" }}>
-                                                        <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px" }}>
-                                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text)", flex: "0 0 150px" }}>{line.n}</div>
-                                                            <div style={{ display: "flex", gap: "10px", fontSize: "12px" }}>
-                                                                <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ {linePass} ผ่าน</span>
-                                                                <span style={{ color: "var(--red)", fontWeight: 700 }}>✗ {line.fail} ไม่ผ่าน</span>
-                                                            </div>
-                                                            <div style={{ flex: 1, height: "7px", background: "var(--border)", borderRadius: "4px", overflow: "hidden" }}>
-                                                                <div style={{ height: "100%", width: `${linePct}%`, background: "var(--green)" }} />
-                                                            </div>
-                                                            <span style={{ fontSize: "11px", color: "var(--text3)" }}>{line.total} คน</span>
-                                                        </div>
-                                                        <div style={{ borderTop: "1px solid var(--border)", background: "#FFFBEB", padding: "8px 14px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
-                                                            <span style={{ fontSize: "10px", fontWeight: 800, color: "var(--yellow)" }}>⚠ สมรรถนะที่ตก:</span>
-                                                            {line.weakDetail.map(weak => (
-                                                                <span key={weak.n} style={{ fontSize: "11px", padding: "2px 8px", background: "var(--red-bg)", color: "var(--red)", borderRadius: "20px", fontWeight: 700 }}>
-                                                                    ⚠ {weak.n} <span style={{ background: "var(--red)", color: "#fff", borderRadius: "10px", padding: "0 5px", fontSize: "10px" }}>{weak.cnt} คน</span>
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-=======
                                     <div style={{ margin: "8px 20px 0 20px", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden", background: "var(--bg)" }}>
-                                        {detailRows[d.n] ? detailRows[d.n].map((row) => (
+                                        {reportDetailRows[d.n]?.length ? reportDetailRows[d.n].map((row) => (
                                             <div key={row.n} className="flex ic g12" style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
                                                 <div className="flex ic g8" style={{ flex: 1 }}>
                                                     <span className={row.tg}>{row.t}</span>
@@ -273,7 +514,6 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                         )) : (
                                             <div className="muted fs12" style={{ padding: "14px" }}>ยังไม่มีรายการสมรรถนะที่ต้องติดตาม</div>
                                         )}
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
                                     </div>
                                 )}
                             </div>
@@ -291,7 +531,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                     <div style={{ background: "var(--yellow-bg)", border: "1px solid #fde68a", borderRadius: "9px", color: "var(--yellow)", padding: "12px 16px", marginBottom: "20px", fontSize: "13px" }}>
                         ⚠ บุคลากร 1 คนสามารถไม่ผ่านได้หลายสมรรถนะ ผลรวมอาจสูงกว่าจำนวนจริง
                     </div>
-                    {problemGroups.map((group) => (
+                    {reportProblemGroups.map((group) => (
                         <div key={group.label} style={{ marginBottom: "26px" }}>
                             <div className="b" style={{ background: group.color, color: "#fff", fontSize: "13px", padding: "7px 16px", borderRadius: "20px", marginBottom: "14px" }}>{group.label}</div>
                             {group.rows.map((row, idx) => {
