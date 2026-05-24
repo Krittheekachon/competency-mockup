@@ -40,72 +40,27 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             label: "สายสนับสนุน",
             color: "var(--blue)",
             rows: [
-<<<<<<< HEAD
                 { n: "การใช้เทคโนโลยีดิจิทัล", count: 19, color: "var(--red)", width: 100, depts: [{ d: "สำนักงานคณะฯ", c: 5 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }, { d: "ภาควิชาวิศวฯ โยธา", c: 4 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 2 }, { d: "ภาควิชาวิศวฯ คอม", c: 5 }] },
                 { n: "การวิเคราะห์ข้อมูล", count: 16, color: "#f05a0a", width: 84, depts: [{ d: "สำนักงานคณะฯ", c: 5 }, { d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ คอม", c: 4 }] },
                 { n: "AI Literacy", count: 10, color: "#d97706", width: 53, depts: [{ d: "สำนักงานคณะฯ", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 3 }] },
                 { n: "การทำงานเป็นทีม", count: 8, color: "var(--teal)", width: 42, depts: [{ d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 5 }, { d: "ภาควิชาวิศวฯ โยธา", c: 3 }] }
-=======
-                { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", count: 19, color: "var(--red)", width: 100 },
-                { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", count: 16, color: "#f05a0a", width: 84 },
-                { n: "AI Literacy", t: "CC", tg: "tag-cc", count: 10, color: "#d97706", width: 53 },
-                { n: "การทำงานเป็นทีม", t: "CC", tg: "tag-cc", count: 8, color: "var(--teal)", width: 42 }
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
             ]
         },
         {
             label: "สายวิชาการ",
             color: "var(--purple)",
             rows: [
-<<<<<<< HEAD
                 { n: "AI Literacy", count: 28, color: "var(--red)", width: 100, depts: [{ d: "ภาควิชาวิศวฯ คอม", c: 9 }, { d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 7 }, { d: "ภาควิชาวิศวฯ อุตสาหการ", c: 5 }] },
                 { n: "การวิเคราะห์ข้อมูล", count: 14, color: "#f05a0a", width: 50, depts: [{ d: "ภาควิชาวิศวฯ คอม", c: 7 }, { d: "ภาควิชาวิศวฯ โยธา", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 3 }] },
                 { n: "การใช้เทคโนโลยีดิจิทัล", count: 13, color: "#d97706", width: 46, depts: [{ d: "ภาควิชาวิศวฯ โยธา", c: 7 }, { d: "ภาควิชาวิศวฯ คอม", c: 4 }, { d: "ภาควิชาวิศวฯ ไฟฟ้า", c: 2 }] }
-=======
-                { n: "AI Literacy", t: "CC", tg: "tag-cc", count: 28, color: "var(--red)", width: 100 },
-                { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", count: 14, color: "#f05a0a", width: 50 },
-                { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", count: 13, color: "#d97706", width: 46 },
-                { n: "การสื่อสารเชิงวิชาการ", t: "FC", tg: "tag-fc", count: 9, color: "var(--teal)", width: 32 }
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
             ]
         }
     ];
 
-<<<<<<< HEAD
-=======
-    const detailRows: Record<string, { n: string; t: string; tg: string; fail: number; note: string }[]> = {
-        "สำนักงานคณะฯ": [
-            { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", fail: 8, note: "ต้องพัฒนาเร่งด่วน" },
-            { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", fail: 4, note: "ความเสี่ยงกลาง" }
-        ],
-        "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร": [
-            { n: "AI Literacy", t: "CC", tg: "tag-cc", fail: 11, note: "ความเสี่ยงสูง" },
-            { n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", fail: 9, note: "ความเสี่ยงสูง" }
-        ],
-        "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้": [
-            { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", fail: 9, note: "ความเสี่ยงสูง" },
-            { n: "AI Literacy", t: "CC", tg: "tag-cc", fail: 7, note: "ความเสี่ยงกลาง" }
-        ],
-        "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ": [
-            { n: "การวิเคราะห์ข้อมูลวิจัย", t: "FC", tg: "tag-fc", fail: 6, note: "ความเสี่ยงกลาง" },
-            { n: "การสื่อสารเชิงวิชาการ", t: "FC", tg: "tag-fc", fail: 4, note: "ความเสี่ยงต่ำ" }
-        ],
-        "ฝ่ายบริหาร": [
-            { n: "Visionary Leadership", t: "MC", tg: "tag-mc", fail: 4, note: "ความเสี่ยงกลาง" },
-            { n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", fail: 3, note: "ความเสี่ยงต่ำ" }
-        ],
-        "หน่วยงานสายวิชาการ": [
-            { n: "AI Literacy", t: "CC", tg: "tag-cc", fail: 5, note: "ความเสี่ยงสูง" },
-            { n: "การสื่อสารเชิงวิชาการ", t: "FC", tg: "tag-fc", fail: 3, note: "ความเสี่ยงกลาง" }
-        ]
-    };
-
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
     const getPct = (value: number, total: number) => total ? Math.round((value / total) * 100) : 0;
     const getRiskStatus = (dept: typeof deptRows[number]) => {
         const failPct = 100 - getPct(dept.pass, dept.assessed);
 
-<<<<<<< HEAD
         if (failPct >= 35) {
             return { label: "⚠ ความเสี่ยงสูง", badge: "br", rank: 0 };
         }
@@ -114,16 +69,13 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
         }
 
         return { label: "อยู่ในเกณฑ์ดี", badge: "bg", rank: 2 };
-=======
-        if (failPct >= 68) {
-            return { label: "ความเสี่ยงสูง", detail: "", badge: "br", rank: 0 };
-        }
-        if (failPct >= 34) {
-            return { label: "ความเสี่ยงกลาง", detail: "", badge: "by", rank: 1 };
+    };
+    const getProblemTag = (name: string) => {
+        if (name === "AI Literacy" || name === "การทำงานเป็นทีม") {
+            return { label: "CC", cls: "tag-cc" };
         }
 
-        return { label: "ความเสี่ยงต่ำ", detail: "", badge: "bg", rank: 2 };
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
+        return { label: "FC", cls: "tag-fc" };
     };
 
     const rankedDeptRows = [...deptRows].sort((a, b) => {
@@ -182,6 +134,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                         const riskStatus = getRiskStatus(d);
                         const missingAssessments = d.total - d.assessed;
                         const hasPendingAssessments = missingAssessments > 0;
+                        const isCoverageLow = assessedPct < 100;
                         const isOpen = openDept === d.n;
                         return (
                             <div key={d.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
@@ -190,18 +143,11 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                     onClick={() => setOpenDept(isOpen ? null : d.n)}
                                     style={{ width: "100%", padding: "12px 16px", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", border: 0, textAlign: "left", fontFamily: "inherit" }}
                                 >
-<<<<<<< HEAD
                                     <div style={{ width: "4px", height: "36px", borderRadius: "3px", background: "var(--navy)", flexShrink: 0 }} />
                                     <div style={{ flex: 1, minWidth: "140px" }}>
                                         <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text)" }}>{d.n}</div>
                                         <div style={{ fontSize: "11px", color: "var(--text3)", marginTop: "2px" }}>{d.total} คน · ประเมินแล้ว {d.assessed} คน</div>
                                         {isCoverageLow && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ข้อมูลประเมินยังไม่ครบ</div>}
-=======
-                                    <div style={{ borderLeft: "4px solid var(--navy)", paddingLeft: "16px" }}>
-                                        <div className="fw8 fs14" style={{ color: "var(--navy)" }}>{d.n}</div>
-                                        <div className="muted fs12 mt4">{d.total} คน · ประเมินแล้ว {d.assessed} คน ({assessedPct}%)</div>
-                                        {hasPendingAssessments && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ยังขาดผลประเมิน {missingAssessments} คน</div>}
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
                                     </div>
                                     <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                         <div style={{ textAlign: "center", padding: "4px 12px", background: "var(--green-bg)", borderRadius: "var(--r)", border: "1px solid var(--green-md)" }}>
@@ -227,7 +173,6 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                     <span style={{ fontSize: "11px", color: "var(--text3)", flexShrink: 0 }}>{isOpen ? "▴" : "▾"}</span>
                                 </button>
                                 {isOpen && (
-<<<<<<< HEAD
                                     <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
                                         <div style={{ padding: "10px 16px 4px", fontSize: "10px", fontWeight: 800, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em" }}>รายสายงาน</div>
                                         <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -259,21 +204,6 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                                 );
                                             })}
                                         </div>
-=======
-                                    <div style={{ margin: "8px 20px 0 20px", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden", background: "var(--bg)" }}>
-                                        {detailRows[d.n] ? detailRows[d.n].map((row) => (
-                                            <div key={row.n} className="flex ic g12" style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                                                <div className="flex ic g8" style={{ flex: 1 }}>
-                                                    <span className={row.tg}>{row.t}</span>
-                                                    <span className="fw6 fs12">{row.n}</span>
-                                                </div>
-                                                <span className="b br">{row.fail} คน</span>
-                                                <span className="muted fs12">{row.note}</span>
-                                            </div>
-                                        )) : (
-                                            <div className="muted fs12" style={{ padding: "14px" }}>ยังไม่มีรายการสมรรถนะที่ต้องติดตาม</div>
-                                        )}
->>>>>>> 2a55ab007cd5f62bbb92c3942bdf4b77beed6125
                                     </div>
                                 )}
                             </div>
@@ -297,6 +227,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                             {group.rows.map((row, idx) => {
                                 const id = `${group.label}-${row.n}`;
                                 const isOpen = openProblem === id;
+                                const tag = getProblemTag(row.n);
                                 return (
                                     <div key={id} className="mb10">
                                         <button
@@ -306,7 +237,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                         >
                                             <span style={{ width: "32px", height: "32px", borderRadius: "50%", background: row.color, color: "#fff", display: "grid", placeItems: "center", fontWeight: 800 }}>{idx + 1}</span>
                                             <span className="flex ic g8" style={{ minWidth: 0 }}>
-                                                <span className={row.tg}>{row.t}</span>
+                                                <span className={tag.cls}>{tag.label}</span>
                                                 <span className="fw8 fs14" style={{ color: "var(--navy)" }}>{row.n}</span>
                                             </span>
                                             <span style={{ height: "8px", borderRadius: "999px", background: "#e2e8f0", overflow: "hidden", display: "block" }}>

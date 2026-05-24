@@ -16,6 +16,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
   const [filterType, setFilterType] = useState("สายวิชาการ");
   const [search, setSearch] = useState("");
   const [deptSearch, setDeptSearch] = useState("");
+  const getDisplayLevel = (user: any) => user.w === "สายงานบริหาร" ? user.p : user.l;
 
   const filteredDepts = Array.from(new Set([
     ...academicDepts,
@@ -228,8 +229,8 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                                  >
                                    {u.p || "—"}
                                  </div>
-                                 <div className="muted fs11 whitespace-nowrap overflow-hidden truncate" style={{ marginTop: "2px" }} title={u.l || ""}>
-                                   {u.l || "—"}
+                                 <div className="muted fs11 whitespace-nowrap overflow-hidden truncate" style={{ marginTop: "2px" }} title={getDisplayLevel(u) || ""}>
+                                   {getDisplayLevel(u) || "—"}
                                  </div>
                                </td>
                               <td style={{ minWidth: "140px" }}>
@@ -347,8 +348,8 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                             >
                               {u.p || "—"}
                             </div>
-                            <div className="muted fs12 whitespace-nowrap overflow-hidden truncate" style={{ marginTop: '4px' }} title={u.l || ""}>
-                              {u.l || "—"}
+                            <div className="muted fs12 whitespace-nowrap overflow-hidden truncate" style={{ marginTop: '4px' }} title={getDisplayLevel(u) || ""}>
+                              {getDisplayLevel(u) || "—"}
                             </div>
                           </td>
                           <td style={{ paddingTop: '24px', paddingBottom: '24px' }}>

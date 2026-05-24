@@ -18,6 +18,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
   const [deptFilter, setDeptFilter] = useState("ทุกหน่วยงาน");
   const [roleFilter, setRoleFilter] = useState("ทุกบทบาท (Role)");
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
+  const getDisplayLevel = (user: any) => user.w === "สายงานบริหาร" ? user.p : user.l;
 
   useEffect(() => {
     if (worklineFilter === "ทุกสายงาน") return;
@@ -171,7 +172,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
                         {u.p || "—"}
                       </div>
                     </td>
-                    <td className="muted fs11">{u.l}</td>
+                    <td className="muted fs11">{getDisplayLevel(u) || "—"}</td>
                     <td className="muted fs12" style={{ maxWidth: "140px" }}>{u.sup || "—"}</td>
                     <td className="muted fs12" style={{ maxWidth: "140px" }}>{u.evaluator2 || "—"}</td>
                     <td>{getRoleBadge(u.r)}</td>
