@@ -2,9 +2,9 @@ export const ROLES_CONFIG = {
   admin: { lbl: "ผู้ดูแลระบบ", name: "วิชัย ระบบดี", av: "ว", pos: "ผู้ดูแลระบบคณะ", col: "#7C3AED" },
   hr: { lbl: "งานทรัพยากรบุคคล", name: "คุณมาลี ดีเสมอ", av: "ม", pos: "งานทรัพยากรบุคคล", col: "#2563EB" },
   employee: { lbl: "บุคลากร", name: "สมชาย มีสุข", av: "ส", pos: "นักวิชาการศึกษา · สายสนับสนุน", col: "#0EA5A0" },
-  supervisor: { lbl: "หัวหน้างาน", name: "ดร.สมศักดิ์ ใจงาม", av: "ด", pos: "หัวหน้าหน่วยแผนยุทธศาสตร์", col: "#EA580C" },
-  manager_dept: { lbl: "ผู้บังคับบัญชา", name: "รศ.ดร.วิไล ใจดี", av: "ว", pos: "ผู้บังคับบัญชาสายวิชาการ", col: "#D97706" },
-  manager: { lbl: "ผู้บริหารคณะ", name: "รศ.ดร.สมพงษ์ จงขยัน", av: "ส", pos: "คณบดี", col: "#0F2D5B" }
+  supervisor: { lbl: "หัวหน้างาน", name: "กัญญารัตน์ ศรีวิชา", av: "ก", pos: "หัวหน้างานสนับสนุนการศึกษาและวิชาการ", col: "#EA580C" },
+  manager_dept: { lbl: "ผู้บังคับบัญชา", name: "ผศ.ดร.ธนพล ไชยรักษ์", av: "ธ", pos: "รองคณบดีฝ่ายบริหาร", col: "#D97706" },
+  manager: { lbl: "ผู้บริหารคณะ", name: "รศ.ดร.กิตติพงศ์ แสงทอง", av: "ก", pos: "คณบดี", col: "#0F2D5B" }
 };
 
 export const NAV_CONFIG = {
@@ -75,7 +75,9 @@ export const NAV_CONFIG = {
       sec: "ภาพรวมคณะ",
       items: [
         { id: "mgr-gap", ic: "📈", lb: "Competency Gap คณะ" },
-        { id: "mgr-idp", ic: "📉", lb: "ติดตาม IDP ภาพรวม" }
+        { id: "mgr-idp", ic: "📉", lb: "ติดตาม IDP ภาพรวม" },
+        { id: "mgr-assessment-approval", ic: "✅", lb: "อนุมัติผลการประเมิน" },
+        { id: "mgr-idp-approval", ic: "🗂️", lb: "อนุมัติแผน IDP" }
       ]
     }
   ],
@@ -144,6 +146,8 @@ export const PAGE_TITLES = {
   "dept-monitor": "ภาพรวมหน่วยงาน (Department View)",
   "mgr-gap": "Competency Gap คณะ",
   "mgr-idp": "ติดตาม IDP ภาพรวม",
+  "mgr-assessment-approval": "อนุมัติผลการประเมิน",
+  "mgr-idp-approval": "อนุมัติแผน IDP",
   "hr-cycle": "รอบการประเมิน",
   "hr-template": "กำหนดความคาดหวัง",
   "hr-position-competencies": "กำหนดสมรรถนะประจำตำแหน่ง",
@@ -170,7 +174,7 @@ export const DEPT_STRUCTURE = {
     { work: "งานปฏิบัติการและบริการทางวิศวกรรม", units: ["หน่วยปฏิบัติการทางวิศวกรรม", "หน่วยเครื่องมือกลางทดสอบ และบริการห้องปฏิบัติการทางวิศวกรรม", "หน่วยบริการวิชาการและถ่ายทอดเทคโนโลยี"] }
   ],
   "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร": [
-    { work: "งานแผนยุทธศาสตร์และทรัพยากรบุคคล", units: ["หน่วยแผนยุทธศาสตร์", "หน่วยประกันคุณภาพ", "หน่วยเทคโนโลยีสารสนเทศ", "หน่วยพัฒนาทรัพยากรบุคคล"] }
+    { work: "งานแผนยุทธศาสตร์", units: ["หน่วยแผนยุทธศาสตร์", "หน่วยประกันคุณภาพ", "หน่วยเทคโนโลยีสารสนเทศ", "หน่วยพัฒนาทรัพยากรบุคคล"] }
   ]
 };
 
@@ -178,20 +182,20 @@ export const INITIAL_USERS = [
   { n: "กิตติพงศ์ แสงทอง", t: "รศ.ดร.", sso: "10000", p: "คณบดี", l: "คณบดี", w: "สายงานบริหาร", sup: "", r: "manager", act: true, g: "ชาย", fe: "Kittipong", le: "Saengthong", em: "kittipong.s@kku.ac.th", ph: "081-000-1000", d: "คณะวิศวกรรมศาสตร์", evalStatus: "draft" },
   { n: "ปาริชาติ วงศ์ดี", t: "รศ.ดร.", sso: "10001", p: "รองคณบดีฝ่ายวิชาการ", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "manager_dept", act: true, g: "หญิง", fe: "Parichat", le: "Wongdee", em: "parichat.w@kku.ac.th", ph: "081-000-1001", d: "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้", evalStatus: "draft" },
   { n: "ธนพล ไชยรักษ์", t: "ผศ.ดร.", sso: "10002", p: "รองคณบดีฝ่ายบริหาร", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "manager_dept", act: true, g: "ชาย", fe: "Thanaphon", le: "Chairak", em: "thanaphon.c@kku.ac.th", ph: "081-000-1002", d: "ฝ่ายบริหาร", evalStatus: "draft" },
-  { n: "สุรีพร นาคประสิทธิ์", t: "ศ.ดร.", sso: "11001", p: "อาจารย์", l: "ศาสตราจารย์", w: "สายวิชาการ", sup: "ปาริชาติ วงศ์ดี", r: "supervisor", act: true, g: "หญิง", fe: "Sureeporn", le: "Nakprasit", em: "sureeporn.n@kku.ac.th", ph: "081-000-1101", d: "อาจารย์", evalStatus: "self_submitted" },
-  { n: "เมธา ศิริกุล", t: "รศ.ดร.", sso: "11002", p: "อาจารย์", l: "รองศาสตราจารย์", w: "สายวิชาการ", sup: "ปาริชาติ วงศ์ดี", evaluator2: "สุรีพร นาคประสิทธิ์", r: "employee", act: true, g: "ชาย", fe: "Metha", le: "Sirikul", em: "metha.s@kku.ac.th", ph: "081-000-1102", d: "อาจารย์", evalStatus: "unit_evaluated" },
-  { n: "อรพรรณ ศรีสวัสดิ์", t: "ผศ.ดร.", sso: "11003", p: "อาจารย์", l: "ผู้ช่วยศาสตราจารย์", w: "สายวิชาการ", sup: "ปาริชาติ วงศ์ดี", evaluator2: "สุรีพร นาคประสิทธิ์", r: "employee", act: true, g: "หญิง", fe: "Oraphan", le: "Srisawat", em: "oraphan.s@kku.ac.th", ph: "081-000-1103", d: "อาจารย์", evalStatus: "draft" },
-  { n: "มาลี ดีเสมอ", t: "นางสาว", sso: "20001", p: "นักทรัพยากรบุคคล", l: "ชำนาญการ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "พรพิมล บุคคลดี", r: "hr", act: true, g: "หญิง", fe: "Malee", le: "Deesamer", em: "malee.d@kku.ac.th", ph: "081-000-2001", d: "ทรัพยากรบุคคล", evalStatus: "self_submitted" },
-  { n: "สมชาย มีสุข", t: "นาย", sso: "20002", p: "นักวิชาการศึกษา", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กัญญารัตน์ ศรีวิชา", r: "employee", act: true, g: "ชาย", fe: "Somchai", le: "Meesuk", em: "somchai.m@kku.ac.th", ph: "081-000-2002", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "self_submitted" },
-  { n: "วิชัย ระบบดี", t: "นาย", sso: "20003", p: "นักวิชาการคอมพิวเตอร์", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "ปกรณ์ ศิริวัฒน์", r: "admin", act: true, g: "ชาย", fe: "Wichai", le: "Rabobdee", em: "wichai.r@kku.ac.th", ph: "081-000-2003", d: "เทคโนโลยีสารสนเทศ", evalStatus: "draft" },
-  { n: "นฤมล ใจเย็น", t: "นาง", sso: "20004", p: "นักวิชาการแผนและสารสนเทศ", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", r: "supervisor", act: true, g: "หญิง", fe: "Naruemon", le: "Jaiyen", em: "naruemon.j@kku.ac.th", ph: "081-000-2004", d: "บริหารยุทธศาสตร์", evalStatus: "unit_evaluated" },
-  { n: "อดิศร เงินดี", t: "นาย", sso: "20005", p: "นักวิชาการเงินและบัญชี", l: "ชำนาญการ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "วารุณี พรหมบัญชี", r: "employee", act: false, g: "ชาย", fe: "Adisorn", le: "Ngoendee", em: "adisorn.n@kku.ac.th", ph: "081-000-2005", d: "บริการการเงิน", evalStatus: "draft" },
-  { n: "กัญญารัตน์ ศรีวิชา", t: "นาง", sso: "20006", p: "นักวิชาการศึกษา", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", r: "supervisor", act: true, g: "หญิง", fe: "Kanyarat", le: "Sriwicha", em: "kanyarat.w@kku.ac.th", ph: "081-000-2006", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "unit_evaluated" },
-  { n: "ปกรณ์ ศิริวัฒน์", t: "นาย", sso: "20007", p: "นักเทคโนโลยีสารสนเทศ", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", r: "supervisor", act: true, g: "ชาย", fe: "Pakorn", le: "Siriwat", em: "pakorn.t@kku.ac.th", ph: "081-000-2007", d: "เทคโนโลยีสารสนเทศ", evalStatus: "unit_evaluated" },
-  { n: "พรพิมล บุคคลดี", t: "นางสาว", sso: "20008", p: "นักทรัพยากรบุคคล", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", r: "supervisor", act: true, g: "หญิง", fe: "Pornpimol", le: "Bukkondee", em: "pornpimol.b@kku.ac.th", ph: "081-000-2008", d: "ทรัพยากรบุคคล", evalStatus: "unit_evaluated" },
-  { n: "วารุณี พรหมบัญชี", t: "นาง", sso: "20009", p: "นักบัญชี", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", r: "supervisor", act: true, g: "หญิง", fe: "Warunee", le: "Phrombunchee", em: "warunee.f@kku.ac.th", ph: "081-000-2009", d: "บริการการเงิน", evalStatus: "unit_evaluated" },
-  { n: "จิราพร วัฒนกลยุทธ์", t: "นางสาว", sso: "20010", p: "นักจัดการงานทั่วไป", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "นฤมล ใจเย็น", r: "employee", act: true, g: "หญิง", fe: "Jiraporn", le: "Wattanaklayut", em: "jiraporn.p@kku.ac.th", ph: "081-000-2010", d: "บริหารยุทธศาสตร์", evalStatus: "draft" },
-  { n: "ชลธิชา วรรณวิทย์", t: "นางสาว", sso: "20011", p: "นักวิชาการวิทยาศาสตร์", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กัญญารัตน์ ศรีวิชา", r: "employee", act: true, g: "หญิง", fe: "Chonthicha", le: "Wanwitt", em: "chonthicha.l@kku.ac.th", ph: "081-000-2011", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "draft" }
+  { n: "สุรีพร นาคประสิทธิ์", t: "ศ.ดร.", sso: "11001", p: "อาจารย์", l: "ศาสตราจารย์", w: "สายวิชาการ", sup: "ปาริชาติ วงศ์ดี", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Sureeporn", le: "Nakprasit", em: "sureeporn.n@kku.ac.th", ph: "081-000-1101", d: "อาจารย์", evalStatus: "self_submitted" },
+  { n: "เมธา ศิริกุล", t: "รศ.ดร.", sso: "11002", p: "อาจารย์", l: "รองศาสตราจารย์", w: "สายวิชาการ", sup: "สุรีพร นาคประสิทธิ์", evaluator2: "ปาริชาติ วงศ์ดี", r: "employee", act: true, g: "ชาย", fe: "Metha", le: "Sirikul", em: "metha.s@kku.ac.th", ph: "081-000-1102", d: "อาจารย์", evalStatus: "unit_evaluated" },
+  { n: "อรพรรณ ศรีสวัสดิ์", t: "ผศ.ดร.", sso: "11003", p: "อาจารย์", l: "ผู้ช่วยศาสตราจารย์", w: "สายวิชาการ", sup: "สุรีพร นาคประสิทธิ์", evaluator2: "ปาริชาติ วงศ์ดี", r: "employee", act: true, g: "หญิง", fe: "Oraphan", le: "Srisawat", em: "oraphan.s@kku.ac.th", ph: "081-000-1103", d: "อาจารย์", evalStatus: "draft" },
+  { n: "มาลี ดีเสมอ", t: "นางสาว", sso: "20001", p: "นักทรัพยากรบุคคล", l: "ชำนาญการ", w: "สายสนับสนุน", sup: "พรพิมล บุคคลดี", evaluator2: "ธนพล ไชยรักษ์", r: "hr", act: true, g: "หญิง", fe: "Malee", le: "Deesamer", em: "malee.d@kku.ac.th", ph: "081-000-2001", d: "ทรัพยากรบุคคล", evalStatus: "self_submitted" },
+  { n: "สมชาย มีสุข", t: "นาย", sso: "20002", p: "นักวิชาการศึกษา", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "ชาย", fe: "Somchai", le: "Meesuk", em: "somchai.m@kku.ac.th", ph: "081-000-2002", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "self_submitted" },
+  { n: "วิชัย ระบบดี", t: "นาย", sso: "20003", p: "นักวิชาการคอมพิวเตอร์", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ปกรณ์ ศิริวัฒน์", evaluator2: "ธนพล ไชยรักษ์", r: "admin", act: true, g: "ชาย", fe: "Wichai", le: "Rabobdee", em: "wichai.r@kku.ac.th", ph: "081-000-2003", d: "เทคโนโลยีสารสนเทศ", evalStatus: "draft" },
+  { n: "นฤมล ใจเย็น", t: "นาง", sso: "20004", p: "นักวิชาการแผนและสารสนเทศ", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Naruemon", le: "Jaiyen", em: "naruemon.j@kku.ac.th", ph: "081-000-2004", d: "บริหารยุทธศาสตร์", evalStatus: "unit_evaluated" },
+  { n: "อดิศร เงินดี", t: "นาย", sso: "20005", p: "นักวิชาการเงินและบัญชี", l: "ชำนาญการ", w: "สายสนับสนุน", sup: "วารุณี พรหมบัญชี", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: false, g: "ชาย", fe: "Adisorn", le: "Ngoendee", em: "adisorn.n@kku.ac.th", ph: "081-000-2005", d: "บริการการเงิน", evalStatus: "draft" },
+  { n: "กัญญารัตน์ ศรีวิชา", t: "นาง", sso: "20006", p: "นักวิชาการศึกษา", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Kanyarat", le: "Sriwicha", em: "kanyarat.w@kku.ac.th", ph: "081-000-2006", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "unit_evaluated" },
+  { n: "ปกรณ์ ศิริวัฒน์", t: "นาย", sso: "20007", p: "นักเทคโนโลยีสารสนเทศ", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "ชาย", fe: "Pakorn", le: "Siriwat", em: "pakorn.t@kku.ac.th", ph: "081-000-2007", d: "เทคโนโลยีสารสนเทศ", evalStatus: "unit_evaluated" },
+  { n: "พรพิมล บุคคลดี", t: "นางสาว", sso: "20008", p: "นักทรัพยากรบุคคล", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Pornpimol", le: "Bukkondee", em: "pornpimol.b@kku.ac.th", ph: "081-000-2008", d: "ทรัพยากรบุคคล", evalStatus: "unit_evaluated" },
+  { n: "วารุณี พรหมบัญชี", t: "นาง", sso: "20009", p: "นักบัญชี", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Warunee", le: "Phrombunchee", em: "warunee.f@kku.ac.th", ph: "081-000-2009", d: "บริการการเงิน", evalStatus: "unit_evaluated" },
+  { n: "จิราพร วัฒนกลยุทธ์", t: "นางสาว", sso: "20010", p: "นักจัดการงานทั่วไป", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "นฤมล ใจเย็น", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "หญิง", fe: "Jiraporn", le: "Wattanaklayut", em: "jiraporn.p@kku.ac.th", ph: "081-000-2010", d: "บริหารยุทธศาสตร์", evalStatus: "draft" },
+  { n: "ชลธิชา วรรณวิทย์", t: "นางสาว", sso: "20011", p: "นักวิชาการวิทยาศาสตร์", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "หญิง", fe: "Chonthicha", le: "Wanwitt", em: "chonthicha.l@kku.ac.th", ph: "081-000-2011", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "draft" }
 ];
 
 export const INITIAL_COMPETENCIES = [
@@ -213,7 +217,7 @@ export const INITIAL_COMPETENCIES = [
 ];
 
 export const IDP_GAPS_DATA = [
-  { cd: "FC2-061", n: "การใช้เทคโนโลยีดิจิทัล", t: "FC2", exp: 3, actual: 1, pri: "high", status: "rejected", rejectedBy: "รศ.ดร.วิไล ใจดี", rejectedDate: "8 พ.ค. 68", rejectComment: "กิจกรรมที่เลือกยังไม่ตรงกับสมรรถนะที่ต้องการพัฒนา ควรเพิ่ม OJT หรือ Workshop เฉพาะด้าน Digital Literacy" },
+  { cd: "FC2-061", n: "การใช้เทคโนโลยีดิจิทัล", t: "FC2", exp: 3, actual: 1, pri: "high", status: "rejected", rejectedBy: "ผศ.ดร.ธนพล ไชยรักษ์", rejectedDate: "8 พ.ค. 68", rejectComment: "กิจกรรมที่เลือกยังไม่ตรงกับสมรรถนะที่ต้องการพัฒนา ควรเพิ่ม OJT หรือ Workshop เฉพาะด้าน Digital Literacy" },
   { cd: "CC-003", n: "การทำงานเป็นทีม", t: "CC", exp: 3, actual: 2, pri: "medium", status: "submitted", rejectedBy: null, rejectedDate: null, rejectComment: null },
   { cd: "FC2-062", n: "การวิเคราะห์ข้อมูล", t: "FC2", exp: 2, actual: 1, pri: "medium", status: "draft", rejectedBy: null, rejectedDate: null, rejectComment: null }
 ];
@@ -221,7 +225,7 @@ export const IDP_GAPS_DATA = [
 export const IDP_ACTIVITIES_DATA = {
   "FC2-061": [
     { ic: "💻", bg: "#EFF6FF", t: "อบรม AI & Data Analytics", m: "Formal Learning", due: "30 มิ.ย. 68", st: "กำลังดำเนินการ", stC: "bt", result: null, logs: [{ d: "2 พ.ค.", n: "ลงทะเบียนหลักสูตรแล้ว", by: "สมชาย มีสุข", type: "log" }] },
-    { ic: "🤝", bg: "#F0FDF4", t: "Mentoring Program กับ รศ.ดร.วิไล", m: "Social Learning", due: "31 ก.ค. 68", st: "ไม่ผ่าน", stC: "br", result: "failed", rejectedBy: "รศ.ดร.วิไล ใจดี", rejectedDate: "10 พ.ค. 68", rejectComment: "ยังไม่ครบตามเกณฑ์ที่กำหนด จำนวนชั่วโมง Mentoring ไม่ถึง 10 ชม. และยังไม่ส่ง reflection log", logs: [{ d: "1 พ.ค.", n: "นัดครั้งที่ 1 เสร็จแล้ว", by: "สมชาย มีสุข", type: "log" }, { d: "15 พ.ค.", n: "นัดครั้งที่ 2 เสร็จแล้ว", by: "สมชาย มีสุข", type: "log" }, { d: "10 พ.ค.", n: "ไม่ผ่าน — ยังไม่ครบตามเกณฑ์ฯ", by: "รศ.ดร.วิไล ใจดี", type: "reject" }] }
+    { ic: "🤝", bg: "#F0FDF4", t: "Mentoring Program กับ ผศ.ดร.ธนพล", m: "Social Learning", due: "31 ก.ค. 68", st: "ไม่ผ่าน", stC: "br", result: "failed", rejectedBy: "ผศ.ดร.ธนพล ไชยรักษ์", rejectedDate: "10 พ.ค. 68", rejectComment: "ยังไม่ครบตามเกณฑ์ที่กำหนด จำนวนชั่วโมง Mentoring ไม่ถึง 10 ชม. และยังไม่ส่ง reflection log", logs: [{ d: "1 พ.ค.", n: "นัดครั้งที่ 1 เสร็จแล้ว", by: "สมชาย มีสุข", type: "log" }, { d: "15 พ.ค.", n: "นัดครั้งที่ 2 เสร็จแล้ว", by: "สมชาย มีสุข", type: "log" }, { d: "10 พ.ค.", n: "ไม่ผ่าน — ยังไม่ครบตามเกณฑ์ฯ", by: "ผศ.ดร.ธนพล ไชยรักษ์", type: "reject" }] }
   ],
   "CC-003": [
     { ic: "👥", bg: "#F5F3FF", t: "Peer Learning / Group Activity", m: "Social Learning", due: "30 มิ.ย. 68", st: "กำลังดำเนินการ", stC: "bt", result: null, logs: [{ d: "5 พ.ค.", n: "เริ่มกิจกรรมกลุ่มครั้งที่ 1", by: "สมชาย มีสุข", type: "log" }] }
