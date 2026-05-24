@@ -10,6 +10,9 @@ interface AdminOrgStructureProps {
   setAdminDepts: React.Dispatch<React.SetStateAction<string[]>>;
   supportOrg: any;
   setSupportOrg: React.Dispatch<React.SetStateAction<any>>;
+  users: any[];
+  orgSups: Record<string, string>;
+  setOrgSups: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   academicPos: string[];
   setAcademicPos: React.Dispatch<React.SetStateAction<string[]>>;
   supportPos: string[];
@@ -33,6 +36,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
   supportDepts, supportPositionGroups, setSupportPositionGroups,
   adminDepts, setAdminDepts, 
   supportOrg, setSupportOrg,
+  users, orgSups, setOrgSups,
   academicPos, setAcademicPos,
   supportPos, setSupportPos,
   adminPos, setAdminPos,
@@ -47,6 +51,9 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
   const [activeTab, setActiveTab] = useState("workline");
   const [editingItem, setEditingId] = useState<any>(null);
   const [newValue, setNewValue] = useState("");
+  const [newSupportDeptName, setNewSupportDeptName] = useState("");
+  const [newSupportWorkNames, setNewSupportWorkNames] = useState<Record<string, string>>({});
+  const [newSupportUnitNames, setNewSupportUnitNames] = useState<Record<string, string>>({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedSupportGroups, setExpandedSupportGroups] = useState<Record<string, boolean>>({});
   const [showAllSupportGroups, setShowAllSupportGroups] = useState(false);
@@ -58,6 +65,48 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
     parent: "",
     grandparent: ""
   });
+  const dean = users.find(user => user.r === "manager")?.n || "";
+  const deptManagers = users.filter(user => user.r === "manager_dept");
+  const supervisors = users.filter(user => user.r === "supervisor");
+
+  const setOrgHead = (path: string, value: string) => {
+    setOrgSups(current => ({ ...current, [path]: value }));
+  };
+
+  const addSupportDept = () => {
+    const name = newSupportDeptName.trim();
+    if (!name || supportOrg[name]) return;
+    setSupportOrg({ ...supportOrg, [name]: [] });
+    setSupportPositionGroups({ ...supportPositionGroups, [name]: [] });
+    setOrgSups(current => ({ ...current, [name]: deptManagers[0]?.n || dean }));
+    setNewSupportDeptName("");
+  };
+
+  const addSupportWork = (dept: string) => {
+    const name = (newSupportWorkNames[dept] || "").trim();
+    if (!name) return;
+    const works = supportOrg[dept] || [];
+    if (works.some((item: any) => item.work === name)) return;
+    setSupportOrg({ ...supportOrg, [dept]: [...works, { work: name, units: [] }] });
+    setOrgSups(current => ({ ...current, [[dept, name].join(" > ")]: supervisors[0]?.n || "" }));
+    setNewSupportWorkNames(current => ({ ...current, [dept]: "" }));
+  };
+
+  const addSupportUnit = (dept: string, workName: string) => {
+    const workPath = [dept, workName].join(" > ");
+    const name = (newSupportUnitNames[workPath] || "").trim();
+    if (!name) return;
+    const works = supportOrg[dept] || [];
+    setSupportOrg({
+      ...supportOrg,
+      [dept]: works.map((item: any) =>
+        item.work === workName && !(item.units || []).includes(name)
+          ? { ...item, units: [...(item.units || []), name] }
+          : item
+      )
+    });
+    setNewSupportUnitNames(current => ({ ...current, [workPath]: "" }));
+  };
 
   const startEdit = (type: string, oldName: string, extras?: any) => {
     setEditingId({ type, oldName, ...extras });
@@ -269,6 +318,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
 
       <div className="structure-tabs mb20">
         <button className={`structure-tab ${activeTab === "workline" ? "active" : ""}`} onClick={() => setActiveTab("workline")}>สายงาน</button>
+        <button className={`structure-tab ${activeTab === "support-chain" ? "active" : ""}`} onClick={() => setActiveTab("support-chain")}>ฝ่าย/งาน</button>
         <button className={`structure-tab ${activeTab === "dept" ? "active" : ""}`} onClick={() => setActiveTab("dept")}>กลุ่มงาน</button>
         <button className={`structure-tab ${activeTab === "pos" ? "active" : ""}`} onClick={() => setActiveTab("pos")}>ระดับตำแหน่ง</button>
         <button className={`structure-tab ${activeTab === "comp" ? "active" : ""}`} onClick={() => setActiveTab("comp")}>ประเภทสมรรถนะ</button>
@@ -373,6 +423,76 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                     </section>
                   );
                 })}
+              </div>
+            </div>
+          ) : activeTab === "support-chain" ? (
+            <div className="structure-pane">
+              <div className="structure-heading">ฝ่าย/งาน สายสนับสนุน</div>
+              <div className="structure-note">
+                <b>กำหนดได้สูงสุดอย่างละ 1 คน</b>
+                <span>หัวหน้าฝ่ายใช้บทบาทผู้บังคับบัญชา ส่วนหัวหน้างานใช้บทบาทหัวหน้างาน หน้าเพิ่มผู้ใช้จะอ้างอิงค่าจากหน้านี้โดยอัตโนมัติ</span>
+              </div>
+              <section className="structure-section">
+                <div className="structure-section-head">
+                  <div className="fw7 fs14 text-navy">เพิ่มฝ่ายสนับสนุน</div>
+                  <div className="flex g8" style={{ minWidth: 0 }}>
+                    <input className="inp" value={newSupportDeptName} onChange={e => setNewSupportDeptName(e.target.value)} placeholder="ชื่อฝ่ายใหม่" />
+                    <button className="btn btn-s btn-sm" onClick={addSupportDept}>+ เพิ่มฝ่าย</button>
+                  </div>
+                </div>
+              </section>
+              <div className="structure-stack">
+                {Object.keys(supportOrg).map(dept => (
+                  <section key={dept} className="structure-section">
+                    <div className="structure-section-head">
+                      <div>
+                        <div className="fw8 fs14 text-navy">{dept}</div>
+                        <div className="muted fs11">หัวหน้าฝ่าย (ผู้บังคับบัญชา)</div>
+                      </div>
+                      <select className="sel" style={{ maxWidth: "320px" }} value={orgSups[dept] || ""} onChange={e => setOrgHead(dept, e.target.value)}>
+                        <option value="">— เลือกหัวหน้าฝ่าย —</option>
+                        {deptManagers.map(user => <option key={user.sso} value={user.n}>{user.t}{user.n} · {user.p}</option>)}
+                      </select>
+                    </div>
+                    <div className="support-work-grid">
+                      {(supportOrg[dept] || []).map((work: any) => {
+                        const workPath = [dept, work.work].join(" > ");
+                        return (
+                          <div key={work.work} className="support-work-card">
+                            <div className="support-work-head">
+                              <div className="fw8 fs13 text-navy">{work.work}</div>
+                              <button className="btn-link" onClick={() => startEdit("support-work", work.work, { parent: dept })}>✎</button>
+                            </div>
+                            <div className="support-head-select">
+                              <div className="muted fs11">หัวหน้างาน</div>
+                              <select className="sel" value={orgSups[workPath] || ""} onChange={e => setOrgHead(workPath, e.target.value)}>
+                                <option value="">— เลือกหัวหน้างาน —</option>
+                                {supervisors.map(user => <option key={user.sso} value={user.n}>{user.t}{user.n} · {user.p}</option>)}
+                              </select>
+                            </div>
+                            <div className="support-unit-list">
+                              {(work.units || []).map((unit: string) => (
+                                <div key={unit} className="support-unit-row">
+                                  <span>{unit}</span>
+                                  <button className="btn-link" onClick={() => startEdit("support-unit", unit, { parent: dept, workName: work.work })}>✎</button>
+                                </div>
+                              ))}
+                              {(work.units || []).length === 0 && <div className="structure-empty">ยังไม่มีหน่วย</div>}
+                            </div>
+                            <div className="support-unit-add">
+                              <input className="inp" value={newSupportUnitNames[workPath] || ""} onChange={e => setNewSupportUnitNames(current => ({ ...current, [workPath]: e.target.value }))} placeholder="เพิ่มหน่วยใต้ งานนี้" />
+                              <button className="btn btn-s btn-sm" onClick={() => addSupportUnit(dept, work.work)}>+ เพิ่มหน่วย</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div className="support-work-card support-add-card">
+                        <input className="inp" value={newSupportWorkNames[dept] || ""} onChange={e => setNewSupportWorkNames(current => ({ ...current, [dept]: e.target.value }))} placeholder={`เพิ่มงานใต้${dept}`} />
+                        <button className="btn btn-s btn-sm" onClick={() => addSupportWork(dept)}>+ เพิ่มงาน</button>
+                      </div>
+                    </div>
+                  </section>
+                ))}
               </div>
             </div>
           ) : activeTab === "dept" ? (
@@ -570,6 +690,16 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         .structure-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
         .structure-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
         .structure-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); overflow: hidden; }
+        .support-chain-item { align-items: center; grid-column: span 2; }
+        .support-chain-item .sel { max-width: 280px; }
+        .support-unit-add { display: flex; gap: 8px; width: min(100%, 360px); }
+        .support-work-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); }
+        .support-work-card { display: grid; align-content: start; gap: 11px; min-height: 260px; padding: 14px; border: 1px solid #dbe5f1; border-radius: 8px; background: #fff; }
+        .support-work-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .support-unit-list { display: grid; gap: 9px; }
+        .support-unit-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 48px; padding: 10px 12px; border: 1px solid #dbe5f1; border-radius: 8px; background: #f8fafc; color: var(--text); font-size: 13px; font-weight: 650; }
+        .support-head-select { display: grid; gap: 5px; }
+        .support-add-card { min-height: 150px; border-style: dashed; background: #fbfdff; }
         .structure-empty { grid-column: 1 / -1; padding: 14px; border: 1px dashed var(--border); border-radius: 7px; color: var(--text3); font-size: 13px; text-align: center; }
         .support-columns { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
         .support-group-more { justify-self: start; margin-top: 12px; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: var(--blue); cursor: pointer; font-size: 12px; font-weight: 700; padding: 8px 10px; }

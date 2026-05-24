@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ExcelImportModal } from './SharedUI';
 
 interface AdminUsersProps {
@@ -15,22 +15,9 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState("");
   const [worklineFilter, setWorklineFilter] = useState("ทุกสายงาน");
-  const [deptFilter, setDeptFilter] = useState("ทุกหน่วยงาน");
   const [roleFilter, setRoleFilter] = useState("ทุกบทบาท (Role)");
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const getDisplayLevel = (user: any) => user.w === "สายงานบริหาร" ? user.p : user.l;
-
-  useEffect(() => {
-    if (worklineFilter === "ทุกสายงาน") return;
-    let list: string[] = [];
-    if (worklineFilter === "สายวิชาการ") list = academicDepts;
-    else if (worklineFilter === "สายสนับสนุน") list = supportDepts;
-    else if (worklineFilter === "สายงานบริหาร") list = adminDepts;
-
-    if (deptFilter !== "ทุกหน่วยงาน" && !list.includes(deptFilter)) {
-      setDeptFilter("ทุกหน่วยงาน");
-    }
-  }, [worklineFilter, academicDepts, supportDepts, adminDepts]);
 
   const toggleStatus = (sso: string) => {
     const next = users.map(u => {
@@ -57,10 +44,6 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
     const matchesSearch = u.n.toLowerCase().includes(search.toLowerCase()) || (u.sso && u.sso.toLowerCase().includes(search.toLowerCase()));
     const matchesWorkline = worklineFilter === "ทุกสายงาน" || u.w === worklineFilter;
     
-    // For support staff, d might be "Dept > Work > Unit", we should filter by top level if needed or exact
-    const topDept = (u.w === "สายสนับสนุน" && u.d && u.d.includes(" > ")) ? u.d.split(" > ")[0] : u.d;
-    const matchesDept = deptFilter === "ทุกหน่วยงาน" || topDept === deptFilter;
-
     let roleName = "บุคลากร";
     if (u.r === "admin") roleName = "ผู้ดูแลระบบ";
     else if (u.r === "hr") roleName = "งานทรัพยากรบุคคล";
@@ -71,14 +54,8 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
     const matchesRole = roleFilter === "ทุกบทบาท (Role)" || roleName === roleFilter;
     const matchesStatus = statusFilter === "ทุกสถานะ" || (statusFilter === "ปกติ / ใช้งาน" ? u.act === true : u.act === false);
 
-    return matchesSearch && matchesWorkline && matchesDept && matchesRole && matchesStatus;
+    return matchesSearch && matchesWorkline && matchesRole && matchesStatus;
   });
-
-  const availableDepts = 
-    worklineFilter === "สายวิชาการ" ? academicDepts :
-    worklineFilter === "สายสนับสนุน" ? supportDepts :
-    worklineFilter === "สายงานบริหาร" ? adminDepts :
-    Array.from(new Set([...academicDepts, ...supportDepts, ...adminDepts])).sort();
 
   return (
     <>
@@ -108,10 +85,6 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
             <option>ทุกสายงาน</option>
             {worklines.map(w => <option key={w} value={w}>{w}</option>)}
           </select>
-          <select className="sel" style={{ width: "180px" }} value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
-            <option>ทุกหน่วยงาน</option>
-            {availableDepts.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
           <select className="sel" style={{ width: "180px" }} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
             <option>ทุกบทบาท (Role)</option>
             <option>บุคลากร</option>
@@ -137,8 +110,8 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
                 <th style={{ minWidth: "200px" }}>หน่วยงาน / สังกัด</th>
                 <th>ตำแหน่ง</th>
                 <th>ระดับตำแหน่ง</th>
-                <th>ผู้ประเมินลำดับที่ 1</th>
-                <th>ผู้ประเมินลำดับที่ 2</th>
+                <th>หัวหน้างาน</th>
+                <th>ผู้บังคับบัญชา</th>
                 <th style={{ minWidth: "160px" }}>บทบาทในระบบ</th>
                 <th>สถานะ</th>
                 <th></th>

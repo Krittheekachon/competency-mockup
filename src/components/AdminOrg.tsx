@@ -195,8 +195,8 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                           <th>สายงาน</th>
                           <th style={{ minWidth: "200px" }}>กลุ่มงาน / สังกัด</th>
                           <th>ตำแหน่ง</th>
-                          <th>ผู้ประเมินลำดับที่ 1</th>
-                          <th>ผู้ประเมินลำดับที่ 2</th>
+                          <th>ผู้ประเมินคนที่ 1 (หัวหน้างาน)</th>
+                          <th>ผู้ประเมินคนที่ 2 (ผู้บังคับบัญชา)</th>
                           <th>บทบาท</th>
                           <th style={{ width: "130px" }}></th>
                         </tr>
@@ -299,7 +299,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
               </div>
               <div className="flex ic jb">
                 <div className="fs13 fw5" style={{ color: 'var(--text3)' }}>
-                  {drillPath.length === 0 ? "📍 ระดับผู้บริหารคณะ" : `📍 รายชื่อผู้ที่มีผู้ประเมินลำดับที่ 1 เป็น: ${drillPath[drillPath.length - 1].n}`}
+                  {drillPath.length === 0 ? "📍 ระดับผู้บริหารคณะ" : `📍 รายชื่อผู้ที่มีหัวหน้างานเป็น: ${drillPath[drillPath.length - 1].n}`}
                 </div>
               </div>
             </div>
@@ -363,8 +363,8 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                               )}
                             </div>
                             <div className="muted fs12" style={{ marginTop: "8px" }}>
-                              <span className="fw6">ลำดับที่ 1:</span> {u.sup || "—"}
-                              {u.evaluator2 && <span> · <span className="fw6">ลำดับที่ 2:</span> {u.evaluator2}</span>}
+                              <span className="fw6">คนที่ 1 (หัวหน้างาน):</span> {u.sup || "—"}
+                              {u.evaluator2 && <span> · <span className="fw6">คนที่ 2 (ผู้บังคับบัญชา):</span> {u.evaluator2}</span>}
                             </div>
                           </td>
                           <td style={{ paddingRight: '40px', textAlign: 'right', paddingTop: '24px', paddingBottom: '24px' }} onClick={e => e.stopPropagation()}>
@@ -381,7 +381,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                   <div style={{ fontSize: '56px', marginBottom: '20px' }}>📁</div>
                   <div className="fw8 fs18 mb6" style={{ color: 'var(--navy)' }}>ยังไม่มีผู้รับการประเมินถัดไป</div>
                   <div className="muted fs14" style={{ maxWidth: '300px', textAlign: 'center', lineHeight: '1.6' }}>
-                    ไม่พบผู้ที่มีผู้ประเมินลำดับที่ 1 เป็น {drillPath[drillPath.length - 1]?.n}
+                    ไม่พบผู้ที่มีหัวหน้างานเป็น {drillPath[drillPath.length - 1]?.n}
                   </div>
                   <button className="btn btn-s mt24" onClick={() => popDrillPath(drillPath.length - 2)}>ย้อนกลับหนึ่งระดับ</button>
                 </div>
