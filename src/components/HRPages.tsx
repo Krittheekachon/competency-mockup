@@ -523,7 +523,6 @@ export const HRTemplate: React.FC<{
     adminPositions: string[];
     academicLevels: string[];
     supportLevels: string[];
-    adminLevels: string[];
     onOpenPositionBinding: (scope: HRPositionScope) => void;
 }> = ({
     worklines,
@@ -532,7 +531,6 @@ export const HRTemplate: React.FC<{
     adminPositions,
     academicLevels,
     supportLevels,
-    adminLevels,
     onOpenPositionBinding
 }) => {
     const supportFamilies = Object.keys(supportPositionGroups);
@@ -564,7 +562,7 @@ export const HRTemplate: React.FC<{
         { cd: "FC2-063", n: "การสื่อสาร", t: "FC", tg: "tag-fc", lv: 3 }
     ];
 
-    const makeScopeKey = (workline = selectedWorkline, family = getScopeFamily(), position = selectedPosition, level = selectedLevel) =>
+    const makeScopeKey = (workline = selectedWorkline, family = getScopeFamily(), position = selectedPosition, level = workline === "สายงานบริหาร" ? position : selectedLevel) =>
         `${workline}|${family}|${position}|${level}`;
 
     const makeRows = (rows = baseTemplates) => rows.map(row => ({ ...row }));
@@ -617,7 +615,6 @@ export const HRTemplate: React.FC<{
 
     const getLevelOptions = () => {
         if (selectedWorkline === "สายวิชาการ") return academicLevels;
-        if (selectedWorkline === "สายงานบริหาร") return adminLevels;
         return supportLevels;
     };
 
@@ -627,6 +624,8 @@ export const HRTemplate: React.FC<{
         return selectedFamily;
     };
 
+    const isAdminWorkline = selectedWorkline === "สายงานบริหาร";
+    const currentScopeLevel = isAdminWorkline ? selectedPosition : selectedLevel;
     const currentScopeKey = makeScopeKey();
     const savedRows = savedExpectations[selectedCycle]?.[currentScopeKey];
     const isSaved = Boolean(savedRows);
@@ -665,9 +664,10 @@ export const HRTemplate: React.FC<{
             setSelectedPosition(academicPositions[0] || "");
             setSelectedLevel(academicLevels[0] || "");
         } else if (value === "สายงานบริหาร") {
+            const nextPosition = adminPositions[0] || "";
             setSelectedFamily("คณะวิศวกรรมศาสตร์");
-            setSelectedPosition(adminPositions[0] || "");
-            setSelectedLevel(adminLevels[0] || "");
+            setSelectedPosition(nextPosition);
+            setSelectedLevel(nextPosition);
         } else {
             const nextFamily = supportFamilies[0] || "";
             setSelectedFamily(nextFamily);
@@ -689,7 +689,7 @@ export const HRTemplate: React.FC<{
     };
 
     const saveExpectations = () => {
-        if (!selectedWorkline || !selectedPosition || !selectedLevel) {
+        if (!selectedWorkline || !selectedPosition || (!isAdminWorkline && !selectedLevel)) {
             setStatus("กรุณาเลือกสายงาน ตำแหน่ง และระดับให้ครบก่อนบันทึก");
             return;
         }
@@ -955,16 +955,26 @@ export const HRTemplate: React.FC<{
                         )}
                         <div className="fg">
                             <label className="lbl">ตำแหน่ง</label>
-                            <select className="sel" value={selectedPosition} onChange={e => setSelectedPosition(e.target.value)}>
+                            <select className="sel" value={selectedPosition} onChange={e => {
+                                setSelectedPosition(e.target.value);
+                                if (isAdminWorkline) setSelectedLevel(e.target.value);
+                            }}>
                                 {getPositionOptions().map(position => <option key={position} value={position}>{position}</option>)}
                             </select>
                         </div>
-                        <div className="fg">
-                            <label className="lbl">ระดับ</label>
-                            <select className="sel" value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)}>
-                                {getLevelOptions().map(level => <option key={level} value={level}>{level}</option>)}
-                            </select>
-                        </div>
+                        {isAdminWorkline ? (
+                            <div className="fg">
+                                <label className="lbl">ระดับตำแหน่ง</label>
+                                <input className="inp" value={selectedPosition} readOnly />
+                            </div>
+                        ) : (
+                            <div className="fg">
+                                <label className="lbl">ระดับ</label>
+                                <select className="sel" value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)}>
+                                    {getLevelOptions().map(level => <option key={level} value={level}>{level}</option>)}
+                                </select>
+                            </div>
+                        )}
                         <div className={`expect-saved-box ${isSaved ? "saved" : ""}`}>
                             <span className={`b ${isSaved ? "bg" : "bgr"}`}>{isSaved ? "บันทึกแล้ว" : "ยังไม่ได้บันทึก"}</span>
                             <div className="muted fs11 mt4">{isSaved ? "มีชุดความคาดหวังในรอบนี้" : "แสดงค่าตั้งต้นจากระบบ"}</div>
@@ -976,7 +986,7 @@ export const HRTemplate: React.FC<{
                     <div className="ch">
                         <div>
                             <div className="ct">{selectedWorkline} · {getScopeFamily()} · {selectedPosition}</div>
-                            <div className="cs">ระดับ: {selectedLevel || "ยังไม่ได้เลือกระดับ"}</div>
+                            <div className="cs">{isAdminWorkline ? "ระดับตำแหน่ง" : "ระดับ"}: {currentScopeLevel || "ยังไม่ได้เลือกระดับ"}</div>
                         </div>
                         <div className="ml-auto flex g8">
                             <span className={`b ${isSaved ? "bg" : "by"}`}>{isSaved ? "✓ บันทึกแล้ว" : "ยังไม่บันทึก"}</span>
@@ -1405,10 +1415,21 @@ export const HRPositionCompetencies: React.FC<{
 
     return (
         <>
-            <div className="flex ic jb mb20">
+            <div className="position-hero mb14">
                 <div>
-                    <div className="sec-t">ผูกสมรรถนะกับตำแหน่ง 🔗</div>
-                    <div className="sec-s">HR เลือกสมรรถนะจากพจนานุกรมที่ Admin กรอกไว้ แล้วผูกเข้ากับตำแหน่ง</div>
+                    <div className="position-kicker">competency setup</div>
+                    <div className="sec-t position-title">กำหนดสมรรถนะประจำตำแหน่ง</div>
+                    <div className="sec-s position-sub">เลือกตำแหน่ง แล้วกำหนดชุดสมรรถนะที่ต้องใช้ประเมิน ก่อนนำไปตั้งระดับความคาดหวังในรอบประเมิน</div>
+                </div>
+                <div className="position-hero-metrics">
+                    <div>
+                        <span>{boundPositionCount}</span>
+                        <small>ตำแหน่งที่กำหนดแล้ว</small>
+                    </div>
+                    <div>
+                        <span>{totalPositionCount - boundPositionCount}</span>
+                        <small>ยังไม่กำหนด</small>
+                    </div>
                 </div>
             </div>
 
@@ -1419,174 +1440,187 @@ export const HRPositionCompetencies: React.FC<{
                 </div>
             )}
 
-            <div className="card mb14">
-                <div className="ch">
-                    <div>
-                        <div className="ct">เลือกขอบเขตตำแหน่ง</div>
-                        <div className="cs">เลือกสายงาน กลุ่มงาน และตำแหน่ง แล้วระบุว่าจะประเมินสมรรถนะข้อใดบ้าง</div>
+            <div className="position-scope mb14">
+                <div className="position-workline">
+                    <div className="position-scope-label">สายงาน</div>
+                    <div className="position-segments">
+                        {worklines.map(w => (
+                            <button key={w} type="button" className={selectedWorkline === w ? "active" : ""} onClick={() => setWorklineScope(w)}>
+                                {w}
+                            </button>
+                        ))}
                     </div>
                 </div>
-                <div className="cb">
-                    <div className="binding-filters">
+                <div className="position-picker">
+                    {selectedWorkline === "สายสนับสนุน" && (
                         <div className="fg mb0">
-                            <label className="lbl">สายงาน</label>
-                            <select className="sel" value={selectedWorkline} onChange={e => setWorklineScope(e.target.value)}>
-                                {worklines.map(w => <option key={w} value={w}>{w}</option>)}
+                            <label className="lbl">กลุ่มงาน / Job Family</label>
+                            <select className="sel" value={selectedFamily} onChange={e => setFamilyScope(e.target.value)}>
+                                {supportFamilies.map(group => <option key={group} value={group}>{group}</option>)}
                             </select>
                         </div>
-                        {selectedWorkline === "สายสนับสนุน" && (
-                            <div className="fg mb0">
-                                <label className="lbl">กลุ่มงาน / Job Family</label>
-                                <select className="sel" value={selectedFamily} onChange={e => setFamilyScope(e.target.value)}>
-                                    {supportFamilies.map(group => <option key={group} value={group}>{group}</option>)}
-                                </select>
-                            </div>
-                        )}
-                        <div className="fg mb0">
-                            <label className="lbl">ตำแหน่ง</label>
-                            <select className="sel" value={selectedPosition} onChange={e => setSelectedPosition(e.target.value)}>
-                                {getPositionOptions().map(pos => <option key={pos} value={pos}>{pos}</option>)}
-                            </select>
-                        </div>
+                    )}
+                    <div className="fg mb0">
+                        <label className="lbl">ตำแหน่ง</label>
+                        <select className="sel" value={selectedPosition} onChange={e => setSelectedPosition(e.target.value)}>
+                            {getPositionOptions().map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                        </select>
                     </div>
                 </div>
             </div>
 
-            <div className="binding-summary mb14">
-                <div className="sc">
-                    <div className="sl">ตำแหน่งที่ผูกสมรรถนะแล้ว</div>
-                    <div className={`sv ${boundPositionCount === totalPositionCount ? "gcc" : "bc"}`}>{boundPositionCount}<span style={{ fontSize: "14px", color: "var(--text3)" }}>/{totalPositionCount}</span></div>
-                    <div className="ss muted">{boundPositionCount === totalPositionCount ? "ครบทุกตำแหน่งแล้ว" : `ยังเหลือ ${Math.max(totalPositionCount - boundPositionCount, 0)} ตำแหน่ง`}</div>
+            <div className="position-board mb14">
+                <div className="position-card selected">
+                    <div className="position-card-label">ตำแหน่งที่กำลังกำหนด</div>
+                    <div className="position-card-title">{selectedPosition}</div>
+                    <div className="position-card-sub">{selectedWorkline} · {getScopeFamily()}</div>
                 </div>
-                <div className="sc">
-                    <div className="sl">สมรรถนะที่ผูกแล้ว</div>
-                    <div className="sv bc">{scopeBindings.length}</div>
-                    <div className="ss muted">{Object.entries(typeCounts).map(([type, count]) => `${type} ${count}`).join(" · ") || "ยังไม่มีรายการ"}</div>
+                <div className="position-card">
+                    <div className="position-card-label">สมรรถนะของตำแหน่งนี้</div>
+                    <div className="position-card-title">{scopeBindings.length}</div>
+                    <div className="position-card-sub">{Object.entries(typeCounts).map(([type, count]) => `${type} ${count}`).join(" · ") || "ยังไม่มีรายการ"}</div>
                 </div>
-                <div className="sc">
-                    <div className="sl">CC พื้นฐาน</div>
-                    <div className={`sv ${boundCoreCount === coreCompetencies.length ? "gcc" : "yc"}`}>{boundCoreCount}<span style={{ fontSize: "14px", color: "var(--text3)" }}>/{coreCompetencies.length}</span></div>
-                    <div className="ss muted">{boundCoreCount === coreCompetencies.length ? "ครบทุกคนต้องมี" : "กดเพิ่ม CC ทั้งหมดได้"}</div>
+                <div className="position-card">
+                    <div className="position-card-label">CC พื้นฐาน</div>
+                    <div className={`position-card-title ${boundCoreCount === coreCompetencies.length ? "ok" : "warn"}`}>{boundCoreCount}/{coreCompetencies.length}</div>
+                    <div className="position-card-sub">{boundCoreCount === coreCompetencies.length ? "ครบทุกตำแหน่งต้องมี" : "ยังขาด CC พื้นฐาน"}</div>
                 </div>
             </div>
 
-            <div className="binding-grid">
-                <div className="card">
-                    <div className="ch">
+            <div className="position-layout">
+                <section className="position-panel assigned">
+                    <div className="position-panel-head">
                         <div>
-                            <div className="ct">สมรรถนะของตำแหน่งนี้</div>
-                            <div className="cs">{selectedWorkline} · {getScopeFamily()} · {selectedPosition}</div>
-                        </div>
-                    </div>
-                    <div style={{ overflowX: "auto" }}>
-                        <table className="tbl binding-table">
-                            <thead>
-                                <tr>
-                                    <th>รหัส</th>
-                                    <th>สมรรถนะ</th>
-                                    <th>ประเภท</th>
-                                    <th>คำอธิบาย</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {scopeBindings.map(binding => {
-                                    const comp = findComp(binding.compCode);
-                                    if (!comp) return null;
-                                    return (
-                                        <tr key={binding.id}>
-                                            <td className="muted fs12 fw7">{binding.compCode}</td>
-                                            <td>
-                                                <div className="fw7">{comp.n}</div>
-                                                <div className="muted fs11 truncate-2">{comp.det}</div>
-                                            </td>
-                                            <td><span className={getCompTag(comp)}>{getCompType(comp)}</span></td>
-                                            <td>
-                                                <div className="muted fs12" style={{ lineHeight: 1.6 }}>
-                                                    {comp.det || "ยังไม่มีคำอธิบายจากพจนานุกรม"}
-                                                </div>
-                                            </td>
-                                            <td><button className="btn btn-r btn-xs" onClick={() => removeBinding(binding.id)}>ลบ</button></td>
-                                        </tr>
-                                    );
-                                })}
-                                {scopeBindings.length === 0 && (
-                                    <tr>
-                                        <td colSpan={5} className="muted" style={{ textAlign: "center", padding: "24px" }}>ยังไม่ได้ผูกสมรรถนะกับตำแหน่งนี้</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="card">
-                    <div className="ch flex ic jb">
-                        <div>
-                            <div className="ct">ดึงจากพจนานุกรมสมรรถนะ</div>
-                            <div className="cs">รายละเอียด ระดับ น้ำหนัก และพฤติกรรมมาจาก Admin ทั้งหมด</div>
+                            <div className="ct">ชุดสมรรถนะประจำตำแหน่ง</div>
+                            <div className="cs">รายการนี้จะถูกใช้เป็นฐานสำหรับกำหนด Expected Level</div>
                         </div>
                         <button className="btn btn-t btn-sm" onClick={addAllCoreCompetencies}>เพิ่ม CC ทั้งหมด</button>
                     </div>
-                    <div className="cb">
-                        <div className="fg">
-                            <label className="lbl">ค้นหา</label>
-                            <input className="inp" value={query} onChange={e => setQuery(e.target.value)} placeholder="เช่น CC-005, AI Literacy, ดิจิทัล" />
-                        </div>
-                        <div className="fg">
-                            <label className="lbl">ประเภทสมรรถนะ</label>
-                            <select className="sel" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-                                <option>ทั้งหมด</option>
-                                <option>CC</option>
-                                <option>MC</option>
-                                <option>FC1</option>
-                                <option>FC2</option>
-                            </select>
-                        </div>
-                        <div className="binding-catalog">
-                            {filteredCompetencies.map(comp => {
-                                const isBound = boundCodes.has(comp.cd);
-                                return (
-                                    <div key={comp.cd} className={`binding-catalog-item ${isBound ? "disabled" : ""}`}>
-                                        <div>
-                                            <div className="flex ic g8 mb4">
-                                                <span className="muted fs11 fw8">{comp.cd}</span>
-                                                <span className={getCompTag(comp)}>{getCompType(comp)}</span>
-                                            </div>
-                                            <div className="fw7 fs13">{comp.n}</div>
-                                            <div className="muted fs11 truncate-2">{comp.det}</div>
-                                            <div className="muted fs10 mt4">
-                                                {comp.levels?.length ? `${comp.levels.length} ระดับ · น้ำหนักตามพฤติกรรมบ่งชี้` : "ยังไม่มีรายละเอียดระดับจากพจนานุกรม"}
-                                            </div>
+                    <div className="assigned-list">
+                        {scopeBindings.length === 0 && (
+                            <div className="assigned-empty">
+                                <div className="assigned-empty-icon">🔗</div>
+                                <div className="fw8">ยังไม่ได้กำหนดสมรรถนะให้ตำแหน่งนี้</div>
+                                <div className="muted fs12">ค้นหาจากพจนานุกรมด้านขวา หรือกดเพิ่ม CC ทั้งหมดเพื่อเริ่มต้น</div>
+                            </div>
+                        )}
+                        {scopeBindings.map(binding => {
+                                    const comp = findComp(binding.compCode);
+                                    if (!comp) return null;
+                                    return (
+                                <div key={binding.id} className="assigned-item">
+                                    <div className="assigned-code">{binding.compCode}</div>
+                                    <div className="assigned-main">
+                                        <div className="flex ic g8 mb4">
+                                            <span className={getCompTag(comp)}>{getCompType(comp)}</span>
+                                            <span className="assigned-source">{binding.source === "default" ? "พื้นฐาน" : "กำหนดเอง"}</span>
                                         </div>
-                                        <button className={`btn btn-xs ${isBound ? "btn-s" : "btn-p"}`} disabled={isBound} onClick={() => addBinding(comp.cd)}>
-                                            {isBound ? "ผูกแล้ว" : "เพิ่ม"}
-                                        </button>
+                                        <div className="fw8 fs14">{comp.n}</div>
+                                        <div className="muted fs12 truncate-2">{comp.det || "ยังไม่มีคำอธิบายจากพจนานุกรม"}</div>
                                     </div>
-                                );
-                            })}
-                            {filteredCompetencies.length === 0 && <div className="muted fs12 ac py8">ไม่พบสมรรถนะที่ค้นหา</div>}
+                                    <button className="btn btn-r btn-xs" onClick={() => removeBinding(binding.id)}>ลบ</button>
+                                </div>
+                                    );
+                        })}
+                    </div>
+                </section>
+
+                <aside className="position-panel dictionary">
+                    <div className="position-panel-head">
+                        <div>
+                            <div className="ct">พจนานุกรมสมรรถนะ</div>
+                            <div className="cs">เลือกจากรายการที่ Admin กำหนดไว้</div>
                         </div>
                     </div>
-                </div>
+                    <div className="dictionary-tools">
+                        <input className="inp" value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหารหัส / ชื่อ / คำอธิบาย" />
+                        <select className="sel" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                            <option>ทั้งหมด</option>
+                            <option>CC</option>
+                            <option>MC</option>
+                            <option>FC1</option>
+                            <option>FC2</option>
+                        </select>
+                    </div>
+                    <div className="dictionary-list">
+                        {filteredCompetencies.map(comp => {
+                            const isBound = boundCodes.has(comp.cd);
+                            return (
+                                <div key={comp.cd} className={`dictionary-item ${isBound ? "disabled" : ""}`}>
+                                    <div>
+                                        <div className="flex ic g8 mb4">
+                                            <span className="dictionary-code">{comp.cd}</span>
+                                            <span className={getCompTag(comp)}>{getCompType(comp)}</span>
+                                        </div>
+                                        <div className="fw8 fs13">{comp.n}</div>
+                                        <div className="muted fs11 truncate-2">{comp.det || "ยังไม่มีคำอธิบาย"}</div>
+                                        <div className="dictionary-meta">
+                                            {comp.levels?.length ? `${comp.levels.length} ระดับ` : "ไม่มีระดับ"} · {isBound ? "อยู่ในชุดนี้แล้ว" : "พร้อมเพิ่ม"}
+                                        </div>
+                                    </div>
+                                    <button className={`btn btn-xs ${isBound ? "btn-s" : "btn-p"}`} disabled={isBound} onClick={() => addBinding(comp.cd)}>
+                                        {isBound ? "เพิ่มแล้ว" : "เพิ่ม"}
+                                    </button>
+                                </div>
+                            );
+                        })}
+                        {filteredCompetencies.length === 0 && <div className="muted fs12 ac py8">ไม่พบสมรรถนะที่ค้นหา</div>}
+                    </div>
+                </aside>
             </div>
 
             <style>{`
-                .binding-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end; }
-                .binding-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-                .binding-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr); gap: 14px; align-items: start; }
-                .binding-table td { vertical-align: middle; }
-                .binding-catalog { display: grid; gap: 8px; max-height: 520px; overflow-y: auto; padding-right: 4px; }
-                .binding-catalog-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 12px; border: 1px solid var(--border); border-radius: 7px; background: #fff; }
-                .binding-catalog-item:hover { border-color: var(--blue-md); background: var(--blue-lt); }
-                .binding-catalog-item.disabled { opacity: 0.58; background: var(--bg); }
+                .position-hero { min-height: 138px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: end; padding: 24px 26px; border-radius: 14px; background: #102f5d; color: #fff; box-shadow: 0 16px 34px rgba(15,45,91,.18); }
+                .position-kicker { color: rgba(255,255,255,.58); font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 8px; }
+                .position-title { color: #fff; font-size: 26px; }
+                .position-sub { color: rgba(255,255,255,.68); max-width: 760px; line-height: 1.65; }
+                .position-hero-metrics { display: grid; grid-template-columns: repeat(2, 120px); gap: 10px; }
+                .position-hero-metrics div { padding: 14px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; background: rgba(255,255,255,.08); }
+                .position-hero-metrics span { display: block; font-size: 30px; font-weight: 900; line-height: 1; }
+                .position-hero-metrics small { display: block; color: rgba(255,255,255,.64); font-size: 11px; font-weight: 700; margin-top: 6px; }
+                .position-scope { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(360px, 1fr); gap: 14px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: var(--sh); }
+                .position-scope-label { color: var(--text3); font-size: 11px; font-weight: 800; margin-bottom: 8px; }
+                .position-segments { display: flex; gap: 8px; flex-wrap: wrap; }
+                .position-segments button { min-height: 36px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--text2); padding: 0 14px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+                .position-segments button.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+                .position-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
+                .position-picker .fg:only-child { grid-column: 1 / -1; }
+                .position-board { display: grid; grid-template-columns: 1.35fr repeat(2, minmax(180px, .65fr)); gap: 14px; }
+                .position-card { min-height: 104px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: var(--sh); }
+                .position-card.selected { border-color: var(--blue-md); background: linear-gradient(180deg, #fff 0%, var(--blue-lt) 100%); }
+                .position-card-label { color: var(--text3); font-size: 11px; font-weight: 800; margin-bottom: 8px; }
+                .position-card-title { color: var(--text); font-size: 24px; font-weight: 900; line-height: 1.2; }
+                .position-card-title.ok { color: var(--green); }
+                .position-card-title.warn { color: var(--yellow); }
+                .position-card-sub { color: var(--text3); font-size: 12px; font-weight: 600; margin-top: 7px; }
+                .position-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr); gap: 14px; align-items: start; }
+                .position-panel { border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: var(--sh); overflow: hidden; }
+                .position-panel-head { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: #fff; }
+                .assigned-list { display: grid; gap: 10px; padding: 14px; }
+                .assigned-item { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 13px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+                .assigned-item:hover { border-color: var(--blue-md); background: #fbfdff; }
+                .assigned-code { width: 76px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; background: var(--bg); color: var(--text2); font-size: 12px; font-weight: 900; }
+                .assigned-source { color: var(--text3); font-size: 10px; font-weight: 800; }
+                .assigned-empty { min-height: 220px; display: grid; place-items: center; align-content: center; gap: 8px; border: 1px dashed var(--border); border-radius: 10px; background: var(--bg); text-align: center; }
+                .assigned-empty-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: #fff; box-shadow: var(--sh); font-size: 22px; }
+                .dictionary { position: sticky; top: 14px; }
+                .dictionary-tools { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 10px; padding: 14px; border-bottom: 1px solid var(--border); background: var(--bg); }
+                .dictionary-list { display: grid; gap: 8px; max-height: 560px; overflow-y: auto; padding: 14px; }
+                .dictionary-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+                .dictionary-item:hover { border-color: var(--blue-md); background: var(--blue-lt); }
+                .dictionary-item.disabled { opacity: .62; background: var(--bg); }
+                .dictionary-code { color: var(--text3); font-size: 11px; font-weight: 900; }
+                .dictionary-meta { color: var(--text3); font-size: 10px; font-weight: 700; margin-top: 5px; }
                 .truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
                 @media (max-width: 1100px) {
-                    .binding-grid { grid-template-columns: 1fr; }
-                    .binding-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                    .position-layout, .position-scope, .position-board, .position-hero { grid-template-columns: 1fr; }
+                    .dictionary { position: static; }
+                    .position-hero-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                 }
                 @media (max-width: 700px) {
-                    .binding-summary, .binding-filters { grid-template-columns: 1fr; }
+                    .position-picker, .dictionary-tools, .assigned-item { grid-template-columns: 1fr; }
+                    .position-hero { padding: 20px; }
+                    .position-title { font-size: 22px; }
                 }
             `}</style>
         </>

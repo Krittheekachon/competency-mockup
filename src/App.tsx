@@ -22,7 +22,7 @@ import AdminOrgStructure from './components/AdminOrgStructure';
 import AdminDict from './components/AdminDict';
 import Profile from './components/Profile';
 import { HRCycle, HRCatalog, HRMonitor, HRTemplate, HRPositionCompetencies } from './components/HRPages';
-import { EmployeeAssess, EmployeeGap, EmployeeIDP, EmployeeProgress } from './components/EmployeePages';
+import { EmployeeAssess, EmployeeGap, EmployeeIDP, EmployeeIDPDetail, EmployeeProgress } from './components/EmployeePages';
 import { SupervisorAssess, TeamGap, TeamIDP } from './components/SupervisorPages';
 import { ManagerGap, ManagerIDP, DeptMonitor } from './components/ManagerPages';
 
@@ -221,6 +221,7 @@ export default function App() {
     phone: ""
   });
   const [evaluatorPairError, setEvaluatorPairError] = useState("");
+  const isAdminWorkline = workline === "สายงานบริหาร";
 
   const [worklines, setWorklines] = useState(["สายวิชาการ", "สายสนับสนุน", "สายงานบริหาร"]);
   const [adminDepts, setAdminDepts] = useState(["คณะวิศวกรรมศาสตร์"]);
@@ -274,13 +275,6 @@ export default function App() {
     "รักษาการแทนผู้อำนวยการกองบริหารงานคณะ"
   ]);
 
-  const [adminPosList, setAdminPosList] = useState([
-    "บุคลากร (อายุงานไม่เกิน 1 ปี)",
-    "บุคลากร",
-    "ผู้ช่วยคณบดี / หัวหน้างาน",
-    "รองคณบดี",
-    "คณบดี"
-  ]);
   const [academicPosList, setAcademicPosList] = useState([
     "อาจารย์ (อายุงานไม่เกิน 1 ปี)",
     "อาจารย์",
@@ -487,7 +481,7 @@ export default function App() {
       ph: phone,
       sso: ssoId,
       p: position,
-      l: level,
+      l: isAdminWorkline ? position : level,
       w: workline,
       sup: submittedRoleId === "manager" ? "" : supervisor,
       evaluator2: showEvaluator2Field ? evaluator2 : "",
@@ -601,7 +595,6 @@ export default function App() {
           adminPos={adminPositions} setAdminPos={setAdminPositions}
           academicRank={academicPosList} setAcademicRank={setAcademicPosList}
           supportRank={supportPosList} setSupportRank={setSupportPosList}
-          adminRank={adminPosList} setAdminRank={setAdminPosList}
           worklines={worklines} setWorklines={setWorklines}
           competencyTypes={competencyTypes} setCompetencyTypes={setCompetencyTypes}
           learningMethods={learningMethods} setLearningMethods={setLearningMethods}
@@ -623,7 +616,6 @@ export default function App() {
             adminPositions={adminPositions}
             academicLevels={academicPosList}
             supportLevels={supportPosList}
-            adminLevels={adminPosList}
             onOpenPositionBinding={(scope) => {
               setHrPositionBindingScope(scope);
               setActivePage("hr-position-competencies");
@@ -980,7 +972,7 @@ export default function App() {
                   {workline === "สายงานบริหาร" && (
                     <div className="fg mb8">
                       <label className="lbl">ตำแหน่ง <span style={{ color: "var(--red)" }}>*</span></label>
-                      <select className="sel" value={position} onChange={e => { setPosition(e.target.value); setLevel(""); }} required>
+                      <select className="sel" value={position} onChange={e => { setPosition(e.target.value); setLevel(e.target.value); }} required>
                         <option value="">— เลือกตำแหน่ง —</option>
                         {getPositionOptions().map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
@@ -989,10 +981,14 @@ export default function App() {
                   {position && (
                     <div className="fg mb8">
                       <label className="lbl">ระดับตำแหน่ง <span style={{ color: "var(--red)" }}>*</span></label>
-                      <select className="sel" name="level" value={level} onChange={e => setLevel(e.target.value)} required>
-                        <option value="">— เลือกระดับตำแหน่ง —</option>
-                        {(workline === 'สายสนับสนุน' ? supportPosList : (workline === 'สายงานบริหาร' ? adminPosList : academicPosList)).map(l => <option key={l} value={l}>{l}</option>)}
-                      </select>
+                      {isAdminWorkline ? (
+                        <input className="inp" name="level" value={position} readOnly />
+                      ) : (
+                        <select className="sel" name="level" value={level} onChange={e => setLevel(e.target.value)} required>
+                          <option value="">— เลือกระดับตำแหน่ง —</option>
+                          {(workline === 'สายสนับสนุน' ? supportPosList : academicPosList).map(l => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                      )}
                     </div>
                   )}
                 </div>

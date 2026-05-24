@@ -20,8 +20,6 @@ interface AdminOrgStructureProps {
   setAcademicRank: React.Dispatch<React.SetStateAction<string[]>>;
   supportRank: string[];
   setSupportRank: React.Dispatch<React.SetStateAction<string[]>>;
-  adminRank: string[];
-  setAdminRank: React.Dispatch<React.SetStateAction<string[]>>;
   worklines: string[];
   setWorklines: React.Dispatch<React.SetStateAction<string[]>>;
   competencyTypes: string[];
@@ -40,11 +38,12 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
   adminPos, setAdminPos,
   academicRank, setAcademicRank,
   supportRank, setSupportRank,
-  adminRank, setAdminRank,
   worklines, setWorklines,
   competencyTypes, setCompetencyTypes,
   learningMethods, setLearningMethods
 }) => {
+  const POSITION_PREVIEW_LIMIT = 4;
+  const SUPPORT_GROUP_PREVIEW_LIMIT = 4;
   const [activeTab, setActiveTab] = useState("workline");
   const [editingItem, setEditingId] = useState<any>(null);
   const [newValue, setNewValue] = useState("");
@@ -105,7 +104,6 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
       case "admin-pos": setAdminPos(adminPos.map(v => v === oldName ? newValue : v)); break;
       case "academic-rank": setAcademicRank(academicRank.map(v => v === oldName ? newValue : v)); break;
       case "support-rank": setSupportRank(supportRank.map(v => v === oldName ? newValue : v)); break;
-      case "admin-rank": setAdminRank(adminRank.map(v => v === oldName ? newValue : v)); break;
       case "workline": setWorklines(worklines.map(v => v === oldName ? newValue : v)); break;
       case "comp-type": setCompetencyTypes(competencyTypes.map(v => v === oldName ? newValue : v)); break;
       case "learning-method":
@@ -154,7 +152,6 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
       case "admin-pos": setAdminPos(adminPos.filter(v => v !== oldName)); break;
       case "academic-rank": setAcademicRank(academicRank.filter(v => v !== oldName)); break;
       case "support-rank": setSupportRank(supportRank.filter(v => v !== oldName)); break;
-      case "admin-rank": setAdminRank(adminRank.filter(v => v !== oldName)); break;
       case "workline": setWorklines(worklines.filter(v => v !== oldName)); break;
       case "comp-type": setCompetencyTypes(competencyTypes.filter(v => v !== oldName)); break;
       case "learning-method": setLearningMethods(learningMethods.filter(item => item.key !== oldName)); break;
@@ -227,7 +224,6 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
       } else if (category === "rank") {
         if (type === "1") setAcademicRank([...academicRank, name]);
         else if (type === "2") setSupportRank([...supportRank, name]);
-        else if (type === "3") setAdminRank([...adminRank, name]);
       } else if (category === "workline") {
         setWorklines([...worklines, name]);
       } else if (category === "comp") {
@@ -300,7 +296,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                           </div>
                         </div>
                         <div className="support-columns">
-                          {(showAllSupportGroups ? supportDepts : supportDepts.slice(0, 5)).map(group => (
+                          {(showAllSupportGroups ? supportDepts : supportDepts.slice(0, SUPPORT_GROUP_PREVIEW_LIMIT)).map(group => (
                             <div key={group} className="support-column">
                               <div className="support-column-head">
                                 <div className="fw7 fs13 text-navy">{group}</div>
@@ -309,7 +305,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                               <div className="support-position-list">
                                 {(expandedSupportGroups[group]
                                   ? supportPositionGroups[group] || []
-                                  : (supportPositionGroups[group] || []).slice(0, 5)
+                                  : (supportPositionGroups[group] || []).slice(0, POSITION_PREVIEW_LIMIT)
                                 ).map(item => (
                                   <div key={item} className="structure-item group">
                                     <span className="fs12 fw6 text-gray-700">{item}</span>
@@ -318,23 +314,23 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                                 ))}
                                 {(supportPositionGroups[group] || []).length === 0 && <div className="structure-empty">ยังไม่มีตำแหน่ง</div>}
                               </div>
-                              {(supportPositionGroups[group] || []).length > 5 && (
+                              {(supportPositionGroups[group] || []).length > POSITION_PREVIEW_LIMIT && (
                                 <button
                                   className="support-more"
                                   onClick={() => setExpandedSupportGroups(current => ({ ...current, [group]: !current[group] }))}
                                 >
                                   {expandedSupportGroups[group]
                                     ? "ย่อรายการ"
-                                    : `ดูเพิ่มเติม ${(supportPositionGroups[group] || []).length - 5} รายการ`}
+                                    : `ดูเพิ่มเติม ${(supportPositionGroups[group] || []).length - POSITION_PREVIEW_LIMIT} รายการ`}
                                 </button>
                               )}
                               <button className="support-add" onClick={() => { setAddItemData({ category: "pos", type: "2", name: "", parent: group, grandparent: "" }); setShowAddModal(true); }}>+ เพิ่มตำแหน่ง</button>
                             </div>
                           ))}
                         </div>
-                        {supportDepts.length > 5 && (
+                        {supportDepts.length > SUPPORT_GROUP_PREVIEW_LIMIT && (
                           <button className="support-group-more" onClick={() => setShowAllSupportGroups(current => !current)}>
-                            {showAllSupportGroups ? "ย่อกลุ่มงาน" : `ดูกลุ่มงานเพิ่มเติม ${supportDepts.length - 5} กลุ่ม`}
+                            {showAllSupportGroups ? "ย่อกลุ่มงาน" : `ดูกลุ่มงานเพิ่มเติม ${supportDepts.length - SUPPORT_GROUP_PREVIEW_LIMIT} กลุ่ม`}
                           </button>
                         )}
                       </section>
@@ -439,11 +435,14 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
           ) : activeTab === "pos" ? (
             <div className="structure-pane">
               <div className="structure-heading">ระดับตำแหน่ง</div>
+              <div className="structure-note">
+                <b>สายงานบริหาร</b>
+                <span>ใช้ชื่อตำแหน่งเป็นระดับตำแหน่งอัตโนมัติ จึงไม่มีรายการระดับให้เพิ่มหรือแก้ไขแยก</span>
+              </div>
               <div className="structure-stack">
                 {[
                   { label: "สายวิชาการ", data: academicRank, type: "1", editType: "academic-rank" },
-                  { label: "สายสนับสนุน", data: supportRank, type: "2", editType: "support-rank" },
-                  { label: "สายงานบริหาร", data: adminRank, type: "3", editType: "admin-rank" }
+                  { label: "สายสนับสนุน", data: supportRank, type: "2", editType: "support-rank" }
                 ].map(group => (
                   <section key={group.label} className="structure-section">
                     <div className="structure-section-head">
@@ -563,6 +562,8 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         .structure-shell { min-height: 400px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--r); background: #fff; }
         .structure-pane { padding: 20px; }
         .structure-heading { margin-bottom: 14px; color: var(--text); font-size: 15px; font-weight: 800; }
+        .structure-note { display: grid; gap: 4px; margin-bottom: 14px; padding: 12px 14px; border: 1px solid var(--blue-md); border-left: 4px solid var(--blue); border-radius: 8px; background: var(--blue-lt); color: var(--text2); font-size: 12px; line-height: 1.55; }
+        .structure-note b { color: var(--blue); font-size: 13px; }
         .structure-stack { display: grid; gap: 0; }
         .structure-section { padding: 16px 0; border-top: 1px solid var(--border); }
         .structure-section:first-child { padding-top: 0; border-top: 0; }

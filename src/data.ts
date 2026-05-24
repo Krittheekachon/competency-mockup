@@ -146,7 +146,7 @@ export const PAGE_TITLES = {
   "mgr-idp": "ติดตาม IDP ภาพรวม",
   "hr-cycle": "รอบการประเมิน",
   "hr-template": "กำหนดความคาดหวัง",
-  "hr-position-competencies": "ผูกสมรรถนะกับตำแหน่ง",
+  "hr-position-competencies": "กำหนดสมรรถนะประจำตำแหน่ง",
   "hr-catalog": "Learning Catalog",
   "hr-monitor": "ติดตามภาพรวม",
   "hr-comp-overview": "ภาพรวม Competency คณะ",

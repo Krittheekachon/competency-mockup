@@ -11,6 +11,8 @@ const splitThaiName = (user: any) => ({
   lastName: user?.ln || user?.n?.split(" ").slice(1).join(" ") || ""
 });
 
+const getDisplayLevel = (user: any) => user?.w === "สายงานบริหาร" ? user?.p : user?.l;
+
 const Profile: React.FC<ProfileProps> = ({ user, onSave, onDirtyChange }) => {
   const initialName = splitThaiName(user);
   const [isEditing, setIsEditing] = useState(false);
@@ -27,7 +29,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onSave, onDirtyChange }) => {
     workline: user?.w || "",
     group: user?.d || "",
     position: user?.p || "",
-    level: user?.l || "",
+    level: getDisplayLevel(user) || "",
     role: user?.r || "employee",
     evaluator1: user?.sup || "",
     evaluator2: user?.evaluator2 || "",
@@ -52,7 +54,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onSave, onDirtyChange }) => {
       workline: user?.w || "",
       group: user?.d || "",
       position: user?.p || "",
-      level: user?.l || "",
+      level: getDisplayLevel(user) || "",
       role: user?.r || "employee",
       evaluator1: user?.sup || "",
       evaluator2: user?.evaluator2 || "",
@@ -119,7 +121,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onSave, onDirtyChange }) => {
       w: form.workline,
       d: form.group,
       p: form.position,
-      l: form.level,
+      l: form.workline === "สายงานบริหาร" ? form.position : form.level,
       r: form.role,
       sup: form.role === "manager" ? "" : form.evaluator1,
       evaluator2: ["employee", "hr", "admin"].includes(form.role) ? form.evaluator2 : "",
@@ -190,7 +192,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onSave, onDirtyChange }) => {
                   workline: user?.w || "",
                   group: user?.d || "",
                   position: user?.p || "",
-                  level: user?.l || "",
+                  level: getDisplayLevel(user) || "",
                   role: user?.r || "employee",
                   evaluator1: user?.sup || "",
                   evaluator2: user?.evaluator2 || "",
