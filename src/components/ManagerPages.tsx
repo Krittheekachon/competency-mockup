@@ -287,15 +287,12 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
 
         if (failPct > 40) {
             return { label: "⚠ ความเสี่ยงสูง", badge: "br", rank: 0, color: "var(--red)" };
-        if (failPct >= 35) {
-            return { label: "⚠ ความเสี่ยงสูง", badge: "br", rank: 0 };
         }
         if (failPct >= 20) {
             return { label: "ต้องเฝ้าระวัง", badge: "by", rank: 1, color: "var(--yellow)" };
         }
 
         return { label: "อยู่ในเกณฑ์ดี", badge: "bg", rank: 2, color: "var(--green)" };
-        return { label: "อยู่ในเกณฑ์ดี", badge: "bg", rank: 2 };
     };
     const getProblemTag = (name: string) => {
         if (name === "AI Literacy" || name === "การทำงานเป็นทีม") {
@@ -485,9 +482,6 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                     <div style={{ width: "4px", height: "36px", borderRadius: "3px", background: riskStatus.color, flexShrink: 0 }} />
                                     <div style={{ minWidth: 0 }}>
                                         <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.n}>{d.n}</div>
-                                    <div style={{ width: "4px", height: "36px", borderRadius: "3px", background: "var(--navy)", flexShrink: 0 }} />
-                                    <div style={{ flex: 1, minWidth: "140px" }}>
-                                        <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text)" }}>{d.n}</div>
                                         <div style={{ fontSize: "11px", color: "var(--text3)", marginTop: "2px" }}>{d.total} คน · ประเมินแล้ว {d.assessed} คน</div>
                                         {isCoverageLow && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ข้อมูลประเมินยังไม่ครบ</div>}
                                     </div>
@@ -521,52 +515,54 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                                     <span style={{ fontSize: "11px", color: "var(--text3)", justifySelf: "center" }}>{isOpen ? "▴" : "▾"}</span>
                                 </button>
                                 {isOpen && (
-                                    <div style={{ margin: "8px 20px 0 20px", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden", background: "var(--bg)" }}>
-                                        {reportDetailRows[d.n]?.length ? reportDetailRows[d.n].map((row) => (
-                                            <div key={row.n} className="flex ic g12" style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                                                <div className="flex ic g8" style={{ flex: 1 }}>
-                                                    <span className={row.tg}>{row.t}</span>
-                                                    <span className="fw6 fs12">{row.n}</span>
-                                                </div>
-                                                <span className="b br">{row.fail} คน</span>
-                                                <span className="muted fs12">{row.note}</span>
-                                            </div>
-                                        )) : (
-                                            <div className="muted fs12" style={{ padding: "14px" }}>ยังไม่มีรายการสมรรถนะที่ต้องติดตาม</div>
-                                        )}
-                                        </div>
-                                    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
-                                        <div style={{ padding: "10px 16px 4px", fontSize: "10px", fontWeight: 800, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em" }}>รายสายงาน</div>
-                                        <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                                            {d.lines.map(line => {
-                                                const linePass = line.total - line.fail;
-                                                const linePct = getPct(linePass, line.total);
-                                                return (
-                                                    <div key={line.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden", background: "#fff" }}>
-                                                        <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px" }}>
-                                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text)", flex: "0 0 150px" }}>{line.n}</div>
-                                                            <div style={{ display: "flex", gap: "10px", fontSize: "12px" }}>
-                                                                <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ {linePass} ผ่าน</span>
-                                                                <span style={{ color: "var(--red)", fontWeight: 700 }}>✗ {line.fail} ไม่ผ่าน</span>
-                                                            </div>
-                                                            <div style={{ flex: 1, height: "7px", background: "var(--border)", borderRadius: "4px", overflow: "hidden" }}>
-                                                                <div style={{ height: "100%", width: `${linePct}%`, background: "var(--green)" }} />
-                                                            </div>
-                                                            <span style={{ fontSize: "11px", color: "var(--text3)" }}>{line.total} คน</span>
-                                                        </div>
-                                                        <div style={{ borderTop: "1px solid var(--border)", background: "#FFFBEB", padding: "8px 14px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
-                                                            <span style={{ fontSize: "10px", fontWeight: 800, color: "var(--yellow)" }}>⚠ สมรรถนะที่ตก:</span>
-                                                            {line.weakDetail.map(weak => (
-                                                                <span key={weak.n} style={{ fontSize: "11px", padding: "2px 8px", background: "var(--red-bg)", color: "var(--red)", borderRadius: "20px", fontWeight: 700 }}>
-                                                                    ⚠ {weak.n} <span style={{ background: "var(--red)", color: "#fff", borderRadius: "10px", padding: "0 5px", fontSize: "10px" }}>{weak.cnt} คน</span>
-                                                                </span>
-                                                            ))}
-                                                        </div>
+                                    <>
+                                        <div style={{ margin: "8px 20px 0 20px", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden", background: "var(--bg)" }}>
+                                            {reportDetailRows[d.n]?.length ? reportDetailRows[d.n].map((row) => (
+                                                <div key={row.n} className="flex ic g12" style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
+                                                    <div className="flex ic g8" style={{ flex: 1 }}>
+                                                        <span className={row.tg}>{row.t}</span>
+                                                        <span className="fw6 fs12">{row.n}</span>
                                                     </div>
-                                                );
-                                            })}
+                                                    <span className="b br">{row.fail} คน</span>
+                                                    <span className="muted fs12">{row.note}</span>
+                                                </div>
+                                            )) : (
+                                                <div className="muted fs12" style={{ padding: "14px" }}>ยังไม่มีรายการสมรรถนะที่ต้องติดตาม</div>
+                                            )}
                                         </div>
-                                    </div>
+                                        <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
+                                            <div style={{ padding: "10px 16px 4px", fontSize: "10px", fontWeight: 800, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em" }}>รายสายงาน</div>
+                                            <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                                {d.lines.map(line => {
+                                                    const linePass = line.total - line.fail;
+                                                    const linePct = getPct(linePass, line.total);
+                                                    return (
+                                                        <div key={line.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden", background: "#fff" }}>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px" }}>
+                                                                <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text)", flex: "0 0 150px" }}>{line.n}</div>
+                                                                <div style={{ display: "flex", gap: "10px", fontSize: "12px" }}>
+                                                                    <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ {linePass} ผ่าน</span>
+                                                                    <span style={{ color: "var(--red)", fontWeight: 700 }}>✗ {line.fail} ไม่ผ่าน</span>
+                                                                </div>
+                                                                <div style={{ flex: 1, height: "7px", background: "var(--border)", borderRadius: "4px", overflow: "hidden" }}>
+                                                                    <div style={{ height: "100%", width: `${linePct}%`, background: "var(--green)" }} />
+                                                                </div>
+                                                                <span style={{ fontSize: "11px", color: "var(--text3)" }}>{line.total} คน</span>
+                                                            </div>
+                                                            <div style={{ borderTop: "1px solid var(--border)", background: "#FFFBEB", padding: "8px 14px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+                                                                <span style={{ fontSize: "10px", fontWeight: 800, color: "var(--yellow)" }}>⚠ สมรรถนะที่ตก:</span>
+                                                                {line.weakDetail.map(weak => (
+                                                                    <span key={weak.n} style={{ fontSize: "11px", padding: "2px 8px", background: "var(--red-bg)", color: "var(--red)", borderRadius: "20px", fontWeight: 700 }}>
+                                                                        ⚠ {weak.n} <span style={{ background: "var(--red)", color: "#fff", borderRadius: "10px", padding: "0 5px", fontSize: "10px" }}>{weak.cnt} คน</span>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         );
@@ -862,6 +858,186 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
                                     </div>
                                 );
                             })}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+const getApprovalRows = (users: any[]) => {
+    const activeStaff = users.filter(user => user.act !== false && user.r !== "manager").slice(0, 12);
+    const fallback = [
+        { n: "สมชาย มีสุข", t: "นาย", p: "นักวิชาการศึกษา", d: "สนับสนุนการศึกษาและวิชาการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์" },
+        { n: "มาลี ดีเสมอ", t: "นางสาว", p: "นักทรัพยากรบุคคล", d: "ทรัพยากรบุคคล", w: "สายสนับสนุน", sup: "พรพิมล บุคคลดี", evaluator2: "ธนพล ไชยรักษ์" },
+        { n: "วิชัย ระบบดี", t: "นาย", p: "นักวิชาการคอมพิวเตอร์", d: "เทคโนโลยีสารสนเทศ", w: "สายสนับสนุน", sup: "ปกรณ์ ศิริวัฒน์", evaluator2: "ธนพล ไชยรักษ์" }
+    ];
+    const source = activeStaff.length ? activeStaff : fallback;
+
+    return source.map((user, index) => ({
+        id: user.sso || `mock-${index}`,
+        employee: `${user.t || ""}${user.n}`,
+        position: user.p || "บุคลากร",
+        dept: user.d || "ไม่ระบุหน่วยงาน",
+        evaluator1: user.sup || "",
+        evaluator2: user.evaluator2 || "กิตติพงศ์ แสงทอง",
+        score: 3 + (index % 3),
+        submittedAt: `${18 + (index % 6)} พ.ค. 2568`,
+        competencyDetails: [
+            { n: "AI Literacy", expected: 4, actual: index % 2 ? 3 : 4, note: index % 2 ? "ควรพัฒนาเพิ่มเติม" : "ผ่านตามเกณฑ์" },
+            { n: "การใช้เทคโนโลยีดิจิทัล", expected: 4, actual: index % 3 ? 3 : 4, note: index % 3 ? "มีช่องว่างระดับสมรรถนะ" : "ผ่านตามเกณฑ์" },
+            { n: "การทำงานเป็นทีม", expected: 3, actual: 3, note: "อยู่ในเกณฑ์" }
+        ],
+        idpDetails: [
+            { topic: "AI Literacy", method: "Workshop + OJT", due: "ก.ค. 2568", outcome: "ใช้ AI ช่วยงานประจำได้" },
+            { topic: "การวิเคราะห์ข้อมูล", method: "Online course", due: "ส.ค. 2568", outcome: "ทำ dashboard สรุปงานได้" }
+        ]
+    }));
+};
+
+export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users }) => {
+    const [approvedIds, setApprovedIds] = useState<string[]>([]);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const approvalRows = getApprovalRows(users);
+    const selected = approvalRows.find(row => row.id === selectedId);
+    const approve = (id: string) => setApprovedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+
+    return (
+        <>
+            <div className="mb20">
+                <div className="sec-t">อนุมัติผลการประเมินรายบุคคล</div>
+                <div className="sec-s">ตรวจสอบผู้ถูกประเมิน หัวหน้างาน และผู้บังคับบัญชา ก่อนยืนยันผลการประเมิน</div>
+            </div>
+            <div className="card">
+                <div className="ch"><div className="ct">รายการผลการประเมินที่รอยืนยัน</div></div>
+                <div className="cb" style={{ padding: 0 }}>
+                    <table className="tbl">
+                        <thead>
+                            <tr>
+                                <th>ผู้ถูกประเมิน</th>
+                                <th>หัวหน้างาน</th>
+                                <th>ผู้บังคับบัญชา</th>
+                                <th style={{ width: "100px", textAlign: "center" }}>คะแนน</th>
+                                <th style={{ width: "118px" }}>สถานะ</th>
+                                <th style={{ width: "190px" }}>จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {approvalRows.map(row => {
+                                const approved = approvedIds.includes(row.id);
+                                return (
+                                    <tr key={row.id}>
+                                        <td><div className="fw7 fs13">{row.employee}</div><div className="muted fs11">{row.position} · {row.dept}</div></td>
+                                        <td><div className="fw6 fs12">{row.evaluator1 || "—"}</div></td>
+                                        <td><div className="fw6 fs12">{row.evaluator2}</div></td>
+                                        <td style={{ textAlign: "center" }}><span className="fw8" style={{ color: "var(--blue)" }}>{row.score}</span><span className="muted fs10"> / 5</span></td>
+                                        <td><span className={`b ${approved ? "bg" : "by"}`}>{approved ? "ยืนยันแล้ว" : "รอยืนยัน"}</span></td>
+                                        <td>
+                                            <div className="flex ic g6">
+                                                <button className="btn btn-s btn-xs" onClick={() => setSelectedId(row.id)}>ดูรายละเอียด</button>
+                                                <button className={`btn ${approved ? "btn-g" : "btn-p"} btn-xs`} disabled={approved} onClick={() => approve(row.id)}>{approved ? "ยืนยันแล้ว" : "ยืนยัน"}</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {selected && (
+                <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedId(null)}>
+                    <div className="mo-box" style={{ width: "720px" }} onMouseDown={event => event.stopPropagation()}>
+                        <div className="mo-h">
+                            <div><div className="fw8 fs14">{selected.employee}</div><div className="muted fs11">{selected.evaluator1 || "ไม่มีหัวหน้างาน"} · {selected.evaluator2}</div></div>
+                            <button className="btn btn-s btn-sm" onClick={() => setSelectedId(null)}>ปิด</button>
+                        </div>
+                        <div className="mo-b">
+                            {selected.competencyDetails.map(item => (
+                                <div key={item.n} style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 150px", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)", alignItems: "center" }}>
+                                    <div className="fw7 fs13">{item.n}<div className="muted fs11">{item.note}</div></div>
+                                    <span className="b bgr" style={{ justifyContent: "center" }}>คาดหวัง {item.expected}</span>
+                                    <span className={`b ${item.actual >= item.expected ? "bg" : "br"}`} style={{ justifyContent: "center" }}>ได้ {item.actual}</span>
+                                    <span className="muted fs11">ส่งเมื่อ {selected.submittedAt}</span>
+                                </div>
+                            ))}
+                            <button className={`btn ${approvedIds.includes(selected.id) ? "btn-g" : "btn-p"} btn-sm mt12`} disabled={approvedIds.includes(selected.id)} onClick={() => approve(selected.id)} style={{ width: "100%", justifyContent: "center" }}>{approvedIds.includes(selected.id) ? "ยืนยันผลการประเมินแล้ว" : "ยืนยันผลการประเมิน"}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+export const ManagerIDPApproval: React.FC<{ users: any[] }> = ({ users }) => {
+    const [approvedIds, setApprovedIds] = useState<string[]>([]);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const approvalRows = getApprovalRows(users);
+    const selected = approvalRows.find(row => row.id === selectedId);
+    const approve = (id: string) => setApprovedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+
+    return (
+        <>
+            <div className="mb20">
+                <div className="sec-t">อนุมัติแผน IDP รายบุคคล</div>
+                <div className="sec-s">ตรวจสอบแผน IDP จากหัวหน้างานและผู้บังคับบัญชา ก่อนยืนยันแผนพัฒนารายบุคคล</div>
+            </div>
+            <div className="card">
+                <div className="ch"><div className="ct">รายการแผน IDP ที่รอยืนยัน</div></div>
+                <div className="cb" style={{ padding: 0 }}>
+                    <table className="tbl">
+                        <thead>
+                            <tr>
+                                <th>ผู้ถูกประเมิน</th>
+                                <th>หัวหน้างาน</th>
+                                <th>ผู้บังคับบัญชา</th>
+                                <th>หัวข้อ IDP</th>
+                                <th style={{ width: "118px" }}>สถานะ</th>
+                                <th style={{ width: "190px" }}>จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {approvalRows.map(row => {
+                                const approved = approvedIds.includes(row.id);
+                                return (
+                                    <tr key={row.id}>
+                                        <td><div className="fw7 fs13">{row.employee}</div><div className="muted fs11">{row.position} · {row.dept}</div></td>
+                                        <td><div className="fw6 fs12">{row.evaluator1 || "—"}</div></td>
+                                        <td><div className="fw6 fs12">{row.evaluator2}</div></td>
+                                        <td><div className="flex ic g4" style={{ flexWrap: "wrap" }}>{row.idpDetails.map(item => <span key={item.topic} className="b bt">{item.topic}</span>)}</div></td>
+                                        <td><span className={`b ${approved ? "bg" : "by"}`}>{approved ? "ยืนยันแล้ว" : "รอยืนยัน"}</span></td>
+                                        <td>
+                                            <div className="flex ic g6">
+                                                <button className="btn btn-s btn-xs" onClick={() => setSelectedId(row.id)}>ดูรายละเอียด</button>
+                                                <button className={`btn ${approved ? "btn-g" : "btn-t"} btn-xs`} disabled={approved} onClick={() => approve(row.id)}>{approved ? "ยืนยันแล้ว" : "ยืนยัน"}</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {selected && (
+                <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedId(null)}>
+                    <div className="mo-box" style={{ width: "720px" }} onMouseDown={event => event.stopPropagation()}>
+                        <div className="mo-h">
+                            <div><div className="fw8 fs14">{selected.employee}</div><div className="muted fs11">{selected.evaluator1 || "ไม่มีหัวหน้างาน"} · {selected.evaluator2}</div></div>
+                            <button className="btn btn-s btn-sm" onClick={() => setSelectedId(null)}>ปิด</button>
+                        </div>
+                        <div className="mo-b">
+                            {selected.idpDetails.map(item => (
+                                <div key={item.topic} style={{ display: "grid", gridTemplateColumns: "150px 150px 100px 1fr", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)", alignItems: "center" }}>
+                                    <span className="b bt" style={{ justifyContent: "center" }}>{item.topic}</span>
+                                    <span className="fw6 fs12">{item.method}</span>
+                                    <span className="b bgr" style={{ justifyContent: "center" }}>{item.due}</span>
+                                    <span className="muted fs12">{item.outcome}</span>
+                                </div>
+                            ))}
+                            <button className={`btn ${approvedIds.includes(selected.id) ? "btn-g" : "btn-t"} btn-sm mt12`} disabled={approvedIds.includes(selected.id)} onClick={() => approve(selected.id)} style={{ width: "100%", justifyContent: "center" }}>{approvedIds.includes(selected.id) ? "ยืนยันแผน IDP แล้ว" : "ยืนยันแผน IDP"}</button>
                         </div>
                     </div>
                 </div>
