@@ -9,3 +9,8 @@ coverage/
 เอกสารที่เกี่ยวข้อง/
 *.pdf
 *.xlsx
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
