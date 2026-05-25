@@ -24,7 +24,7 @@ import Profile from './components/Profile';
 import { HRCycle, HRCatalog, HRMonitor, HRTemplate, HRPositionCompetencies } from './components/HRPages';
 import { EmployeeAssess, EmployeeGap, EmployeeIDP, EmployeeIDPDetail, EmployeeProgress } from './components/EmployeePages';
 import { SupervisorAssess, TeamGap, TeamIDP } from './components/SupervisorPages';
-import { ManagerGap, ManagerIDP, DeptMonitor } from './components/ManagerPages';
+import { ManagerGap, ManagerIDP, ManagerAssessmentApproval, ManagerIDPApproval, DeptMonitor } from './components/ManagerPages';
 
 const formatPhone = (val: string) => {
   if (!val) return val;
@@ -152,17 +152,59 @@ const SUPPORT_JOB_FAMILY_POSITIONS: Record<string, string[]> = {
 };
 
 const EVALUATOR1_ROLES_BY_ROLE: Record<string, string[]> = {
-  employee: ["manager_dept"],
-  hr: ["manager_dept"],
-  admin: ["manager_dept"],
+  employee: ["supervisor"],
+  hr: ["supervisor"],
+  admin: ["supervisor"],
   supervisor: ["manager_dept"],
   manager_dept: ["manager"]
 };
 
 const EVALUATOR2_ROLES_BY_ROLE: Record<string, string[]> = {
-  employee: ["supervisor"],
-  hr: ["supervisor"],
-  admin: ["supervisor"]
+  employee: ["manager_dept"],
+  hr: ["manager_dept"],
+  admin: ["manager_dept"],
+  supervisor: ["manager"]
+};
+
+const ADMIN_LEVELS = ["บุคลากร (อายุงานไม่เกิน 1 ปี)", "บุคลากร", "ผู้ช่วยคณบดี", "รองคณบดี", "คณบดี"];
+
+const normalizeEvaluatorChain = (users: any[]) => {
+  const dean = users.find(user => user.r === "manager")?.n || "";
+  const managerDeptNames = users.filter(user => user.r === "manager_dept").map(user => user.n);
+  const supervisorNames = users.filter(user => user.r === "supervisor").map(user => user.n);
+  const firstManagerDept = managerDeptNames[0] || dean;
+
+  const findSupervisorFor = (user: any) => {
+    if (user.sup && supervisorNames.includes(user.sup)) return user.sup;
+    if (user.evaluator2 && supervisorNames.includes(user.evaluator2)) return user.evaluator2;
+    const userDept = user.d || "";
+    const sameDeptSupervisor = users.find(candidate =>
+      candidate.r === "supervisor" &&
+      candidate.w === user.w &&
+      (candidate.d === userDept || userDept.startsWith(`${candidate.d} > `))
+    );
+    if (sameDeptSupervisor) return sameDeptSupervisor.n;
+    return "";
+  };
+
+  const findManagerDeptFor = (user: any) => {
+    if (user.evaluator2 && managerDeptNames.includes(user.evaluator2)) return user.evaluator2;
+    if (user.sup && managerDeptNames.includes(user.sup)) return user.sup;
+    const userDept = user.d || "";
+    const sameDeptManager = users.find(candidate =>
+      candidate.r === "manager_dept" &&
+      (candidate.d === userDept || userDept.startsWith(`${candidate.d} > `))
+    );
+    if (sameDeptManager) return sameDeptManager.n;
+    return firstManagerDept;
+  };
+
+  return users.map(user => {
+    if (user.r === "manager") return { ...user, sup: "", evaluator2: "" };
+    if (user.r === "manager_dept") return { ...user, sup: dean, evaluator2: "" };
+    if (user.r === "supervisor") return { ...user, sup: findManagerDeptFor(user), evaluator2: dean };
+    return { ...user, sup: findSupervisorFor(user), evaluator2: findManagerDeptFor(user) };
+  });
 };
 
 export default function App() {
@@ -193,7 +235,7 @@ export default function App() {
   const [modalData, setModalData] = useState<any>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
 
-  const [users, setUsers] = useStoredState("mock-users", INITIAL_USERS);
+  const [users, setUsers] = useStoredState("mock-users", normalizeEvaluatorChain(INITIAL_USERS));
   const [competencies, setCompetencies] = useStoredState("mock-competencies", INITIAL_COMPETENCIES);
   const [learningMethods, setLearningMethods] = useStoredState("mock-learning-methods", DEFAULT_LEARNING_METHODS);
   const [selectedSupervisorSso, setSelectedSupervisorSso] = useState(
@@ -221,6 +263,17 @@ export default function App() {
     phone: ""
   });
   const [evaluatorPairError, setEvaluatorPairError] = useState("");
+
+  useEffect(() => {
+    setUsers(prev => {
+      const normalized = normalizeEvaluatorChain(prev);
+      const changed = normalized.some((user, index) =>
+        user.sup !== prev[index]?.sup ||
+        user.evaluator2 !== prev[index]?.evaluator2
+      );
+      return changed ? normalized : prev;
+    });
+  }, [setUsers]);
   const isAdminWorkline = workline === "สายงานบริหาร";
 
   const [worklines, setWorklines] = useState(["สายวิชาการ", "สายสนับสนุน", "สายงานบริหาร"]);
@@ -289,15 +342,19 @@ export default function App() {
   const [supportPosList, setSupportPosList] = useState(["ปฏิบัติการ (อายุงานไม่เกิน 1 ปี)", "ลูกจ้างของมหาวิทยาลัย (อายุงานไม่เกิน 1 ปี)", "ปฏิบัติการ", "ลูกจ้างของมหาวิทยาลัย", "ปฏิบัติงาน", "ชํานาญการ", "ชำนาญงาน", "ชำนาญการพิเศษ", "ชำนาญงานพิเศษ", "เชี่ยวชาญ"]);
 
   const [orgSups, setOrgSups] = useState<any>({
-    "คณะวิศวกรรมศาสตร์": "สมพงษ์ จงขยัน",
-    "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร": "อำนาจ ศักดิ์สิทธิ์",
-    "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร > งานแผนยุทธศาสตร์และทรัพยากรบุคคล > หน่วยพัฒนาทรัพยากรบุคคล": "มาลี ดีเสมอ",
-    "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้": "นิธิ ศรีสุข",
-    "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้ > งานการศึกษาและพัฒนาทักษะการเรียนรู้ > หน่วยวิชาการและหลักสูตร": "สมภพ การศึกษา",
-    "ฝ่ายบริหาร": "เจนจิรา มั่นคง",
-    "ฝ่ายบริหาร > งานคลังและพัสดุ > หน่วยการเงินและบัญชี": "บุญมี เงินดี",
-    "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ": "ศิริพงษ์ ใจบุญ",
-    "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ > งานปฏิบัติการและบริการทางวิศวกรรม > หน่วยปฏิบัติการทางวิศวกรรม": "วิชัย ระบบดี"
+    "คณะวิศวกรรมศาสตร์": "กิตติพงศ์ แสงทอง",
+    "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร": "ธนพล ไชยรักษ์",
+    "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร > งานแผนยุทธศาสตร์": "นฤมล ใจเย็น",
+    "ฝ่ายแผนยุทธศาสตร์และพัฒนาองค์กร > งานแผนยุทธศาสตร์ > หน่วยพัฒนาทรัพยากรบุคคล": "นฤมล ใจเย็น",
+    "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้": "ปาริชาติ วงศ์ดี",
+    "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้ > งานการศึกษาและพัฒนาทักษะการเรียนรู้": "กัญญารัตน์ ศรีวิชา",
+    "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้ > งานการศึกษาและพัฒนาทักษะการเรียนรู้ > หน่วยวิชาการและหลักสูตร": "กัญญารัตน์ ศรีวิชา",
+    "ฝ่ายบริหาร": "ธนพล ไชยรักษ์",
+    "ฝ่ายบริหาร > งานคลังและพัสดุ": "วารุณี พรหมบัญชี",
+    "ฝ่ายบริหาร > งานคลังและพัสดุ > หน่วยการเงินและบัญชี": "วารุณี พรหมบัญชี",
+    "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ": "ปาริชาติ วงศ์ดี",
+    "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ > งานปฏิบัติการและบริการทางวิศวกรรม": "ปกรณ์ ศิริวัฒน์",
+    "ฝ่ายวิจัย นวัตกรรมและการต่างประเทศ > งานปฏิบัติการและบริการทางวิศวกรรม > หน่วยปฏิบัติการทางวิศวกรรม": "ปกรณ์ ศิริวัฒน์"
   });
 
   const [supportOrg, setSupportOrg] = useState(DEPT_STRUCTURE);
@@ -310,7 +367,49 @@ export default function App() {
     return [];
   };
 
-  const getSupportPositionOptions = () => supportPositionGroups[dept1] || [];
+  const getSupportPositionOptions = () => supportPositions;
+  const getAdminPositionOptions = () => {
+    if (level === "คณบดี") return adminPositions.filter(item => item === "คณบดี");
+    if (level === "รองคณบดี") return adminPositions.filter(item => item.startsWith("รองคณบดี"));
+    if (level === "ผู้ช่วยคณบดี") return adminPositions.filter(item => item.startsWith("ผู้ช่วยคณบดี"));
+    return adminPositions.filter(item => !item.startsWith("รองคณบดี") && !item.startsWith("ผู้ช่วยคณบดี") && item !== "คณบดี");
+  };
+  const getSupportWorkOptions = () => supportOrg[dept1]?.map((item: any) => item.work) || [];
+  const getSupportUnitOptions = () => supportOrg[dept1]?.find((item: any) => item.work === dept2)?.units || [];
+  const getFullDeptPath = () => {
+    if (workline === "สายวิชาการ") return position;
+    if (workline === "สายงานบริหาร") return dept1;
+    return [dept1, dept2, dept3].filter(Boolean).join(" > ");
+  };
+  const deanName = users.find(user => user.r === "manager")?.n || "";
+  const findDeptManagerName = () => {
+    if (workline === "สายวิชาการ") return users.find(user => user.r === "manager_dept" && user.d === "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้")?.n || "ปาริชาติ วงศ์ดี";
+    if (workline === "สายงานบริหาร") return deanName;
+    const fullDept = getFullDeptPath();
+    const fromPath = orgSups[dept1] || "";
+    const fromUsers = users.find(user =>
+      user.r === "manager_dept" &&
+      (user.d === dept1 || fullDept.startsWith(`${user.d} > `))
+    )?.n;
+    return fromUsers || fromPath || deanName;
+  };
+  const findWorkSupervisorName = () => {
+    if (workline === "สายวิชาการ") return users.find(user => user.r === "supervisor" && user.w === "สายวิชาการ")?.n || "";
+    if (workline === "สายงานบริหาร") return deanName;
+    const fullDept = getFullDeptPath();
+    const workPath = [dept1, dept2].filter(Boolean).join(" > ");
+    const fromPath = orgSups[fullDept] || orgSups[workPath] || "";
+    const fromUsers = users.find(user =>
+      user.r === "supervisor" &&
+      (user.d === fullDept || fullDept.startsWith(`${user.d} > `))
+    )?.n;
+    return fromUsers || fromPath || "";
+  };
+  const getEvaluatorLabels = (role = roleId) => {
+    if (role === "manager_dept") return { first: "คณบดี", second: "ผู้บังคับบัญชา" };
+    if (role === "supervisor") return { first: "หัวหน้าฝ่าย (ผู้บังคับบัญชา)", second: "คณบดี" };
+    return { first: "หัวหน้างาน", second: "หัวหน้าฝ่าย (ผู้บังคับบัญชา)" };
+  };
   const getSupervisorOptions = () => {
     const supervisorRoles = EVALUATOR1_ROLES_BY_ROLE[roleId] || [];
     const query = supervisorSearch.trim().toLowerCase();
@@ -339,6 +438,48 @@ export default function App() {
     );
   };
   const showEvaluator2Field = !!EVALUATOR2_ROLES_BY_ROLE[roleId];
+  const evaluatorLabels = getEvaluatorLabels();
+  const requiresSupervisorSelection = ["supervisor", "manager_dept"].includes(roleId);
+
+  useEffect(() => {
+    if (modalType !== "modal-user") return;
+
+    if (roleId === "manager") {
+      setSupervisor("");
+      setSupervisorSearch("");
+      setEvaluator2("");
+      setEvaluator2Search("");
+      return;
+    }
+
+    const deptManager = findDeptManagerName();
+    const workSupervisor = findWorkSupervisorName();
+    const dean = deanName;
+    let nextSupervisor = "";
+    let nextEvaluator2 = "";
+
+    if (roleId === "manager_dept") {
+      nextSupervisor = dean;
+    } else if (roleId === "supervisor") {
+      nextSupervisor = deptManager;
+      nextEvaluator2 = dean;
+    } else if (workline === "สายงานบริหาร") {
+      nextEvaluator2 = dean;
+    } else {
+      nextSupervisor = workSupervisor;
+      nextEvaluator2 = deptManager;
+    }
+
+    setSupervisor(nextSupervisor);
+    setSupervisorSearch(nextSupervisor);
+    if (showEvaluator2Field && nextEvaluator2) {
+      setEvaluator2(nextEvaluator2);
+      setEvaluator2Search(nextEvaluator2);
+    } else if (!showEvaluator2Field) {
+      setEvaluator2("");
+      setEvaluator2Search("");
+    }
+  }, [modalType, roleId, workline, dept1, dept2, dept3, position, users]);
 
   const handleLogin = () => setIsLogged(true);
   const handleLogout = () => {
@@ -450,22 +591,21 @@ export default function App() {
     setUserUniqueErrors(uniqueErrors);
     if (Object.values(uniqueErrors).some(Boolean)) return;
 
-    if (submittedRoleId !== "manager" && !supervisor) {
-      alert("กรุณาเลือกผู้ประเมินลำดับที่ 1 จากผลการค้นหา");
+    const needsSupervisor = ["supervisor", "manager_dept"].includes(submittedRoleId);
+    if (needsSupervisor && !supervisor) {
+      alert(`กรุณาเลือก${getEvaluatorLabels(submittedRoleId).first}จากผลการค้นหา`);
       return;
     }
     if (showEvaluator2Field && !evaluator2) {
-      setEvaluatorPairError("กรุณาเลือกผู้ประเมินลำดับที่ 2 จากผลการค้นหา");
+      setEvaluatorPairError(`กรุณาเลือก${getEvaluatorLabels(submittedRoleId).second}จากผลการค้นหา`);
       return;
     }
     if (supervisor && evaluator2 && supervisor === evaluator2) {
-      setEvaluatorPairError("ผู้ประเมินลำดับที่ 1 และลำดับที่ 2 ต้องไม่ใช่คนเดียวกัน");
+      setEvaluatorPairError("ผู้ประเมินคนที่ 1 และคนที่ 2 ต้องไม่ใช่คนเดียวกัน");
       return;
     }
 
-    const fullDept = workline === "สายวิชาการ"
-      ? position
-      : [dept1, dept2, dept3].filter(Boolean).join(" > ");
+    const fullDept = getFullDeptPath();
 
     const newUser = {
       ...(modalData || {}),
@@ -481,7 +621,7 @@ export default function App() {
       ph: phone,
       sso: ssoId,
       p: position,
-      l: isAdminWorkline ? position : level,
+      l: level,
       w: workline,
       sup: submittedRoleId === "manager" ? "" : supervisor,
       evaluator2: showEvaluator2Field ? evaluator2 : "",
@@ -490,10 +630,10 @@ export default function App() {
     };
 
     if (modalData) {
-      setUsers(users.map(u => u.sso === modalData.sso ? newUser : u));
+      setUsers(normalizeEvaluatorChain(users.map(u => u.sso === modalData.sso ? newUser : u)));
       alert("แก้ไขข้อมูลเรียบร้อยแล้ว");
     } else {
-      setUsers([newUser, ...users]);
+      setUsers(normalizeEvaluatorChain([newUser, ...users]));
       alert("เพิ่มผู้ใช้งานใหม่เรียบร้อยแล้ว");
     }
     closeModal();
@@ -580,7 +720,7 @@ export default function App() {
           />
         );
       case "admin-users":
-        return <AdminUsers openModal={openModal} users={users} setUsers={setUsers} academicDepts={academicPositions} supportDepts={supportJobFamilies} adminDepts={adminDepts} worklines={worklines} />;
+        return <AdminUsers openModal={openModal} users={users} setUsers={setUsers} academicDepts={academicPositions} supportDepts={supportDeptsList} adminDepts={adminDepts} worklines={worklines} />;
       case "admin-org":
         return <AdminOrg openModal={openModal} users={users} setUsers={setUsers} academicDepts={academicPositions} supportDepts={supportJobFamilies} worklines={worklines} />;
       case "admin-org-structure":
@@ -590,6 +730,9 @@ export default function App() {
           supportPositionGroups={supportPositionGroups} setSupportPositionGroups={setSupportPositionGroups}
           adminDepts={adminDepts} setAdminDepts={setAdminDepts}
           supportOrg={supportOrg} setSupportOrg={setSupportOrg}
+          users={users}
+          orgSups={orgSups}
+          setOrgSups={setOrgSups}
           academicPos={academicPositions} setAcademicPos={setAcademicPositions}
           supportPos={supportPositions} setSupportPos={setSupportPositions}
           adminPos={adminPositions} setAdminPos={setAdminPositions}
@@ -709,6 +852,10 @@ export default function App() {
         return <ManagerGap users={users} />;
       case "mgr-idp":
         return <ManagerIDP users={users} />;
+      case "mgr-assessment-approval":
+        return <ManagerAssessmentApproval users={users} />;
+      case "mgr-idp-approval":
+        return <ManagerIDPApproval users={users} />;
       case "dept-monitor":
         return <DeptMonitor users={users} />;
       default:
@@ -942,24 +1089,51 @@ export default function App() {
                   )}
                   {workline === "สายสนับสนุน" && (
                     <div className="fg anim-fade-in">
-                      <label className="lbl">กลุ่มงาน <span style={{ color: "var(--red)" }}>*</span></label>
-                      <select className="sel" value={dept1} onChange={e => { setDept1(e.target.value); setPosition(""); setLevel(""); }} required>
-                        <option value="">— เลือกกลุ่มงาน —</option>
-                        {supportJobFamilies.map(group => <option key={group} value={group}>{group}</option>)}
+                      <label className="lbl">ฝ่าย <span style={{ color: "var(--red)" }}>*</span></label>
+                      <select className="sel" value={dept1} onChange={e => { setDept1(e.target.value); setDept2(""); setDept3(""); setPosition(""); setLevel(""); }} required>
+                        <option value="">— เลือกฝ่าย —</option>
+                        {supportDeptsList.map(dept => <option key={dept} value={dept}>{dept}</option>)}
                       </select>
                     </div>
                   )}
                   {workline === "สายงานบริหาร" && (
                     <div className="fg anim-fade-in">
                       <label className="lbl">กลุ่มงาน / ส่วนงานบริหาร <span style={{ color: "var(--red)" }}>*</span></label>
-                      <select className="sel" value={dept1} onChange={e => setDept1(e.target.value)} required>
+                        <select className="sel" value={dept1} onChange={e => { setDept1(e.target.value); setLevel(""); setPosition(""); }} required>
                         <option value="">— เลือกกลุ่มงาน —</option>
                         {adminDepts.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                   )}
                 </div>
+                {workline === "สายสนับสนุน" && dept1 && roleId !== "manager_dept" && (
+                  <div className="g2" style={{ marginTop: '-4px' }}>
+                    <div className="fg mb8 anim-fade-in">
+                      <label className="lbl">งาน <span style={{ color: "var(--red)" }}>*</span></label>
+                      <select className="sel" value={dept2} onChange={e => { setDept2(e.target.value); setDept3(""); }} required>
+                        <option value="">— เลือกงาน —</option>
+                        {getSupportWorkOptions().map(work => <option key={work} value={work}>{work}</option>)}
+                      </select>
+                    </div>
+                    <div className="fg mb8 anim-fade-in">
+                      <label className="lbl">หน่วย</label>
+                      <select className="sel" value={dept3} onChange={e => setDept3(e.target.value)}>
+                        <option value="">— ไม่ระบุหน่วย —</option>
+                        {getSupportUnitOptions().map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
                 <div className="g2" style={{ marginTop: '-4px' }}>
+                  {workline === "สายงานบริหาร" && (
+                    <div className="fg mb8 anim-fade-in">
+                      <label className="lbl">ระดับตำแหน่ง <span style={{ color: "var(--red)" }}>*</span></label>
+                      <select className="sel" name="level" value={level} onChange={e => { setLevel(e.target.value); setPosition(""); }} required>
+                        <option value="">— เลือกระดับตำแหน่ง —</option>
+                        {ADMIN_LEVELS.map(item => <option key={item} value={item}>{item}</option>)}
+                      </select>
+                    </div>
+                  )}
                   {workline === "สายสนับสนุน" && dept1 && (
                     <div className="fg mb8 anim-fade-in">
                       <label className="lbl">ตำแหน่ง <span style={{ color: "var(--red)" }}>*</span></label>
@@ -969,26 +1143,22 @@ export default function App() {
                       </select>
                     </div>
                   )}
-                  {workline === "สายงานบริหาร" && (
+                  {workline === "สายงานบริหาร" && level && (
                     <div className="fg mb8">
                       <label className="lbl">ตำแหน่ง <span style={{ color: "var(--red)" }}>*</span></label>
-                      <select className="sel" value={position} onChange={e => { setPosition(e.target.value); setLevel(e.target.value); }} required>
+                      <select className="sel" value={position} onChange={e => setPosition(e.target.value)} required>
                         <option value="">— เลือกตำแหน่ง —</option>
-                        {getPositionOptions().map(p => <option key={p} value={p}>{p}</option>)}
+                        {getAdminPositionOptions().map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                   )}
-                  {position && (
+                  {position && !isAdminWorkline && (
                     <div className="fg mb8">
                       <label className="lbl">ระดับตำแหน่ง <span style={{ color: "var(--red)" }}>*</span></label>
-                      {isAdminWorkline ? (
-                        <input className="inp" name="level" value={position} readOnly />
-                      ) : (
-                        <select className="sel" name="level" value={level} onChange={e => setLevel(e.target.value)} required>
-                          <option value="">— เลือกระดับตำแหน่ง —</option>
-                          {(workline === 'สายสนับสนุน' ? supportPosList : academicPosList).map(l => <option key={l} value={l}>{l}</option>)}
-                        </select>
-                      )}
+                      <select className="sel" name="level" value={level} onChange={e => setLevel(e.target.value)} required>
+                        <option value="">— เลือกระดับตำแหน่ง —</option>
+                        {(workline === 'สายสนับสนุน' ? supportPosList : academicPosList).map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
                     </div>
                   )}
                 </div>
@@ -1007,17 +1177,14 @@ export default function App() {
                   </div>
                   {roleId !== "manager" && (
                     <div className="fg anim-fade-in">
-                      <label className="lbl">ผู้ประเมินลำดับที่ 1 <span style={{ color: "var(--red)" }}>*</span></label>
+                      <label className="lbl">{evaluatorLabels.first} <span style={{ color: "var(--red)" }}>*</span></label>
                       <input
                         className="inp"
                         value={supervisorSearch}
-                        onChange={e => {
-                          setSupervisorSearch(e.target.value);
-                          setSupervisor("");
-                          setEvaluatorPairError("");
-                        }}
-                        placeholder="ค้นหาชื่อหรือ ID ผู้ประเมินลำดับที่ 1"
-                        required={!supervisor}
+                        readOnly
+                        placeholder={`ยึดตามโครงสร้างองค์กร (${evaluatorLabels.first})`}
+                        style={{ background: "#f1f5f9", color: "var(--text3)", cursor: "not-allowed" }}
+                        required={requiresSupervisorSelection && !supervisor}
                       />
                       {supervisor && <input name="supervisor" value={supervisor} readOnly hidden />}
                       {supervisorSearch && !supervisor && (
@@ -1038,7 +1205,7 @@ export default function App() {
                             </button>
                           ))}
                           {getSupervisorOptions().length === 0 && (
-                            <div className="muted fs12" style={{ padding: "10px 12px" }}>ไม่พบผู้ประเมินลำดับที่ 1 ที่เลือกได้</div>
+                            <div className="muted fs12" style={{ padding: "10px 12px" }}>ไม่พบ{evaluatorLabels.first}ที่เลือกได้</div>
                           )}
                         </div>
                       )}
@@ -1046,25 +1213,21 @@ export default function App() {
                   )}
                   {roleId === "manager" && (
                     <div className="fg">
-                      <label className="lbl">ผู้ประเมินลำดับที่ 1</label>
-                      <input className="inp" value="ระดับสูงสุด" readOnly />
+                      <label className="lbl">สายบังคับบัญชา</label>
+                      <input className="inp" value="คณบดีไม่มีหัวหน้าและไม่มีผู้บังคับบัญชา" readOnly />
                     </div>
                   )}
                 </div>
                 {showEvaluator2Field && (
                   <div className="g2">
                     <div className="fg anim-fade-in">
-                      <label className="lbl">ผู้ประเมินลำดับที่ 2 <span style={{ color: "var(--red)" }}>*</span></label>
+                      <label className="lbl">{evaluatorLabels.second} <span style={{ color: "var(--red)" }}>*</span></label>
                       <input
                         className="inp"
                         value={evaluator2Search}
-                        onChange={e => {
-                          setEvaluator2Search(e.target.value);
-                          setEvaluator2("");
-                          setEvaluatorPairError("");
-                        }}
-                        placeholder="ค้นหาชื่อหรือ ID ผู้ประเมินลำดับที่ 2"
-                        style={evaluatorPairError ? { borderColor: "var(--red)" } : undefined}
+                        readOnly
+                        placeholder={`ยึดตามโครงสร้างองค์กร (${evaluatorLabels.second})`}
+                        style={{ background: "#f1f5f9", color: "var(--text3)", cursor: "not-allowed", ...(evaluatorPairError ? { borderColor: "var(--red)" } : {}) }}
                         required={!evaluator2}
                       />
                       {evaluatorPairError && <div className="fs12" style={{ color: "var(--red)", marginTop: "4px" }}>{evaluatorPairError}</div>}
@@ -1087,7 +1250,7 @@ export default function App() {
                             </button>
                           ))}
                           {getEvaluator2Options().length === 0 && (
-                            <div className="muted fs12" style={{ padding: "10px 12px" }}>ไม่พบผู้ประเมินลำดับที่ 2</div>
+                            <div className="muted fs12" style={{ padding: "10px 12px" }}>ไม่พบ{evaluatorLabels.second}ที่เลือกได้</div>
                           )}
                         </div>
                       )}
@@ -1132,7 +1295,17 @@ export default function App() {
                else if (parts.length === 2) autoSup = orgSups[fullDept] || orgSups[parts[0]] || "";
                else autoSup = orgSups[fullDept] || "";
                
-               setUsers(users.map(u => u.sso === modalData.sso ? { ...u, d: fullDept, sup: autoSup, w: workline } : u));
+               const autoSupUser = users.find(u => u.n === autoSup);
+               const autoEvaluator2 = autoSupUser?.r === "supervisor" ? autoSupUser.sup : autoSupUser?.r === "manager_dept" ? autoSupUser.n : "";
+
+               const nextUsers = users.map(u => u.sso === modalData.sso ? {
+                 ...u,
+                 d: fullDept,
+                 sup: autoSup,
+                 evaluator2: ["employee", "hr", "admin", "supervisor"].includes(u.r) ? autoEvaluator2 || u.evaluator2 || "" : "",
+                 w: workline
+               } : u);
+               setUsers(normalizeEvaluatorChain(nextUsers));
                alert("บันทึกข้อมูลโครงสร้างเรียบร้อยแล้ว");
                closeModal();
             }}>
