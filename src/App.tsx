@@ -239,10 +239,14 @@ export default function App() {
   const [competencies, setCompetencies] = useStoredState("mock-competencies", INITIAL_COMPETENCIES);
   const [learningMethods, setLearningMethods] = useStoredState("mock-learning-methods", DEFAULT_LEARNING_METHODS);
   const [selectedSupervisorSso, setSelectedSupervisorSso] = useState(
-    INITIAL_USERS.find(user => user.r === "supervisor")?.sso || ""
+    INITIAL_USERS.find(user => user.n === "กัญญารัตน์ ศรีวิชา")?.sso ||
+    INITIAL_USERS.find(user => user.r === "supervisor")?.sso ||
+    ""
   );
   const [selectedManagerDeptSso, setSelectedManagerDeptSso] = useState(
-    INITIAL_USERS.find(user => user.r === "manager_dept")?.sso || ""
+    INITIAL_USERS.find(user => user.n === "ธนพล ไชยรักษ์")?.sso ||
+    INITIAL_USERS.find(user => user.r === "manager_dept")?.sso ||
+    ""
   );
 
   const [workline, setWorkline] = useState("");
@@ -266,8 +270,11 @@ export default function App() {
 
   useEffect(() => {
     setUsers(prev => {
-      const normalized = normalizeEvaluatorChain(prev);
+      const prevSso = new Set(prev.map(user => user.sso));
+      const missingSeedUsers = INITIAL_USERS.filter(user => !prevSso.has(user.sso));
+      const normalized = normalizeEvaluatorChain([...prev, ...missingSeedUsers]);
       const changed = normalized.some((user, index) =>
+        user.sso !== prev[index]?.sso ||
         user.sup !== prev[index]?.sup ||
         user.evaluator2 !== prev[index]?.evaluator2
       );
@@ -859,7 +866,7 @@ export default function App() {
       case "dept-monitor":
         return <DeptMonitor users={users} />;
       default:
-        return <div className="p-20 text-center text-text3">🚧 กำลังพัฒนา</div>;
+        return <div className="p-20 text-center text-text3"> กำลังพัฒนา</div>;
     }
   };
 
@@ -923,7 +930,7 @@ export default function App() {
                         if (winWidth <= 768) setShowSidebar(false);
                       }}
                     >
-                      <span className="nav-ic">{item.ic}</span>
+                      {item.ic && <span className="nav-ic">{item.ic}</span>}
                       {item.lb}
                     </div>
                   ))}
@@ -973,12 +980,12 @@ export default function App() {
                 <div style={{ fontSize: '15px', fontWeight: 800 }}>จัดการผู้ใช้งาน</div>
                 <div className="muted fs12">กรอกข้อมูลให้ครบตามตาราง users ในฐานข้อมูล</div>
               </div>
-              <button className="btn btn-s btn-sm" onClick={closeModal}>✕ ปิด</button>
+              <button className="btn btn-s btn-sm" onClick={closeModal}> ปิด</button>
             </div>
             <form onSubmit={handleUserSubmit}>
               <div className="mo-b">
                 <div style={{ background: "var(--blue-lt)", borderRadius: "var(--r)", padding: "10px 14px", marginBottom: "16px", fontSize: "12px", color: "var(--blue)" }}>
-                  💡 ระบบจะ map <strong>ID</strong> ที่กรอกนี้เข้ากับข้อมูลที่ส่งมาจาก KKU SSO โดยอัตโนมัติ
+                   ระบบจะ map <strong>ID</strong> ที่กรอกนี้เข้ากับข้อมูลที่ส่งมาจาก KKU SSO โดยอัตโนมัติ
                 </div>
                 <div className="fg">
                   <label className="lbl">ID <span style={{ color: "var(--red)" }}>*</span></label>
@@ -1268,7 +1275,7 @@ export default function App() {
                 </div>
                 <div style={{ display: "flex", gap: "8px", marginTop: "20px", justifyContent: "flex-end" }}>
                   <button type="button" className="btn btn-s" onClick={closeModal}>ยกเลิก</button>
-                  <button type="submit" className="btn btn-p">💾 บันทึก</button>
+                  <button type="submit" className="btn btn-p"> บันทึก</button>
                 </div>
               </div>
             </form>
@@ -1281,10 +1288,10 @@ export default function App() {
           <div className="mo-box" style={{ width: "520px" }}>
             <div className="mo-h">
               <div>
-                <div style={{ fontSize: '15px', fontWeight: 800 }}>จัดการโครงสร้างองค์กร 🏗️</div>
+                <div style={{ fontSize: '15px', fontWeight: 800 }}>จัดการโครงสร้างองค์กร </div>
                 <div className="muted fs12">{modalData.t}{modalData.n} · (เดิม: {modalData.p})</div>
               </div>
-              <button className="btn btn-s btn-sm" onClick={closeModal}>✕ ปิด</button>
+              <button className="btn btn-s btn-sm" onClick={closeModal}> ปิด</button>
             </div>
             <form onSubmit={(e) => {
                e.preventDefault();
@@ -1356,7 +1363,7 @@ export default function App() {
                 </div>
                 <div style={{ display: "flex", gap: "8px", marginTop: "24px", justifyContent: "flex-end" }}>
                   <button type="button" className="btn btn-s" onClick={closeModal}>ยกเลิก</button>
-                  <button type="submit" className="btn btn-p">💾 ยืนยันการเปลี่ยนโครงสร้าง</button>
+                  <button type="submit" className="btn btn-p"> ยืนยันการเปลี่ยนโครงสร้าง</button>
                 </div>
               </div>
             </form>
@@ -1372,7 +1379,7 @@ export default function App() {
                 <div style={{ fontSize: '15px', fontWeight: 800 }}>เพิ่มกิจกรรมใน Learning Catalog</div>
                 <div className="muted fs12">learning_catalog table</div>
               </div>
-              <button className="btn btn-s btn-sm" onClick={closeModal}>✕</button>
+              <button className="btn btn-s btn-sm" onClick={closeModal}>ปิด</button>
             </div>
             <div className="mo-b">
               <div className="fg">
@@ -1406,7 +1413,7 @@ export default function App() {
               </div>
               <div style={{ display: "flex", gap: "8px", marginTop: "16px", justifyContent: "flex-end" }}>
                 <button className="btn btn-s" onClick={closeModal}>ยกเลิก</button>
-                <button className="btn btn-p" onClick={() => { closeModal(); alert("เพิ่มกิจกรรมสำเร็จ!"); }}>💾 บันทึก</button>
+                <button className="btn btn-p" onClick={() => { closeModal(); alert("เพิ่มกิจกรรมสำเร็จ!"); }}> บันทึก</button>
               </div>
             </div>
           </div>

@@ -350,7 +350,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                             <div key={group} className="support-column">
                               <div className="support-column-head">
                                 <div className="fw7 fs13 text-navy">{group}</div>
-                                <button className="btn-link" onClick={() => startEdit("support-dept", group)} title="แก้ไขกลุ่มงาน">✎</button>
+                                <button className="btn-link" onClick={() => startEdit("support-dept", group)} title="แก้ไขกลุ่มงาน">แก้ไข</button>
                               </div>
                               <div className="support-position-list">
                                 {(expandedSupportGroups[group]
@@ -359,7 +359,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                                 ).map(item => (
                                   <div key={item} className="structure-item group">
                                     <span className="fs12 fw6 text-gray-700">{item}</span>
-                                    <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("support-group-pos", item, { parent: group })}>✎</button>
+                                    <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("support-group-pos", item, { parent: group })}>แก้ไข</button>
                                   </div>
                                 ))}
                                 {(supportPositionGroups[group] || []).length === 0 && <div className="structure-empty">ยังไม่มีตำแหน่ง</div>}
@@ -414,7 +414,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                         {posList.length > 0 ? posList.map(p => (
                           <div key={p} className="structure-item group">
                             <span className="fs13 fw6 text-gray-700 truncate">{p}</span>
-                            <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit(editPosType, p)}>✎</button>
+                            <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit(editPosType, p)}>แก้ไข</button>
                           </div>
                         )) : (
                           <div className="structure-empty">ยังไม่มีข้อมูลตำแหน่งงานใน{wl}</div>
@@ -461,7 +461,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                           <div key={work.work} className="support-work-card">
                             <div className="support-work-head">
                               <div className="fw8 fs13 text-navy">{work.work}</div>
-                              <button className="btn-link" onClick={() => startEdit("support-work", work.work, { parent: dept })}>✎</button>
+                              <button className="btn-link" onClick={() => startEdit("support-work", work.work, { parent: dept })}>แก้ไข</button>
                             </div>
                             <div className="support-head-select">
                               <div className="muted fs11">หัวหน้างาน</div>
@@ -474,7 +474,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                               {(work.units || []).map((unit: string) => (
                                 <div key={unit} className="support-unit-row">
                                   <span>{unit}</span>
-                                  <button className="btn-link" onClick={() => startEdit("support-unit", unit, { parent: dept, workName: work.work })}>✎</button>
+                                  <button className="btn-link" onClick={() => startEdit("support-unit", unit, { parent: dept, workName: work.work })}>แก้ไข</button>
                                 </div>
                               ))}
                               {(work.units || []).length === 0 && <div className="structure-empty">ยังไม่มีหน่วย</div>}
@@ -510,7 +510,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                         <div className="flex flex-col g4 overflow-hidden">
                           <span className="fs13 fw7 text-gray-800">{item}</span>
                         </div>
-                        <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("admin-dept", item)}>✎</button>
+                        <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("admin-dept", item)}>แก้ไข</button>
                       </div>
                     ))}
                   </div>
@@ -526,7 +526,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                         <div className="flex flex-col g4 overflow-hidden">
                           <span className="fs13 fw7 text-gray-800">{item}</span>
                         </div>
-                        <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("academic-dept", item)}>✎</button>
+                        <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("academic-dept", item)}>แก้ไข</button>
                       </div>
                     ))}
                   </div>
@@ -573,7 +573,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                       {group.data.map(item => (
                         <div key={item} className="structure-item group">
                           <span className="fs13 fw6 text-gray-700 truncate">{item}</span>
-                          <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit(group.editType, item)}>✎</button>
+                          <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit(group.editType, item)}>แก้ไข</button>
                         </div>
                       ))}
                       {group.data.length === 0 && <div className="structure-empty">ยังไม่มีข้อมูล</div>}
@@ -594,7 +594,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                   {competencyTypes.map(item => (
                     <div key={item} className="structure-item group">
                       <span className="fs13 fw6 text-gray-700 truncate">{item}</span>
-                      <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("comp-type", item)}>✎</button>
+                      <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("comp-type", item)}>แก้ไข</button>
                     </div>
                   ))}
                   {competencyTypes.length === 0 && <div className="structure-empty">ยังไม่มีข้อมูล</div>}
@@ -612,7 +612,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                         <div className="fs13 fw6 text-gray-700 truncate">{item.label}</div>
                         <div className="muted fs11" style={{ marginTop: "4px" }}>{item.desc || "-"}</div>
                       </div>
-                      <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: "12px" }} onClick={() => startEdit("learning-method", item.key)}>✎</button>
+                      <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: "12px" }} onClick={() => startEdit("learning-method", item.key)}>แก้ไข</button>
                     </div>
                   ))}
                   {learningMethods.length === 0 && <div className="structure-empty">ยังไม่มีประเภทการเรียนรู้</div>}
@@ -628,7 +628,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
           <div className="mo-box anim-fade-in" style={{ width: "450px" }}>
             <div className="mo-h">
               <div className="fw8">{getAddModalCopy().title}</div>
-              <button className="btn btn-s btn-sm" onClick={() => setShowAddModal(false)}>✕</button>
+              <button className="btn btn-s btn-sm" onClick={() => setShowAddModal(false)}>ปิด</button>
             </div>
             <div className="mo-b">
               <div className="fg">
@@ -656,7 +656,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
           <div className="mo-box anim-fade-in" style={{ width: "400px" }}>
             <div className="mo-h">
               <div className="fw8">แก้ไขข้อมูลรายการ</div>
-              <button className="btn btn-s btn-sm" onClick={() => setEditingId(null)}>✕</button>
+              <button className="btn btn-s btn-sm" onClick={() => setEditingId(null)}>ปิด</button>
             </div>
             <div className="mo-b">
               <div className="fg">
@@ -664,10 +664,10 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                 <input className="inp" value={newValue} onChange={e => setNewValue(e.target.value)} placeholder="กรอกชื่อใหม่..." autoFocus />
               </div>
               <div style={{ display: "flex", gap: "8px", marginTop: "24px", justifyContent: "space-between" }}>
-                <button className="btn btn-r" style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca' }} onClick={deleteItem}>🗑️ ลบรายการนี้</button>
+                <button className="btn btn-r" style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca' }} onClick={deleteItem}> ลบรายการนี้</button>
                 <div className="flex g8">
                   <button className="btn btn-s" onClick={() => setEditingId(null)}>ยกเลิก</button>
-                  <button className="btn btn-p" onClick={saveEdit}>💾 บันทึก</button>
+                  <button className="btn btn-p" onClick={saveEdit}> บันทึก</button>
                 </div>
               </div>
             </div>

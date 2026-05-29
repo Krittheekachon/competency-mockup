@@ -1,15 +1,65 @@
 import React, { useEffect, useState } from 'react';
-import { DEPT_STRUCTURE } from '../data';
+import { DEPT_STRUCTURE, INITIAL_USERS } from '../data';
+import {
+    buildSupervisorGapDecisionKey,
+    getSupervisorIDPReviewState,
+    validateSupervisorGapDecision,
+    type SupervisorIDPDecision
+} from './supervisor-idp-rules';
+
+const isManagementRole = (user: any) => ["manager_dept", "manager"].includes(user?.r);
+const isSupervisorRole = (user: any) => user?.r === "supervisor";
+const isPeopleManager = (user: any) => isSupervisorRole(user) || isManagementRole(user);
+const getPrimaryDept = (dept?: string) => (dept || "").split(" > ")[0] || "";
+const getDeptUnit = (dept?: string) => {
+    const parts = (dept || "").split(" > ");
+    return parts[parts.length - 1] || "";
+};
+const getManagerDeptScopeUsers = (users: any[], currentUser?: any) => {
+    if (!currentUser) return [];
+    if (currentUser.r === "manager") {
+        return users.filter(user => user.sso !== currentUser.sso && !isManagementRole(user));
+    }
+    if (currentUser.r === "manager_dept") {
+        const supervisors = users.filter(user => user.sup === currentUser.n && isSupervisorRole(user));
+        const supervisorNames = new Set(supervisors.map(user => user.n));
+        return users.filter(user =>
+            user.sso !== currentUser.sso &&
+            !isManagementRole(user) &&
+            (
+                user.evaluator2 === currentUser.n ||
+                user.sup === currentUser.n ||
+                supervisorNames.has(user.sup)
+            )
+        );
+    }
+    return users.filter(user =>
+        user.sso !== currentUser.sso &&
+        !isManagementRole(user) &&
+        user.sup === currentUser.n &&
+        (currentUser.r !== "supervisor" || user.r !== "supervisor")
+    );
+};
+const getScopeDeptOptions = (users: any[], currentUser?: any) => {
+    const scopedUsers = getManagerDeptScopeUsers(users, currentUser);
+    const depts = Array.from(new Set(scopedUsers.map(user => getPrimaryDept(user.d)).filter(Boolean)));
+    return ["ทั้งหมด", ...depts.sort((a, b) => a.localeCompare(b, "th"))];
+};
+const matchesDeptFilter = (user: any, activeDept: string) => activeDept === "ทั้งหมด" || getPrimaryDept(user.d) === activeDept;
+const getMockEvalStatus = (user: any) => INITIAL_USERS.find(seed => seed.sso === user?.sso)?.evalStatus || user?.evalStatus || "draft";
 
 export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUser: any, supervisorUsers?: any[], onSupervisorChange?: (sso: string) => void, drafts?: Record<string, any>, setDrafts?: any, onDirtyChange?: (dirty: boolean) => void }> = ({ users, setUsers, currentUser, supervisorUsers, onSupervisorChange, drafts = {}, setDrafts, onDirtyChange }) => {
     const deptKeys = Object.keys(DEPT_STRUCTURE);
     const userDept = currentUser.d?.split(" > ")[0];
     const defaultDept = userDept && deptKeys.includes(userDept) ? userDept : deptKeys[0];
 
-    const [activeDept, setActiveDept] = useState(defaultDept);
+    const [activeDept, setActiveDept] = useState(currentUser.r === "manager_dept" ? "ทั้งหมด" : defaultDept);
     const [selectedStaff, setSelectedStaff] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const supervisorMode = ['supervisor', 'manager_dept'].includes(currentUser.r) && !!supervisorUsers?.length;
+    const managerDeptMode = currentUser.r === "manager_dept";
+    const deptOptions = managerDeptMode ? getScopeDeptOptions(users, currentUser) : deptKeys;
+    const scopedUsers = getManagerDeptScopeUsers(users, currentUser);
 
     const filteredUsers = users.filter(u => {
         const isDean = currentUser.p === 'คณบดี';
@@ -19,13 +69,13 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
         const matchesDept = u.d.split(" > ")[0] === activeDept;
         const isDirectSub = u.sup === currentUser.n || u.evaluator2 === currentUser.n;
         const hasAccess = isDean || isDeptIncharge || isDirectSub;
-        const reviewerAccess = supervisorMode ? isDirectSub : hasAccess;
+        const reviewerAccess = managerDeptMode ? scopedUsers.some(user => user.sso === u.sso) : supervisorMode ? isDirectSub : hasAccess;
         const matchesSearch = !searchTerm || u.n.toLowerCase().includes(searchTerm.toLowerCase()) || (u.sso && u.sso.toLowerCase().includes(searchTerm.toLowerCase()));
         
-        return reviewerAccess && (supervisorMode || matchesDept) && matchesSearch;
+        return reviewerAccess && (managerDeptMode ? matchesDeptFilter(u, activeDept) : supervisorMode || matchesDept) && matchesSearch;
     });
 
-    const isLevelBoss = (u: any) => ['supervisor', 'manager_dept', 'manager'].includes(u.r);
+    const isLevelBoss = (u: any) => isPeopleManager(u);
     const heads = filteredUsers.filter(u => isLevelBoss(u));
     const getStaffByGroup = (group: string, excludeBoss = false) => filteredUsers.filter(u => {
         const parts = u.d.split(" > ");
@@ -40,6 +90,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
             t: "CC",
             tg: "tag-cc",
             ss: 2,
+            supScore: 3,
             behaviors: {
                 1: ["รับเรื่องจากผู้รับบริการได้เมื่อมีคำแนะนำ", "ตอบคำถามพื้นฐานตามข้อมูลที่มี", "รักษามารยาทในการให้บริการ"],
                 2: ["ตอบสนองความต้องการผู้รับบริการได้ทันท่วงที", "ให้ข้อมูลที่ถูกต้องและครบถ้วนแก่ผู้รับบริการ", "แสดงความเป็นมิตร ยิ้มแย้ม ให้บริการด้วยใจ"],
@@ -55,6 +106,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
             t: "FC",
             tg: "tag-fc",
             ss: 1,
+            supScore: 2,
             behaviors: {
                 1: ["รวบรวมข้อมูลจากแหล่งที่กำหนดได้", "ตรวจสอบข้อมูลเบื้องต้นตามแบบฟอร์ม", "สรุปข้อเท็จจริงง่าย ๆ จากข้อมูลที่ได้รับ"],
                 2: ["จัดหมวดหมู่ข้อมูลและตรวจความครบถ้วนได้", "เปรียบเทียบข้อมูลพื้นฐานเพื่อหาความต่าง", "จัดทำตารางหรือกราฟพื้นฐานประกอบรายงาน"],
@@ -77,26 +129,68 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
         !['manager_dept', 'manager'].includes(u.r) &&
         (currentUser.r !== 'supervisor' || u.r !== 'supervisor')
     );
+    const assessmentStatusOrder: Record<string, number> = {
+        draft: 0,
+        self_submitted: 1,
+        unit_evaluated: 2,
+        dept_evaluated: 3,
+        dean_approved: 4
+    };
+    const sortedSupervisorStaff = [...supervisorStaff].sort((left, right) => {
+        const leftRank = assessmentStatusOrder[getMockEvalStatus(left)] ?? 0;
+        const rightRank = assessmentStatusOrder[getMockEvalStatus(right)] ?? 0;
+        return leftRank - rightRank || left.n.localeCompare(right.n, "th");
+    });
     const assessCounts = {
         total: supervisorStaff.length,
-        notSent: supervisorStaff.filter(u => u.evalStatus === "draft" || !u.evalStatus).length,
-        pending: supervisorStaff.filter(u => u.evalStatus === "self_submitted").length,
-        forwarded: supervisorStaff.filter(u => u.evalStatus === "unit_evaluated" || u.evalStatus === "dept_evaluated").length,
-        done: supervisorStaff.filter(u => u.evalStatus === "dean_approved").length
+        notSent: supervisorStaff.filter(u => getMockEvalStatus(u) === "draft").length,
+        pending: supervisorStaff.filter(u => getMockEvalStatus(u) === "self_submitted").length,
+        unitReview: supervisorStaff.filter(u => getMockEvalStatus(u) === "unit_evaluated").length,
+        deanReview: supervisorStaff.filter(u => getMockEvalStatus(u) === "dept_evaluated").length,
+        done: supervisorStaff.filter(u => getMockEvalStatus(u) === "dean_approved").length
     };
 
     const statusBadge = (user: any) => {
         const style = { fontSize: "10px", padding: "4px 8px", whiteSpace: "nowrap" as const, flexShrink: 0 };
-        if (user.evalStatus === "self_submitted") return <span className="b by" style={style}>รอตรวจ</span>;
-        if (user.evalStatus === "unit_evaluated") return <span className="b bo" style={style}>รอหัวหน้าฝ่าย</span>;
-        if (user.evalStatus === "dept_evaluated") return <span className="b bb" style={style}>รอคณบดี</span>;
-        if (user.evalStatus === "dean_approved") return <span className="b bg" style={style}>เสร็จแล้ว</span>;
+        const status = getMockEvalStatus(user);
+        if (status === "self_submitted") return <span className="b by" style={style}>{managerDeptMode ? "รอหัวหน้างานประเมิน" : "รอคุณประเมิน"}</span>;
+        if (status === "unit_evaluated") return <span className="b bo" style={style}>{managerDeptMode ? "รอคุณประเมิน" : "รอผู้บังคับบัญชาประเมิน"}</span>;
+        if (status === "dept_evaluated") return <span className="b bb" style={style}>รอคณบดียืนยัน</span>;
+        if (status === "dean_approved") return <span className="b bg" style={style}>เสร็จสมบูรณ์</span>;
         return <span className="b br" style={style}>ยังไม่ส่ง</span>;
     };
-    const scoreLabels = ["ต่ำมาก", "ต่ำ", "พอใช้", "ดี", "ดีมาก"];
+    const getReviewSteps = (status?: string) => {
+        const waiting = { bg: "var(--bg)", color: "var(--text3)" };
+        const active = { bg: "var(--blue-lt)", color: "var(--blue)" };
+        const done = { bg: "var(--green-bg)", color: "var(--green)" };
+
+        if (status === "dean_approved") {
+            return [
+                { no: 2, title: "หัวหน้าฝ่าย", text: "ประเมินแล้ว", style: done },
+                { no: 3, title: "คณบดี", text: "ยืนยันแล้ว", style: done }
+            ];
+        }
+        if (status === "dept_evaluated") {
+            return [
+                { no: 2, title: "หัวหน้าฝ่าย", text: "ประเมินแล้ว", style: done },
+                { no: 3, title: "คณบดี", text: "รอคณบดียืนยัน", style: active }
+            ];
+        }
+        if (status === "unit_evaluated") {
+            return [
+                { no: 2, title: "หัวหน้าฝ่าย", text: "รอผู้บังคับบัญชาประเมิน", style: active },
+                { no: 3, title: "คณบดี", text: "ยังไม่ถึงขั้นตอน", style: waiting }
+            ];
+        }
+        return [
+            { no: 2, title: "หัวหน้าฝ่าย", text: "ยังไม่ถึงขั้นตอน", style: waiting },
+            { no: 3, title: "คณบดี", text: "ยังไม่ถึงขั้นตอน", style: waiting }
+        ];
+    };
     const selectedMockScore = (compId: string) => marks[compId] || 2;
+    const supervisorMockScore = (comp: any) => comp.supScore || 2;
     const getSelfBehaviors = (comp: any) => comp.behaviors[comp.ss as keyof typeof comp.behaviors] || [];
-    const getSupervisorBehaviors = (comp: any) => comp.behaviors[selectedMockScore(comp.id) as keyof typeof comp.behaviors] || [];
+    const getAssessmentBehaviors = (comp: any) => getSelfBehaviors(comp);
 
     useEffect(() => {
         onDirtyChange?.(isDirty);
@@ -167,13 +261,11 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
 
         setSaving(true);
         setTimeout(() => {
-            let nextStatus = selectedStaff.evalStatus;
             let msg = "";
-            if (isDean) { nextStatus = 'dean_approved'; msg = `อนุมัติการประเมินของ ${selectedStaff.t}${selectedStaff.n} เรียบร้อยแล้ว`; }
-            else if (isDeptHead) { nextStatus = 'dept_evaluated'; msg = `ส่งผลการประเมินของ ${selectedStaff.t}${selectedStaff.n} ให้คณบดีอนุมัติเรียบร้อยแล้ว`; }
-            else if (isUnitHead) { nextStatus = 'unit_evaluated'; msg = `ส่งผลการประเมินของ ${selectedStaff.t}${selectedStaff.n} ให้หัวหน้าฝ่ายเรียบร้อยแล้ว`; }
+            if (isDean) { msg = `อนุมัติการประเมินของ ${selectedStaff.t}${selectedStaff.n} เรียบร้อยแล้ว`; }
+            else if (isDeptHead) { msg = `ส่งผลการประเมินของ ${selectedStaff.t}${selectedStaff.n} ให้คณบดีอนุมัติเรียบร้อยแล้ว`; }
+            else if (isUnitHead) { msg = `ส่งผลการประเมินของ ${selectedStaff.t}${selectedStaff.n} ให้หัวหน้าฝ่ายเรียบร้อยแล้ว`; }
 
-            setUsers((prev: any[]) => prev.map(u => u.sso === selectedStaff.sso ? { ...u, evalStatus: nextStatus } : u));
             setDrafts?.((prev: Record<string, any>) => ({
                 ...prev,
                 [getDraftKey(selectedStaff)]: { marks, feedback, savedAt: "ส่งผลแล้ว" }
@@ -187,7 +279,6 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
 
     if (success) return (
         <div className="card text-center" style={{ padding: '40px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
             <div className="fw8 fs18 mb8">ส่งผลประเมินเรียบร้อย</div>
             <div className="muted fs14 mb20">คุณได้ทำการส่งผลการประเมินเรียบร้อยแล้ว</div>
             <button className="btn btn-p" onClick={() => setSuccess(false)}>กลับไปหน้าสรุป</button>
@@ -200,11 +291,20 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                 <>
                     <div className="card mb16">
                         <div className="cb" style={{ padding: "12px 16px" }}>
-                            <div>
+                            {!managerDeptMode && (
                                 <select className="sel" value={currentUser.sso} onChange={event => changeSupervisor(event.target.value)}>
                                     {supervisorUsers?.map(user => <option key={user.sso} value={user.sso}>{user.t}{user.n} · {user.p}</option>)}
                                 </select>
-                            </div>
+                            )}
+                            {managerDeptMode && (
+                                <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                                    <span className="fs12 fw7 muted">หน่วยงาน:</span>
+                                    <select className="sel" style={{ maxWidth: "360px" }} value={activeDept} onChange={event => setActiveDept(event.target.value)}>
+                                        {deptOptions.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                                    </select>
+                                    
+                                </div>
+                            )}
                             <div className="flex ic" style={{ justifyContent: "flex-end", marginTop: "10px" }}>
                                 <div className="flex ic g8">
                                     <div className="av" style={{ width: "34px", height: "34px", background: "var(--orange)", fontSize: "12px" }}>{currentUser.n[0]}</div>
@@ -216,25 +316,26 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                             </div>
                         </div>
                     </div>
-                    <div className="g4 mb20" style={{ gridTemplateColumns: "repeat(5,minmax(0,1fr))" }}>
+                    <div className="g4 mb20" style={{ gridTemplateColumns: "repeat(6,minmax(0,1fr))" }}>
                         <div className="sc" style={{ borderTop: "3px solid var(--navy)" }}><div className="sl">ทั้งหมด</div><div className="sv">{assessCounts.total}</div><div className="ss muted">คนในความดูแล</div></div>
                         <div className="sc" style={{ borderTop: "3px solid var(--red)" }}><div className="sl">ยังไม่ส่ง</div><div className="sv rc">{assessCounts.notSent}</div><div className="ss muted">รอลูกน้องประเมินตนเอง</div></div>
-                        <div className="sc" style={{ borderTop: "3px solid var(--yellow)" }}><div className="sl">รอคุณประเมิน</div><div className="sv yc">{assessCounts.pending}</div><div className="ss muted">คน</div></div>
-                        <div className="sc" style={{ borderTop: "3px solid var(--teal)" }}><div className="sl">หัวหน้าฝ่าย/คณบดี</div><div className="sv tc">{assessCounts.forwarded}</div><div className="ss muted">อยู่ระหว่างพิจารณา</div></div>
+                        <div className="sc" style={{ borderTop: "3px solid var(--yellow)" }}><div className="sl">{managerDeptMode ? "รอหัวหน้างานประเมิน" : "รอคุณประเมิน"}</div><div className="sv yc">{assessCounts.pending}</div><div className="ss muted">คน</div></div>
+                        <div className="sc" style={{ borderTop: "3px solid var(--orange)" }}><div className="sl">{managerDeptMode ? "รอคุณประเมิน" : "รอผู้บังคับบัญชาประเมิน"}</div><div className="sv" style={{ color: "var(--orange)" }}>{assessCounts.unitReview}</div><div className="ss muted">คน</div></div>
+                        <div className="sc" style={{ borderTop: "3px solid var(--blue)" }}><div className="sl">รอคณบดียืนยัน</div><div className="sv bc">{assessCounts.deanReview}</div><div className="ss muted">คน</div></div>
                         <div className="sc" style={{ borderTop: "3px solid var(--green)" }}><div className="sl">เสร็จสมบูรณ์</div><div className="sv gcc">{assessCounts.done}</div><div className="ss muted">คน</div></div>
                     </div>
                     <div className="flex ic jb mb20" style={{ flexWrap: "wrap", gap: "8px" }}>
                         <div>
                             <div className="sec-t">ประเมินลูกน้อง</div>
-                            <div className="sec-s">พิจารณาข้อมูลที่บุคลากรส่งมา และให้คะแนนหัวหน้างาน</div>
+                            <div className="sec-s">{managerDeptMode ? "ประเมินหัวหน้าหน่วยงานและบุคลากรในสายบังคับบัญชา พร้อม filter หน่วยงานได้" : "พิจารณาข้อมูลที่บุคลากรส่งมา และให้คะแนนหัวหน้างาน"}</div>
                         </div>
-                        <span className="b by">รอประเมิน {assessCounts.pending} คน</span>
+                        <span className="b by">รอคุณประเมิน {managerDeptMode ? assessCounts.unitReview : assessCounts.pending} คน</span>
                     </div>
                 </>
             ) : (
                 <div className="flex ic jb mb20">
                     <div>
-                        <div className="sec-t">ประเมินลูกน้อง ✍️</div>
+                        <div className="sec-t">ประเมินลูกน้อง </div>
                         <div className="sec-s">ประเมินบุคลากรใน {activeDept}</div>
                     </div>
                     <div className="flex ic g8">
@@ -248,15 +349,23 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
 
             <div className="g2" style={supervisorMode ? { gridTemplateColumns: "340px minmax(0,1fr)", alignItems: "start" } : undefined}>
                 <div className="card">
-                    <div className="ch" style={supervisorMode ? { padding: "14px 16px" } : undefined}><div className="ct">{supervisorMode ? "ผู้ส่งแบบประเมินแล้ว" : "รายการบุคลากรแยกตามหน่วยงาน"}</div></div>
+                    <div className="ch" style={supervisorMode ? { padding: "14px 16px" } : undefined}><div className="ct">{supervisorMode ? "รายชื่อพนักงาน" : "รายการบุคลากรแยกตามหน่วยงาน"}</div></div>
                     {!supervisorMode && <div className="p12" style={{ borderBottom: '1px solid var(--border)', background: '#fff' }}>
-                        <input className="inp inp-sm" style={{ fontSize: '12px' }} placeholder="🔍 ค้นหาชื่อบุคลากร..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        <input className="inp inp-sm" style={{ fontSize: '12px' }} placeholder=" ค้นหาชื่อบุคลากร..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     </div>}
                     <div style={{ padding: 0, maxHeight: '600px', overflowY: 'auto' }}>
-                        {supervisorMode && supervisorStaff.map((u, i) => {
+                        {supervisorMode && sortedSupervisorStaff.map((u, i) => {
                             const isSel = selectedStaff?.sso === u.sso;
+                            const status = getMockEvalStatus(u);
+                            const isNotSent = status === "draft" || (managerDeptMode && status === "self_submitted");
                             return (
-                                <div key={u.sso || i} className={`flex ic g12 pointer transition-all ${isSel ? 'bg-blue-lt' : 'hover-bg bg-white'}`} style={{ borderBottom: '1px solid var(--border)', minHeight: "72px", padding: "12px 14px" }} onClick={() => openStaff(u)}>
+                                <div
+                                    key={u.sso || i}
+                                    className={`flex ic g12 transition-all ${isNotSent ? 'bg-white' : isSel ? 'bg-blue-lt pointer' : 'hover-bg bg-white pointer'}`}
+                                    style={{ borderBottom: '1px solid var(--border)', minHeight: "72px", padding: "12px 14px", opacity: isNotSent ? 0.48 : 1, cursor: isNotSent ? "not-allowed" : "pointer" }}
+                                    onClick={() => !isNotSent && openStaff(u)}
+                                    aria-disabled={isNotSent}
+                                >
                                     <div className="av" style={{ width: "38px", height: "38px", background: 'var(--navy)', color: '#fff', fontSize: '13px', flexShrink: 0 }}>{u.n[0]}</div>
                                     <div className="flex-1" style={{ minWidth: 0 }}>
                                         <div className="flex jb g8" style={{ alignItems: "center" }}>
@@ -274,7 +383,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                         {heads.length > 0 && (
                             <div style={{ borderBottom: '1px solid var(--border)' }}>
                                 <div style={{ background: 'var(--blue-lt)', padding: '10px 16px', fontWeight: 700, fontSize: '12px', color: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <span>👨‍💼 หัวหน้าหน่วยงาน / ผู้บริหาร</span>
+                                    <span> หัวหน้าหน่วยงาน / ผู้บริหาร</span>
                                     <span className="b bg-blue text-white" style={{ fontSize: '9px', padding: '1px 6px' }}>{heads.length}</span>
                                 </div>
                                 {heads.map((u, i) => {
@@ -311,7 +420,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                             return (
                                 <div key={wi}>
                                     <div style={{ background: 'var(--bg)', padding: '10px 16px', fontWeight: 700, fontSize: '12px', color: 'var(--navy)', borderTop: wi === 0 ? 'none' : '1px solid var(--border)' }}>
-                                        <span style={{ marginRight: '6px' }}>📁</span>{w.work}
+                                        <span style={{ marginRight: '6px' }}></span>{w.work}
                                     </div>
                                     {wUsers.map((u, ui) => {
                                         const isSel = selectedStaff?.sso === u.sso;
@@ -337,7 +446,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                                     {unitList.map((un, ni) => un.users.length === 0 ? null : (
                                         <div key={ni}>
                                             <div className="flex ic g8" style={{ background: '#fff', padding: '10px 16px', borderLeft: '3px solid var(--blue)', fontSize: '11px', fontWeight: 600, color: 'var(--blue)' }}>
-                                                <span style={{ fontSize: '14px' }}>🏠</span><span>{un.name}</span>
+                                                <span style={{ fontSize: '14px' }}></span><span>{un.name}</span>
                                             </div>
                                             {un.users.map((u, ui) => {
                                                 const isSel = selectedStaff?.sso === u.sso;
@@ -372,7 +481,6 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
 
                 {supervisorMode && !selectedStaff ? (
                     <div className="card flex col ic jc" style={{ minHeight: "240px", padding: "30px 20px", textAlign: "center", alignSelf: "center" }}>
-                        <div style={{ fontSize: "44px", lineHeight: 1, marginBottom: "14px" }}>🎯</div>
                         <div className="fw7 fs14" style={{ color: "var(--text3)" }}>เลือกบุคลากรจากรายการด้านซ้ายเพื่อเริ่มประเมิน</div>
                     </div>
                 ) : (
@@ -387,7 +495,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                         </div>
                     </div>}
                     <div className="cb" style={{ padding: supervisorMode ? '0' : '8px 0 0', opacity: selectedStaff ? 1 : 0.5, pointerEvents: selectedStaff ? 'all' : 'none' }}>
-                        {supervisorMode && selectedStaff && <div className="fw8 fs15" style={{ padding: "0 0 14px", background: "var(--bg)" }}>📝 การประเมิน: {selectedStaff.t}{selectedStaff.n}</div>}
+                        {supervisorMode && selectedStaff && <div className="fw8 fs15" style={{ padding: "0 0 14px", background: "var(--bg)" }}> การประเมิน: {selectedStaff.t}{selectedStaff.n}</div>}
                         {selectedStaff && (
                             <div className={`b ${isDirty ? "by" : "bt"}`} style={{ marginBottom: "12px", padding: "7px 10px", whiteSpace: "normal" }}>
                                 {isDirty
@@ -407,7 +515,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                                                 <span className={c.tg}>{c.t}</span>
                                                 <span className="fw8 fs14">{c.n}</span>
                                             </div>
-                                            <div className="fw8 tc fs12">{c.ss}/5 ✓</div>
+                                            <div className="fw8 tc fs12">{c.ss}/5 </div>
                                         </div>
                                         <div style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr" }}>
                                             <div style={{ padding: "22px 20px", borderRight: "1px solid var(--border)" }}>
@@ -415,15 +523,12 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                                                 <ul style={{ margin: "0 0 20px 18px", padding: 0, fontSize: "12px", lineHeight: 1.7 }}>
                                                     {getSelfBehaviors(c).map(item => <li key={item}>{item}</li>)}
                                                 </ul>
-                                                <div className="fs11" style={{ padding: "10px 12px", marginBottom: "18px", background: "var(--blue-lt)", borderRadius: "8px", color: "var(--blue)" }}>
-                                                    แสดงพฤติกรรมบ่งชี้ตามคะแนนประเมินตนเองระดับ {c.ss}: {scoreLabels[c.ss - 1]}
-                                                </div>
-                                                <div className="muted fw7 fs11 mb8">คะแนนความสามารถของบุคลากร (Self-Score)</div>
+                                            
+                                                <div className="muted fw7 fs11 mb8">คะแนนความสามารถของบุคลากร (ประเมินตนเอง) </div>
                                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: "7px", marginBottom: "18px" }}>
                                                     {[1, 2, 3, 4, 5].map(value => (
                                                         <div key={value} style={{ height: "54px", border: `1.5px solid ${c.ss === value ? "var(--teal)" : "var(--border)"}`, borderRadius: "8px", background: c.ss === value ? "var(--teal-lt)" : "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                                                             <span className="fw8 fs15" style={{ color: c.ss === value ? "var(--teal)" : "var(--text3)" }}>{value}</span>
-                                                            <span className="fs10 muted">{scoreLabels[value - 1]}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -440,30 +545,57 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                                                 </div>
                                             </div>
                                             <div style={{ padding: "22px 20px" }}>
-                                                <div className="bc fw8 fs12 mb10">1. หัวหน้างาน (คุณ) *</div>
+                                                <div className="bc fw8 fs12 mb10">{managerDeptMode ? "1. หัวหน้างาน" : "1. หัวหน้างาน (คุณ) *"}</div>
                                                 <div className="muted fw7 fs11 mb6">พฤติกรรมบ่งชี้ (ใช้ประกอบการตัดสิน)</div>
                                                 <ul style={{ margin: "0 0 18px 18px", padding: 0, fontSize: "12px", lineHeight: 1.7 }}>
-                                                    {getSupervisorBehaviors(c).map(item => <li key={item}>{item}</li>)}
+                                                    {getAssessmentBehaviors(c).map(item => <li key={item}>{item}</li>)}
                                                 </ul>
-                                                <div className="fs11" style={{ padding: "10px 12px", marginBottom: "18px", background: "var(--blue-lt)", borderRadius: "8px", color: "var(--blue)" }}>
-                                                    แสดงพฤติกรรมบ่งชี้ตามคะแนนที่หัวหน้างานเลือก ระดับ {selectedMockScore(c.id)}: {scoreLabels[selectedMockScore(c.id) - 1]}
-                                                </div>
+                                                
                                                 <div className="muted fw7 fs11 mb8">คะแนนความสามารถของบุคลากรโดยหัวหน้างาน</div>
                                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: "7px", marginBottom: "16px" }}>
                                                     {[1, 2, 3, 4, 5].map(value => {
-                                                        const selected = selectedMockScore(c.id) === value;
+                                                        const selected = (managerDeptMode ? supervisorMockScore(c) : selectedMockScore(c.id)) === value;
                                                         return (
-                                                            <button key={value} type="button" onClick={() => handleMark(c.id, value)} style={{ minHeight: "54px", border: `1.5px solid ${selected ? "var(--teal)" : "var(--border)"}`, borderRadius: "9px", background: selected ? "var(--teal-lt)" : "#fff", color: selected ? "var(--teal)" : "var(--text3)", fontFamily: "inherit", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                                                            <button key={value} type="button" disabled={managerDeptMode} onClick={() => !managerDeptMode && handleMark(c.id, value)} style={{ minHeight: "54px", border: `1.5px solid ${selected ? "var(--teal)" : "var(--border)"}`, borderRadius: "9px", background: selected ? "var(--teal-lt)" : "#fff", color: selected ? "var(--teal)" : "var(--text3)", fontFamily: "inherit", cursor: managerDeptMode ? "default" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                                                                 <span className="fw8 fs15">{value}</span>
-                                                                <span className="fs10">{scoreLabels[value - 1]}</span>
                                                             </button>
                                                         );
                                                     })}
                                                 </div>
+                                                {managerDeptMode && (
+                                                    <>
+                                                        <div style={{ borderTop: "1px solid var(--border)", margin: "18px 0", paddingTop: "18px" }}>
+                                                            <div className="tc fw8 fs12 mb10">2. หัวหน้าฝ่าย (คุณ) *</div>
+                                                            <div className="muted fw7 fs11 mb6">พฤติกรรมบ่งชี้ (ใช้ประกอบการตัดสิน)</div>
+                                                            <ul style={{ margin: "0 0 18px 18px", padding: 0, fontSize: "12px", lineHeight: 1.7 }}>
+                                                                {getAssessmentBehaviors(c).map(item => <li key={item}>{item}</li>)}
+                                                            </ul>
+                                            
+                                                            <div className="muted fw7 fs11 mb8">คะแนนความสามารถของบุคลากรโดยหัวหน้าฝ่าย</div>
+                                                            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: "7px", marginBottom: "16px" }}>
+                                                                {[1, 2, 3, 4, 5].map(value => {
+                                                                    const selected = selectedMockScore(c.id) === value;
+                                                                    return (
+                                                                        <button key={value} type="button" onClick={() => handleMark(c.id, value)} style={{ minHeight: "54px", border: `1.5px solid ${selected ? "var(--teal)" : "var(--border)"}`, borderRadius: "9px", background: selected ? "var(--teal-lt)" : "#fff", color: selected ? "var(--teal)" : "var(--text3)", fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                                            <span className="fw8 fs15">{value}</span>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
                                                 <textarea className="ta" style={{ minHeight: "80px", fontSize: "13px", borderRadius: "10px" }} placeholder="ใส่คำเสนอแนะ (ถ้ามี)..." value={feedback[c.id] || ""} onChange={e => handleFeedback(c.id, e.target.value)} />
                                                 <div style={{ borderTop: "1px solid var(--border)", marginTop: "24px", paddingTop: "16px" }}>
-                                                    <div className="flex ic g10 mb12"><div className="av s24" style={{ background: "var(--blue-lt)", color: "var(--blue)", fontSize: "10px" }}>2</div><div><div className="fw7 fs12">หัวหน้าฝ่าย</div><div className="muted fs11">รอดำเนินการ...</div></div></div>
-                                                    <div className="flex ic g10"><div className="av s24" style={{ background: "var(--blue-lt)", color: "var(--blue)", fontSize: "10px" }}>3</div><div><div className="fw7 fs12">คณบดี</div><div className="muted fs11">รอยืนยัน</div></div></div>
+                                                    {getReviewSteps(getMockEvalStatus(selectedStaff)).map((step, stepIndex) => (
+                                                        <div key={step.no} className={`flex ic g10 ${stepIndex === 0 ? "mb12" : ""}`}>
+                                                            <div className="av s24" style={{ background: step.style.bg, color: step.style.color, fontSize: "10px" }}>{step.no}</div>
+                                                            <div>
+                                                                <div className="fw7 fs12">{step.title}</div>
+                                                                <div className="fs11" style={{ color: step.style.color }}>{step.text}</div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </div>
                                         </div>
@@ -484,7 +616,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
 
                         {currentUser.p === 'คณบดี' && (
                             <div className="p20 mt10" style={{ background: 'var(--blue-lt)', borderRadius: '12px', border: '1px dashed var(--blue)' }}>
-                                <div className="fw8 fs14 text-blue mb10">✍️ ส่วนการเซ็นอนุมัติ (Dean Signature)</div>
+                                <div className="fw8 fs14 text-blue mb10"> ส่วนการเซ็นอนุมัติ (Dean Signature)</div>
                                 <div className="flex ic g10 mb10">
                                     <input type="checkbox" id="sign" className="pointer" />
                                     <label htmlFor="sign" className="fs13 fw6 pointer">ข้าพเจ้าอนุมัติผลการประเมินและแผนพัฒนา IDP ฉบับนี้</label>
@@ -497,7 +629,7 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
                                 บันทึกผล
                             </button>
                             <button className={`btn ${saving ? 'btn-disabled' : 'btn-t'}`} onClick={submit} disabled={saving} style={{ justifyContent: 'center', minHeight: '44px', fontSize: '14px', fontWeight: 700, boxShadow: '0 4px 12px var(--blue-lt)', flex: "2 1 300px" }}>
-                                {saving ? "กำลังบันทึก..." : (currentUser.p === 'คณบดี' ? "✔ เซ็นอนุมัติการประเมิน" : (currentUser.p.includes('รอง') || currentUser.p.includes('ผู้ช่วย') || currentUser.r === 'manager_dept' ? "✔ ยืนยันผลและส่งให้คณบดี" : "✔ ส่งผลการประเมินให้หัวหน้าฝ่าย"))}
+                                {saving ? "กำลังบันทึก..." : (currentUser.p === 'คณบดี' ? " เซ็นอนุมัติการประเมิน" : (currentUser.p.includes('รอง') || currentUser.p.includes('ผู้ช่วย') || currentUser.r === 'manager_dept' ? " ยืนยันผลและส่งให้คณบดี" : " ส่งผลการประเมินให้หัวหน้าฝ่าย"))}
                             </button>
                         </div>
                     </div>
@@ -510,9 +642,11 @@ export const SupervisorAssess: React.FC<{ users: any[], setUsers: any, currentUs
 
 export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUsers?: any[], onSupervisorChange?: (sso: string) => void }> = ({ users, currentUser, supervisorUsers, onSupervisorChange }) => {
     const deptKeys = Object.keys(DEPT_STRUCTURE);
-    const [activeDept, setActiveDept] = useState(deptKeys[0]);
+    const [activeDept, setActiveDept] = useState(currentUser?.r === "manager_dept" ? "ทั้งหมด" : getPrimaryDept(currentUser?.d) || "ทั้งหมด");
     const [selectedGapId, setSelectedGapId] = useState<string | null>(null);
     const supervisorMode = !!currentUser && !!supervisorUsers?.length;
+    const managerDeptMode = currentUser?.r === "manager_dept";
+    const deptOptions = managerDeptMode ? getScopeDeptOptions(users, currentUser) : deptKeys;
 
     const getTeamData = (unit: string) => {
         return users.filter(u => {
@@ -543,25 +677,28 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
         { n: "AI Literacy", t: "CC", tg: "tag-cc" },
         { n: "การทำงานเป็นทีม", t: "CC", tg: "tag-cc" }
     ];
-    const gapTemplates = [
-        ["การบริการที่ดี", "การวิเคราะห์ข้อมูล"],
-        [],
-        ["การบริการที่ดี", "การใช้เทคโนโลยีดิจิทัล"],
-        ["การบริการที่ดี", "AI Literacy"],
-        ["การบริการที่ดี", "การวิเคราะห์ข้อมูล"],
-        [],
-        ["การทำงานเป็นทีม", "การใช้เทคโนโลยีดิจิทัล"]
+    const mockGapProfiles: Record<string, string[]> = {
+        "20002": ["การบริการที่ดี", "การวิเคราะห์ข้อมูล"],
+        "20012": [],
+        "20013": ["การบริการที่ดี", "AI Literacy"],
+        "20014": ["การใช้เทคโนโลยีดิจิทัล"]
+    };
+    const mockSupervisorGapUsers = [
+        { n: "สมชาย มีสุข", t: "นาย", sso: "mock-gap-1", p: "นักวิชาการศึกษา", d: currentUser?.d || "สนับสนุนการศึกษาและวิชาการ", evalStatus: "unit_evaluated" },
+        { n: "ชลธิชา วรรณวิทย์", t: "นางสาว", sso: "mock-gap-2", p: "นักวิชาการวิทยาศาสตร์", d: currentUser?.d || "สนับสนุนการศึกษาและวิชาการ", evalStatus: "draft" },
+        { n: "วรรณภา ใจดี", t: "นางสาว", sso: "mock-gap-3", p: "นักวิชาการศึกษา", d: currentUser?.d || "สนับสนุนการศึกษาและวิชาการ", evalStatus: "unit_evaluated" },
+        { n: "ภาณุพงศ์ แสงดี", t: "นาย", sso: "mock-gap-4", p: "นักเอกสารสนเทศ", d: currentUser?.d || "สนับสนุนการศึกษาและวิชาการ", evalStatus: "dept_evaluated" },
+        { n: "กมลชนก พูนผล", t: "นาง", sso: "mock-gap-5", p: "นักแนะแนวการศึกษาและอาชีพ", d: currentUser?.d || "สนับสนุนการศึกษาและวิชาการ", evalStatus: "dean_approved" }
     ];
-    const directGapPeople = users.filter(user =>
-        currentUser &&
-        user.sso !== currentUser.sso &&
-        (user.evaluator2 === currentUser.n || user.sup === currentUser.n) &&
-        !["manager_dept", "manager"].includes(user.r) &&
-        (currentUser.r !== "supervisor" || user.r !== "supervisor")
-    );
+    const scopedGapUsers = managerDeptMode
+        ? getManagerDeptScopeUsers(users, currentUser).filter(user => matchesDeptFilter(user, activeDept))
+        : (supervisorUsers?.length ? supervisorUsers : getManagerDeptScopeUsers(users, currentUser));
+    const directGapPeople = scopedGapUsers.length ? scopedGapUsers : mockSupervisorGapUsers;
     const gapPeople = directGapPeople.map((user, index) => {
-        const pending = user.evalStatus === "draft" || !user.evalStatus;
-        const gaps = gapTemplates[index];
+        const evalStatus = getMockEvalStatus(user);
+        const pending = evalStatus === "draft" || !evalStatus;
+        const fallbackGaps = index % 3 === 1 ? [] : ["การบริการที่ดี", "การวิเคราะห์ข้อมูล"];
+        const gaps = mockGapProfiles[user.sso] ?? fallbackGaps;
 
         return {
             id: user.sso || `gap-${index}`,
@@ -573,6 +710,11 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
     });
     const assessedPeople = gapPeople.filter(person => !person.pending);
     const foundGapPeople = assessedPeople.filter(person => person.gaps.length > 0);
+    const sortedGapPeople = [...gapPeople].sort((left, right) => {
+        const leftGroup = left.pending ? 0 : left.gaps.length > 0 ? 1 : 2;
+        const rightGroup = right.pending ? 0 : right.gaps.length > 0 ? 1 : 2;
+        return leftGroup - rightGroup || right.gaps.length - left.gaps.length || left.n.localeCompare(right.n, "th");
+    });
     const teamGapComps = teamGapCatalog
         .map(comp => ({
             ...comp,
@@ -580,8 +722,8 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
         }))
         .filter(comp => comp.count > 0)
         .sort((left, right) => right.count - left.count || left.n.localeCompare(right.n, "th"));
-    const selectedGapIndex = gapPeople.findIndex(person => person.id === selectedGapId);
-    const selectedGapPerson = gapPeople[selectedGapIndex];
+    const selectedGapIndex = sortedGapPeople.findIndex(person => person.id === selectedGapId);
+    const selectedGapPerson = sortedGapPeople[selectedGapIndex];
     const gapDetailRows = selectedGapPerson?.gaps.map((gap, index) => {
         const comp = teamGapCatalog.find(item => item.n === gap) || teamGapCatalog[index % teamGapCatalog.length];
         return {
@@ -606,12 +748,16 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
                         <div>
                             <div className="fw8 fs15">{selectedGapPerson.n}</div>
                             <div className="muted fs12">{selectedGapPerson.p}</div>
-                            <div className="mt6"><span className="b br">ไม่ผ่าน {gapDetailRows.length} สมรรถนะ</span></div>
+                            <div className="mt6">
+                                <span className={`b ${gapDetailRows.length > 0 ? "br" : "bg"}`}>
+                                    {gapDetailRows.length > 0 ? `ไม่ผ่าน ${gapDetailRows.length} สมรรถนะ` : "ไม่พบ Gap"}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div className="flex g6">
-                        <button className="btn btn-s btn-sm" disabled={selectedGapIndex <= 0} onClick={() => setSelectedGapId(gapPeople[selectedGapIndex - 1]?.id)}>← ก่อนหน้า</button>
-                        <button className="btn btn-s btn-sm" disabled={selectedGapIndex >= gapPeople.length - 1} onClick={() => setSelectedGapId(gapPeople[selectedGapIndex + 1]?.id)}>ถัดไป →</button>
+                        <button className="btn btn-s btn-sm" disabled={selectedGapIndex <= 0} onClick={() => setSelectedGapId(sortedGapPeople[selectedGapIndex - 1]?.id)}>← ก่อนหน้า</button>
+                        <button className="btn btn-s btn-sm" disabled={selectedGapIndex >= sortedGapPeople.length - 1} onClick={() => setSelectedGapId(sortedGapPeople[selectedGapIndex + 1]?.id)}>ถัดไป →</button>
                     </div>
                 </div>
             </div>
@@ -631,7 +777,7 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
                         </tr>
                     </thead>
                     <tbody>
-                        {gapDetailRows.map(row => (
+                        {gapDetailRows.length > 0 ? gapDetailRows.map(row => (
                             <tr key={row.n}>
                                 <td className="fw7 fs13">{row.n}</td>
                                 <td style={{ textAlign: "center" }}><span className={row.tg}>{row.t}</span></td>
@@ -641,7 +787,13 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
                                 <td style={{ textAlign: "center" }}><span className="rc fw8">{row.diff}</span></td>
                                 <td style={{ textAlign: "center" }}><span className="b br">ไม่ผ่าน</span></td>
                             </tr>
-                        ))}
+                        )) : (
+                            <tr>
+                                <td colSpan={7} style={{ textAlign: "center", padding: "26px 16px" }}>
+                                    <span className="b bg">ผ่านทุกสมรรถนะ ไม่พบ Gap</span>
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -664,9 +816,20 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
         <>
             <div className="card mb16">
                 <div className="cb" style={{ padding: "12px 16px" }}>
-                    <select className="sel" value={currentUser.sso} onChange={event => onSupervisorChange?.(event.target.value)}>
-                        {supervisorUsers?.map(user => <option key={user.sso} value={user.sso}>{user.t}{user.n} · {user.p}</option>)}
-                    </select>
+                    {!managerDeptMode && (
+                        <select className="sel" value={currentUser.sso} onChange={event => onSupervisorChange?.(event.target.value)}>
+                            {supervisorUsers?.map(user => <option key={user.sso} value={user.sso}>{user.t}{user.n} · {user.p}</option>)}
+                        </select>
+                    )}
+                    {managerDeptMode && (
+                        <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                            <span className="fs12 fw7 muted">หน่วยงาน:</span>
+                            <select className="sel" style={{ maxWidth: "360px" }} value={activeDept} onChange={event => setActiveDept(event.target.value)}>
+                                {deptOptions.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                            </select>
+                           
+                        </div>
+                    )}
                     <div className="flex ic" style={{ justifyContent: "flex-end", marginTop: "10px" }}>
                         <div className="flex ic g8">
                             <div className="av" style={{ width: "34px", height: "34px", background: "var(--orange)", fontSize: "12px" }}>{currentUser.n[0]}</div>
@@ -680,8 +843,8 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
             </div>
 
             <div className="mb20">
-                <div className="sec-t">Competency Gap ทีม</div>
-                <div className="sec-s">วิเคราะห์ผลการประเมินและจุดอ่อนของทีม ({currentUser.d || "หน่วยงานในความดูแล"})</div>
+                <div className="sec-t">ผลการประเมินของทีม</div>
+                <div className="sec-s">{managerDeptMode ? "ดูผลของหัวหน้าหน่วยงานและบุคลากรทุกคนในสายบังคับบัญชา พร้อม filter หน่วยงานได้" : `วิเคราะห์ผลการประเมินและจุดอ่อนของทีม (${currentUser.d || "หน่วยงานในความดูแล"})`}</div>
             </div>
 
             <div className="g3 mb16">
@@ -692,7 +855,7 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
 
             <div className="g2" style={{ gridTemplateColumns: "1fr 1fr", alignItems: "stretch" }}>
                 <div className="card" style={{ overflow: "hidden" }}>
-                    <div className="ch"><div className="ct">สมรรถนะที่ทีมต้องพัฒนา</div><div className="cs">เรียงตามจำนวนคนที่ไม่ผ่านเกณฑ์</div></div>
+                    <div className="ch"><div className="ct">สมรรถนะที่ไม่ผ่านเกณฑ์</div><div className="cs">เรียงตามจำนวนคนที่ไม่ผ่านเกณฑ์</div></div>
                     <div style={{ padding: 0 }}>
                         {teamGapComps.map(comp => (
                             <div key={comp.n} style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)" }}>
@@ -714,9 +877,9 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
                 </div>
 
                 <div className="card" style={{ overflow: "hidden" }}>
-                    <div className="ch"><div className="ct">รายชื่อและสถานะ Gap รายบุคคล</div></div>
+                    <div className="ch"><div className="ct">รายชื่อสมาชิกและผลการประเมิน</div></div>
                     <div style={{ padding: 0 }}>
-                        {gapPeople.map(person => (
+                        {sortedGapPeople.map(person => (
                             <div key={person.id} className={`flex ic g12 ${person.pending ? "" : "pointer hover-bg"}`} style={{ padding: "15px 18px", borderBottom: "1px solid var(--border)" }} onClick={() => !person.pending && setSelectedGapId(person.id)}>
                                 <div className="av" style={{ width: "38px", height: "38px", background: person.pending ? "var(--text3)" : "var(--navy)", fontSize: "13px", flexShrink: 0 }}>{person.n[0]}</div>
                                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -728,7 +891,7 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
                                             {person.gaps.map(gap => <span key={gap} className="b br" style={{ fontSize: "10px" }}>△ {gap}</span>)}
                                         </div>
                                     ) : (
-                                        <div className="gcc fs11 mt4">✓ ผ่านทุกข้อ</div>
+                                        <div className="gcc fs11 mt4"> ผ่านทุกข้อ</div>
                                     )}
                                 </div>
                                 {!person.pending && <span className="bc fw8 fs13">ดู →</span>}
@@ -744,7 +907,7 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">สรุปสมรรถนะทีม 📊</div>
+                    <div className="sec-t">สรุปสมรรถนะทีม </div>
                     <div className="sec-s">แสดงระดับสมรรถนะ actual_level ของทีมใน {activeDept}</div>
                 </div>
                 <div className="flex ic g8">
@@ -761,12 +924,12 @@ export const TeamGap: React.FC<{ users: any[], currentUser?: any, supervisorUser
                     {DEPT_STRUCTURE[activeDept as keyof typeof DEPT_STRUCTURE].map((w, wi) => (
                         <div key={wi}>
                             <div style={{ background: 'var(--navy)', color: '#fff', padding: '8px 16px', fontWeight: 700, fontSize: '13px' }}>
-                                📁 {w.work}
+                                 {w.work}
                             </div>
                             {w.units.map((un, ui) => (
                                 <div key={ui}>
                                     <div style={{ background: '#f8fafc', padding: '6px 16px', borderLeft: '4px solid var(--blue)', fontSize: '12px', fontWeight: 700, color: 'var(--blue)' }}>
-                                        🏠 {un}
+                                         {un}
                                     </div>
                                     <table className="tbl">
                                         <thead>
@@ -853,7 +1016,7 @@ const LegacyTeamIDP: React.FC<{ users: any[] }> = ({ users }) => {
         <>
             <div className="flex ic jb mb16">
                 <div>
-                    <div className="sec-t">IDP & ติดตามทีม ✅</div>
+                    <div className="sec-t">IDP & ติดตามทีม </div>
                     <div className="sec-s">ข้อมูลใน {activeDept}</div>
                 </div>
                 <div className="flex ic g8">
@@ -877,12 +1040,12 @@ const LegacyTeamIDP: React.FC<{ users: any[] }> = ({ users }) => {
                     {DEPT_STRUCTURE[activeDept as keyof typeof DEPT_STRUCTURE].map((w, wi) => (
                         <div key={wi}>
                             <div style={{ background: 'var(--navy)', color: '#fff', padding: '8px 16px', fontWeight: 700, fontSize: '13px' }}>
-                                📁 {w.work}
+                                 {w.work}
                             </div>
                             {w.units.map((un, ui) => (
                                 <div key={ui}>
                                     <div style={{ background: '#f8fafc', padding: '6px 16px', borderLeft: '4px solid var(--blue)', fontSize: '12px', fontWeight: 700, color: 'var(--blue)' }}>
-                                        🏠 {un}
+                                         {un}
                                     </div>
                                     <div className="p12">
                                         {getStaff(un).map(s => doneList.includes(s.id) ? null : (
@@ -899,8 +1062,8 @@ const LegacyTeamIDP: React.FC<{ users: any[] }> = ({ users }) => {
                                                             </div>
                                                         </div>
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                            <button className="btn btn-s btn-sm" style={{ fontSize: '11px' }}>📄 รายละเอียด</button>
-                                                            <button className="btn btn-g btn-sm" style={{ fontSize: '11px' }} onClick={() => approve(s.id)}>✅ อนุมัติ</button>
+                                                            <button className="btn btn-s btn-sm" style={{ fontSize: '11px' }}> รายละเอียด</button>
+                                                            <button className="btn btn-g btn-sm" style={{ fontSize: '11px' }} onClick={() => approve(s.id)}> อนุมัติ</button>
                                                         </div>
                                                     </div>
                                                     <div className="fg mb0">
@@ -926,16 +1089,95 @@ const LegacyTeamIDP: React.FC<{ users: any[] }> = ({ users }) => {
     );
 };
 
-type SupervisorIDPPhase = "notsent" | "rejected" | "pending" | "forwarded" | "inprogress" | "done";
-type SupervisorIDPDecision = "approved" | "rejected";
+type SupervisorIDPPhase = "notsent" | "rejected" | "pending" | "forwarded" | "deanConfirm" | "inprogress" | "done";
+type SupervisorIDPActivityStatus = "draft" | "pending" | "approved" | "rejected";
+type SupervisorIDPGapProgressStatus = "developing" | "submitted" | "rejected" | "done";
 
 const supervisorIDPPhaseMeta: Record<SupervisorIDPPhase, { label: string; badge: string; tab: string }> = {
     notsent: { label: "ยังไม่ส่งแผน", badge: "bgr", tab: "notsent" },
-    rejected: { label: "แผนไม่ผ่าน", badge: "br", tab: "rejected" },
+    rejected: { label: "แผนไม่ผ่าน", badge: "br", tab: "notsent" },
     pending: { label: "รอคุณตรวจแผน", badge: "by", tab: "pending" },
-    forwarded: { label: "รอหัวหน้าฝ่ายตรวจแผน", badge: "bo", tab: "pending" },
+    forwarded: { label: "รอผู้บังคับบัญชาตรวจสอบแผน", badge: "bo", tab: "pending" },
+    deanConfirm: { label: "รอคณบดียืนยัน", badge: "bb", tab: "pending" },
     inprogress: { label: "ระหว่างดำเนินการ", badge: "bt", tab: "inprogress" },
     done: { label: "เสร็จสิ้น", badge: "bg", tab: "done" }
+};
+
+const supervisorIDPActivityStatusMeta: Record<SupervisorIDPActivityStatus, { label: string; badge: string }> = {
+    draft: { label: "ร่าง", badge: "bgr" },
+    pending: { label: "รออนุมัติ", badge: "by" },
+    approved: { label: "ผ่าน", badge: "bg" },
+    rejected: { label: "ไม่ผ่าน", badge: "br" }
+};
+
+const supervisorIDPGapProgressMeta: Record<SupervisorIDPGapProgressStatus, { label: string; badge: string }> = {
+    developing: { label: "ต้องพัฒนา", badge: "bt" },
+    submitted: { label: "ส่งแล้ว/รอตรวจสอบ", badge: "by" },
+    rejected: { label: "ไม่ผ่าน", badge: "br" },
+    done: { label: "เสร็จสิ้น", badge: "bg" }
+};
+
+const normalizeSupervisorIDPActivity = (activity: any, index: number, planPhase?: SupervisorIDPPhase) => {
+    if (typeof activity === "string") {
+        return {
+            title: activity,
+            method: activity.includes("OJT") || activity.includes("โครงการ") ? "Experiential Learning" : activity.includes("Mentoring") ? "Social Learning" : "Formal Learning",
+            startDate: "2025-06-01",
+            due: "2025-07-31",
+            weight: index === 0 ? 60 : 40,
+            note: "",
+            status: planPhase === "notsent" ? "draft" as SupervisorIDPActivityStatus : "pending" as SupervisorIDPActivityStatus,
+            events: []
+        };
+    }
+
+    const statusText = activity.status;
+    const status: SupervisorIDPActivityStatus =
+        statusText === "ผ่าน" || statusText === "ผ่านแล้ว" || statusText === "เสร็จสิ้น" ? "approved" :
+            statusText === "ไม่ผ่าน" ? "rejected" :
+                statusText === "ร่าง" ? "draft" :
+                    activity.status || (planPhase === "done" ? "approved" : planPhase === "notsent" ? "draft" : "pending");
+
+    return {
+        startDate: "2025-06-01",
+        due: "2025-07-31",
+        weight: index === 0 ? 60 : 40,
+        note: "",
+        events: [],
+        ...activity,
+        status
+    };
+};
+
+const getSupervisorIDPActivities = (gap: any, phase?: SupervisorIDPPhase) =>
+    (gap.activities || []).map((activity: any, index: number) => normalizeSupervisorIDPActivity(activity, index, phase));
+
+const isSupervisorIDPActivityDone = (activity: any) => {
+    const normalized = normalizeSupervisorIDPActivity(activity, 0);
+    return normalized.status === "approved" || activity.status === "ผ่าน" || activity.status === "เสร็จสิ้น" || normalized.progressDone === true;
+};
+
+const deriveSupervisorIDPGapProgressStatus = (gap: any, phase?: SupervisorIDPPhase): SupervisorIDPGapProgressStatus => {
+    if (gap.progressStatus) return gap.progressStatus;
+    if (phase === "done") return "done";
+    return "developing";
+};
+
+const getSupervisorIDPGapProgressSummary = (gap: any, phase?: SupervisorIDPPhase) => {
+    const activities = getSupervisorIDPActivities(gap, phase);
+    const doneCount = activities.filter(isSupervisorIDPActivityDone).length;
+    return {
+        activities,
+        doneCount,
+        totalCount: activities.length,
+        status: deriveSupervisorIDPGapProgressStatus(gap, phase)
+    };
+};
+
+const getSupervisorIDPWeightNotice = (totalWeight: number) => {
+    if (totalWeight === 100) return null;
+    if (totalWeight < 100) return { label: `ขาด ${100 - totalWeight}%`, badge: "by" };
+    return { label: `เกิน ${totalWeight - 100}%`, badge: "br" };
 };
 
 const supervisorIDPMock = [
@@ -955,6 +1197,17 @@ const supervisorIDPMock = [
         n: "นายวีระพล ก้าวหน้า",
         p: "นักจัดการงานทั่วไป",
         unit: "หน่วยแผนยุทธศาสตร์",
+        phase: "rejected" as SupervisorIDPPhase,
+        sent: "17 พ.ค. 68",
+        gaps: [
+            { cd: "CC-003", n: "การทำงานเป็นทีม", t: "CC", tg: "tag-cc", exp: 4, got: 2, goal: "ประสานงานโครงการข้ามหน่วยงานได้ราบรื่นขึ้น", activities: ["Mentoring Program", "Workshop Leadership"] }
+        ]
+    },
+    {
+        id: "rattana-idp",
+        n: "นางสาวรัตนา ทองแท้",
+        p: "นักวิชาการศึกษา",
+        unit: "หน่วยแผนยุทธศาสตร์",
         phase: "pending" as SupervisorIDPPhase,
         sent: "20 พ.ค. 68",
         gaps: [
@@ -966,7 +1219,11 @@ const supervisorIDPMock = [
                 exp: 4,
                 got: 2,
                 goal: "ประสานงานโครงการข้ามหน่วยงานได้ราบรื่นขึ้น",
-                activities: ["Mentoring Program", "Workshop Leadership", "โครงการพัฒนากระบวนการงานร่วม"]
+                activities: [
+                    { title: "Mentoring Program", method: "Social Learning", startDate: "2025-06-01", due: "2025-07-31", weight: 40, status: "pending", note: "เลือกจาก Catalog HR" },
+                    { title: "Workshop Leadership", method: "Formal Learning", startDate: "2025-06-10", due: "2025-07-15", weight: 30, status: "pending", note: "เลือกจาก Catalog HR" },
+                    { title: "โครงการพัฒนากระบวนการงานร่วม", method: "Experiential Learning", startDate: "2025-06-15", due: "2025-08-15", weight: 30, status: "pending", note: "ระบุกิจกรรมเอง" }
+                ]
             },
             {
                 cd: "FC2-061",
@@ -976,7 +1233,10 @@ const supervisorIDPMock = [
                 exp: 4,
                 got: 2,
                 goal: "ใช้เครื่องมือดิจิทัลจัดทำ dashboard ติดตามแผนงานได้",
-                activities: ["อบรม Data Dashboard", "OJT สรุปข้อมูลผู้บริหาร"]
+                activities: [
+                    { title: "อบรม Data Dashboard", method: "Formal Learning", startDate: "2025-06-01", due: "2025-06-30", weight: 50, status: "pending", note: "เลือกจาก Catalog HR" },
+                    { title: "OJT สรุปข้อมูลผู้บริหาร", method: "Experiential Learning", startDate: "2025-07-01", due: "2025-08-31", weight: 50, status: "pending", note: "ระบุกิจกรรมเอง" }
+                ]
             }
         ]
     },
@@ -984,6 +1244,24 @@ const supervisorIDPMock = [
         id: "bunyoo",
         n: "นายบุญอยู่ มีสุข",
         p: "เจ้าหน้าที่บริหาร",
+        unit: "หน่วยแผนยุทธศาสตร์",
+        phase: "forwarded" as SupervisorIDPPhase,
+        sent: "21 พ.ค. 68",
+        gaps: [{ cd: "FC2-061", n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", exp: 4, got: 2, goal: "ใช้เครื่องมือดิจิทัลจัดทำ dashboard ติดตามแผนงานได้", activities: [{ title: "อบรม Data Dashboard", method: "Formal Learning", startDate: "2025-06-01", due: "2025-06-30", weight: 50, status: "pending" }, { title: "OJT สรุปข้อมูลผู้บริหาร", method: "Experiential Learning", startDate: "2025-07-01", due: "2025-08-31", weight: 50, status: "pending" }] }]
+    },
+    {
+        id: "chayut",
+        n: "นายชยุต วงศ์แผน",
+        p: "เจ้าหน้าที่แผนงาน",
+        unit: "หน่วยแผนยุทธศาสตร์",
+        phase: "deanConfirm" as SupervisorIDPPhase,
+        sent: "22 พ.ค. 68",
+        gaps: [{ cd: "FC2-062", n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", exp: 3, got: 2, goal: "จัดทำรายงานวิเคราะห์ข้อมูลประจำเดือน", activities: [{ title: "OJT Dashboard แผนงาน", method: "Experiential Learning", startDate: "2025-06-01", due: "2025-08-31", weight: 100, status: "pending" }] }]
+    },
+    {
+        id: "pimjai-idp",
+        n: "นางสาวพิมพ์ใจ ทองดี",
+        p: "นักวิเคราะห์",
         unit: "หน่วยแผนยุทธศาสตร์",
         phase: "inprogress" as SupervisorIDPPhase,
         gaps: [
@@ -994,24 +1272,115 @@ const supervisorIDPMock = [
                 tg: "tag-cc",
                 exp: 3,
                 got: 2,
+                progressStatus: "developing",
                 activities: [
                     {
                         title: "Team Activity Program",
                         method: "Social Learning",
-                        status: "ผ่านแล้ว",
+                        startDate: "2025-05-01",
+                        due: "2025-06-30",
+                        weight: 60,
+                        status: "ผ่าน",
                         events: [
-                            { date: "5 พ.ค.", text: "เริ่มกิจกรรมกลุ่ม - โครงการพัฒนาระบบงานร่วมกัน 4 คน", file: "แผนงาน_Team_Activity_2566.pdf", by: "นายบุญอยู่ มีสุข" },
-                            { date: "10 มิ.ย.", text: "ส่งรายงานความก้าวหน้าครึ่งทาง", file: "รายงานความก้าวหน้า_มิ.ย.66.pdf", by: "นายบุญอยู่ มีสุข" },
-                            { date: "30 มิ.ย.", text: "ประเมินผ่านเกณฑ์ - หัวหน้าประเมินระดับ 3/5", file: "แบบประเมิน_TeamActivity_2566.pdf", by: "รศ.ดร.วิไล ใจดี" }
+                            { date: "5 พ.ค.", text: "เริ่มกิจกรรมกลุ่ม - โครงการพัฒนาระบบงานร่วมกัน 4 คน", file: "แผนงาน_Team_Activity_2568.pdf", by: "นายปิยวัฒน์ รุ่งเรือง" },
+                            { date: "10 มิ.ย.", text: "ส่งรายงานความก้าวหน้าครึ่งทาง", file: "รายงานความก้าวหน้า_มิ.ย.68.pdf", by: "นายปิยวัฒน์ รุ่งเรือง" },
+                            { date: "30 มิ.ย.", text: "หัวหน้างานตรวจความก้าวหน้าแล้ว", file: "แบบติดตาม_TeamActivity_2568.pdf", by: "นางกัญญารัตน์ ศรีวิชา" }
                         ]
                     },
                     {
                         title: "อ่านและสรุปหนังสือ Teamwork 101",
                         method: "Formal Learning",
-                        status: "ผ่านแล้ว",
+                        startDate: "2025-07-01",
+                        due: "2025-07-31",
+                        weight: 40,
+                        status: "รออนุมัติ",
                         events: [
-                            { date: "1 ก.ค.", text: "เริ่มอ่านและจดบันทึกสรุปบทที่ 1-5", file: "สรุปหนังสือ_บทที่1-5.docx", by: "นายบุญอยู่ มีสุข" },
-                            { date: "31 ส.ค.", text: "ส่งสรุปหนังสือครบ 12 บท - ผ่านการตรวจ", file: "สรุปหนังสือ_Teamwork101_ฉบับสมบูรณ์.pdf", by: "นายบุญอยู่ มีสุข" }
+                            { date: "1 ก.ค.", text: "เริ่มอ่านและจดบันทึกสรุปบทที่ 1-5", file: "สรุปหนังสือ_บทที่1-5.docx", by: "นายปิยวัฒน์ รุ่งเรือง" }
+                        ]
+                    }
+                ]
+            },
+            {
+                cd: "FC2-061",
+                n: "การใช้เทคโนโลยีดิจิทัล",
+                t: "FC",
+                tg: "tag-fc",
+                exp: 4,
+                got: 2,
+                progressStatus: "submitted",
+                activities: [
+                    {
+                        title: "อบรม Data Dashboard",
+                        method: "Formal Learning",
+                        startDate: "2025-06-01",
+                        due: "2025-06-30",
+                        weight: 50,
+                        status: "ผ่าน",
+                        events: [
+                            { date: "5 มิ.ย.", text: "เข้าอบรมครบตามหลักสูตรและแนบใบรับรอง", file: "Certificate_DataDashboard.pdf", by: "นางสาวพิมพ์ใจ ทองดี" }
+                        ]
+                    },
+                    {
+                        title: "OJT สรุปข้อมูลผู้บริหาร",
+                        method: "Experiential Learning",
+                        startDate: "2025-07-01",
+                        due: "2025-08-31",
+                        weight: 50,
+                        status: "ผ่าน",
+                        events: [
+                            { date: "20 ส.ค.", text: "ส่ง dashboard และรายงานวิเคราะห์ฉบับสมบูรณ์", file: "Executive_Dashboard_Aug68.xlsx", by: "นางสาวพิมพ์ใจ ทองดี" },
+                            { date: "21 ส.ค.", text: "ส่งสมรรถนะนี้ให้หัวหน้าตรวจสอบ", file: "IDP_Progress_FC2-061.pdf", by: "นางสาวพิมพ์ใจ ทองดี" }
+                        ]
+                    }
+                ]
+            },
+            {
+                cd: "FC2-062",
+                n: "การวิเคราะห์ข้อมูล",
+                t: "FC",
+                tg: "tag-fc",
+                exp: 3,
+                got: 2,
+                progressStatus: "rejected",
+                reviewer: "นางกัญญารัตน์ ศรีวิชา",
+                reviewedDate: "18 ส.ค. 68",
+                reviewComment: "หลักฐานยังไม่เห็นการวิเคราะห์เชิงสรุปผล ขอให้เพิ่ม insight และแนบรายงานฉบับปรับปรุง",
+                activities: [
+                    {
+                        title: "วิเคราะห์ชุดข้อมูลบริการ",
+                        method: "Experiential Learning",
+                        startDate: "2025-07-01",
+                        due: "2025-08-15",
+                        weight: 100,
+                        status: "ผ่าน",
+                        events: [
+                            { date: "15 ส.ค.", text: "ส่งไฟล์วิเคราะห์ข้อมูลรอบแรก", file: "Service_Data_Analysis_v1.xlsx", by: "นางสาวพิมพ์ใจ ทองดี" },
+                            { date: "18 ส.ค.", text: "หัวหน้างานส่งกลับให้แก้ไขระดับสมรรถนะ", file: "Supervisor_Feedback_FC2-062.pdf", by: "นางกัญญารัตน์ ศรีวิชา" }
+                        ]
+                    }
+                ]
+            },
+            {
+                cd: "CC-005",
+                n: "AI Literacy",
+                t: "CC",
+                tg: "tag-cc",
+                exp: 3,
+                got: 1,
+                progressStatus: "done",
+                reviewer: "นางกัญญารัตน์ ศรีวิชา",
+                reviewedDate: "10 ส.ค. 68",
+                reviewComment: "หลักฐานครบและนำไปใช้กับงานจริงได้",
+                activities: [
+                    {
+                        title: "ทดลองใช้ AI สรุปรายงานประชุม",
+                        method: "Experiential Learning",
+                        startDate: "2025-07-01",
+                        due: "2025-08-10",
+                        weight: 100,
+                        status: "ผ่าน",
+                        events: [
+                            { date: "10 ส.ค.", text: "หัวหน้างานตรวจผ่านสมรรถนะนี้", file: "AI_Literacy_Result.pdf", by: "นางกัญญารัตน์ ศรีวิชา" }
                         ]
                     }
                 ]
@@ -1019,37 +1388,46 @@ const supervisorIDPMock = [
         ]
     },
     {
-        id: "chayut",
-        n: "นายชยุต วงศ์แผน",
-        p: "เจ้าหน้าที่แผนงาน",
-        unit: "หน่วยแผนยุทธศาสตร์",
-        phase: "done" as SupervisorIDPPhase,
-        gaps: [{ cd: "FC2-062", n: "การวิเคราะห์ข้อมูล", t: "FC", tg: "tag-fc", exp: 3, got: 2 }]
-    },
-    {
-        id: "pimjai-idp",
-        n: "นางสาวพิมพ์ใจ ทองดี",
-        p: "นักวิเคราะห์",
-        unit: "หน่วยแผนยุทธศาสตร์",
-        phase: "pending" as SupervisorIDPPhase,
-        sent: "18 พ.ค. 68",
-        gaps: [{ cd: "CC-001", n: "การบริการที่ดี", t: "CC", tg: "tag-cc", exp: 3, got: 2, goal: "พัฒนาการประสานงานกับผู้รับบริการ", activities: ["Service Clinic"] }]
-    },
-    {
         id: "supaporn-idp",
         n: "นางสาวสุภาพร วางแผน",
         p: "นักวิเคราะห์",
         unit: "หน่วยแผนยุทธศาสตร์",
-        phase: "forwarded" as SupervisorIDPPhase,
-        gaps: [{ cd: "CC-005", n: "AI Literacy", t: "CC", tg: "tag-cc", exp: 3, got: 2 }]
-    },
-    {
-        id: "kengkaj-idp",
-        n: "นายเก่งกาจ งานดี",
-        p: "นักจัดการงานทั่วไป",
-        unit: "หน่วยแผนยุทธศาสตร์",
-        phase: "forwarded" as SupervisorIDPPhase,
-        gaps: [{ cd: "FC2-061", n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", tg: "tag-fc", exp: 3, got: 2 }]
+        phase: "done" as SupervisorIDPPhase,
+        gaps: [{
+            cd: "FC2-062",
+            n: "การวิเคราะห์ข้อมูล",
+            t: "FC",
+            tg: "tag-fc",
+            exp: 3,
+            got: 2,
+            activities: [
+                {
+                    title: "OJT วิเคราะห์ข้อมูลผู้รับบริการ",
+                    method: "Experiential Learning",
+                    startDate: "2025-05-12",
+                    due: "2025-07-15",
+                    weight: 70,
+                    status: "ผ่าน",
+                    events: [
+                        { date: "12 พ.ค.", text: "เริ่มทำชุดข้อมูลตัวอย่างและกำหนดตัวชี้วัด", file: "Data_OJT_Plan_2568.pdf", by: "นางสาวณัฐธิดา แก้วใส" },
+                        { date: "20 มิ.ย.", text: "ส่ง dashboard วิเคราะห์ข้อมูลรอบแรก", file: "Dashboard_Review_มิ.ย.68.xlsx", by: "นางสาวณัฐธิดา แก้วใส" },
+                        { date: "15 ก.ค.", text: "หัวหน้างานตรวจผลลัพธ์และให้ผ่านกิจกรรม", file: "ผลประเมิน_OJT_Data_2568.pdf", by: "นางกัญญารัตน์ ศรีวิชา" }
+                    ]
+                },
+                {
+                    title: "อบรม Data Storytelling",
+                    method: "Formal Learning",
+                    startDate: "2025-07-01",
+                    due: "2025-07-31",
+                    weight: 30,
+                    status: "ผ่าน",
+                    events: [
+                        { date: "25 ก.ค.", text: "เข้าอบรมและส่งใบรับรองเรียบร้อย", file: "Certificate_DataStorytelling.pdf", by: "นางสาวณัฐธิดา แก้วใส" },
+                        { date: "31 ก.ค.", text: "ปิดแผน IDP หลังตรวจหลักฐานครบถ้วน", file: "IDP_Completion_ณัฐธิดา.pdf", by: "นางกัญญารัตน์ ศรีวิชา" }
+                    ]
+                }
+            ]
+        }]
     }
 ];
 
@@ -1061,7 +1439,7 @@ const SupervisorIDPHeader: React.FC<{ currentUser?: any, supervisorUsers?: any[]
         <div className="card mb16">
             <div className="cb flex ic jb g12" style={{ padding: "12px 16px", flexWrap: "nowrap" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    {supervisorUsers?.length ? (
+                    {supervisorUsers?.length && currentUser?.r !== "manager_dept" ? (
                         <select className="sel" style={{ width: "100%" }} value={currentUser?.sso || ""} onChange={event => onSupervisorChange?.(event.target.value)}>
                             {supervisorUsers.map(user => <option key={user.sso} value={user.sso}>{user.t}{user.n} | {user.p}</option>)}
                         </select>
@@ -1084,19 +1462,17 @@ const SupervisorIDPHeader: React.FC<{ currentUser?: any, supervisorUsers?: any[]
 };
 
 const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervisorUsers?: any[], onSupervisorChange?: (sso: string) => void }> = ({ users, currentUser, supervisorUsers, onSupervisorChange }) => {
-    const [activeTab, setActiveTab] = useState("notsent");
+    const [activeTab, setActiveTab] = useState("idp");
+    const [activeDept, setActiveDept] = useState(currentUser?.r === "manager_dept" ? "ทั้งหมด" : getPrimaryDept(currentUser?.d));
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [phases, setPhases] = useState<Record<string, SupervisorIDPPhase>>({});
     const [decisions, setDecisions] = useState<Record<string, SupervisorIDPDecision>>({});
     const [feedback, setFeedback] = useState<Record<string, string>>({});
+    const [progressStatuses, setProgressStatuses] = useState<Record<string, SupervisorIDPGapProgressStatus>>({});
 
-    const directReports = users.filter(user =>
-        currentUser &&
-        user.sso !== currentUser.sso &&
-        (user.evaluator2 === currentUser.n || user.sup === currentUser.n) &&
-        !["manager_dept", "manager"].includes(user.r) &&
-        (currentUser.r !== "supervisor" || user.r !== "supervisor")
-    );
+    const managerDeptMode = currentUser?.r === "manager_dept";
+    const deptOptions = managerDeptMode ? getScopeDeptOptions(users, currentUser) : getScopeDeptOptions(users, currentUser).filter(dept => dept !== "ทั้งหมด");
+    const directReports = getManagerDeptScopeUsers(users, currentUser).filter(user => matchesDeptFilter(user, activeDept || "ทั้งหมด"));
     const team = directReports.map((report, index) => {
         const item = supervisorIDPMock[index % supervisorIDPMock.length];
         const mockId = report.sso || item.id;
@@ -1107,48 +1483,83 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
             n: `${report.t}${report.n}`,
             p: report.p,
             unit: report.d,
-            phase: phases[mockId] || item.phase
+            phase: phases[mockId] || item.phase,
+            gaps: item.gaps.map((gap: any) => {
+                const progressKey = buildSupervisorGapDecisionKey(mockId, gap.cd);
+                return {
+                    ...gap,
+                    progressStatus: progressStatuses[progressKey] || deriveSupervisorIDPGapProgressStatus(gap, phases[mockId] || item.phase)
+                };
+            })
         };
     });
     const activeStaff = team.find(item => item.id === selectedId);
     const tabs = [
-        { id: "notsent", label: "ยังไม่ส่งแผน", hint: "ยังไม่เริ่มส่งแผน", c: "bgr" },
-        { id: "pending", label: "รอการตรวจ/ยืนยัน", hint: "ตรวจแผนที่ส่งแล้ว", c: "by" },
-        { id: "rejected", label: "แผนไม่ผ่าน", hint: "กลับไปแก้ไขและส่งใหม่", c: "br" },
+        { id: "idp", label: "จำนวนคนที่ต้องทำ IDP", hint: "ทุกคนที่มีรายการ IDP ในทีม", c: "bb" },
+        { id: "notsent", label: "ยังไม่ส่งแผน", hint: "ยังไม่ส่งหรือแผนไม่ผ่าน", c: "bgr" },
+        { id: "pending", label: "รอการตรวจสอบ/ยืนยัน", hint: "รอหัวหน้า ผู้บังคับบัญชา หรือคณบดี", c: "by" },
         { id: "inprogress", label: "ระหว่างดำเนินการ", hint: "ติดตามกิจกรรม", c: "bt" },
         { id: "done", label: "เสร็จสิ้น", hint: "ปิดแผนแล้ว", c: "bg" }
     ];
 
-    const getTabCount = (id: string) => team.filter(item => supervisorIDPPhaseMeta[item.phase].tab === id).length;
-    const visibleTeam = team.filter(item => supervisorIDPPhaseMeta[item.phase].tab === activeTab);
-    const gapDecisionKey = (staffId: string, gapCode: string) => `${staffId}:${gapCode}`;
-
+    const getTabCount = (id: string) => {
+        if (id === "idp") return team.length;
+        return team.filter(item => supervisorIDPPhaseMeta[item.phase].tab === id).length;
+    };
+    const visibleTeam = team.filter(item => activeTab === "idp" ? true : supervisorIDPPhaseMeta[item.phase].tab === activeTab);
     const decideGap = (staffId: string, gapCode: string, next: SupervisorIDPDecision) => {
-        if (next === "rejected" && !feedback[gapDecisionKey(staffId, gapCode)]?.trim()) {
-            alert("กรุณาระบุเหตุผลที่แผนไม่ผ่านก่อน");
+        const key = buildSupervisorGapDecisionKey(staffId, gapCode);
+        const validation = validateSupervisorGapDecision(next, feedback[key] || "");
+        if (!validation.ok) {
+            alert(validation.message);
             return;
         }
 
-        setDecisions(prev => ({ ...prev, [gapDecisionKey(staffId, gapCode)]: next }));
+        setDecisions(prev => ({ ...prev, [key]: next }));
     };
 
-    const continuePending = (staffId: string, gaps: any[]) => {
-        const gapDecisions = gaps.map(gap => decisions[gapDecisionKey(staffId, gap.cd)]);
-        if (gapDecisions.some(item => !item)) {
-            alert("กรุณาตรวจทุกแผนก่อนดำเนินการต่อ");
+    const continuePending = (staffId: string, gaps: any[], mode: "forward" | "return") => {
+        const reviewState = getSupervisorIDPReviewState(staffId, gaps, decisions, feedback);
+        if (reviewState.pendingGapCodes.length) {
+            alert(reviewState.message || "กรุณาตรวจทุกข้อสมรรถนะก่อนส่งต่อ");
             return;
         }
 
-        const rejected = gapDecisions.some(item => item === "rejected");
-        setPhases(prev => ({ ...prev, [staffId]: rejected ? "rejected" : "forwarded" }));
+        if (mode === "forward" && !reviewState.canForward) {
+            alert("ยังส่งต่อไม่ได้ เพราะมีข้อสมรรถนะที่ไม่ผ่าน");
+            return;
+        }
+
+        if (mode === "return" && reviewState.nextPhase !== "rejected") {
+            alert("ไม่มีข้อสมรรถนะที่ต้องส่งกลับ");
+            return;
+        }
+
+        if (reviewState.message && mode === "return" && reviewState.message.includes("ข้อเสนอแนะ")) {
+            alert(reviewState.message);
+            return;
+        }
+
+        setPhases(prev => ({ ...prev, [staffId]: mode === "forward" ? "forwarded" : "rejected" }));
         setSelectedId(null);
-        setActiveTab(rejected ? "rejected" : "pending");
+        setActiveTab(mode === "forward" ? "pending" : "notsent");
+    };
+
+    const decideProgressGap = (staffId: string, gapCode: string, next: "done" | "rejected") => {
+        const key = buildSupervisorGapDecisionKey(staffId, gapCode);
+        if (next === "rejected" && !(feedback[key] || "").trim()) {
+            alert("กรุณาระบุเหตุผลหรือข้อเสนอแนะก่อนส่งกลับ");
+            return;
+        }
+
+        setProgressStatuses(prev => ({ ...prev, [key]: next }));
     };
 
     if (activeStaff) {
         const meta = supervisorIDPPhaseMeta[activeStaff.phase];
         const pendingPlan = activeStaff.phase === "pending";
         const forwardedPlan = activeStaff.phase === "forwarded";
+        const deanConfirmPlan = activeStaff.phase === "deanConfirm";
         const rejectedPlan = activeStaff.phase === "rejected";
         const timelineMode = activeStaff.phase === "inprogress" || activeStaff.phase === "done";
 
@@ -1178,75 +1589,216 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
                 {activeStaff.phase === "notsent" && (
                     <div className="card">
                         <div className="ch"><div className="ct">ยังไม่ส่งแผน IDP</div><div className="cs">แสดงเฉพาะ Competency Gap ที่ทำไว้แล้ว</div></div>
-                        <GapRows gaps={activeStaff.gaps} />
+                        <GapRows gaps={activeStaff.gaps} phase={activeStaff.phase} />
                     </div>
                 )}
 
                 {rejectedPlan && (
                     <div className="card">
                         <div className="ch"><div className="ct">แผนไม่ผ่าน</div><div className="cs">บุคลากรต้องกลับไปแก้แผนที่ไม่ผ่านก่อนส่งใหม่</div></div>
-                        <GapRows gaps={activeStaff.gaps} decisions={decisions} staffId={activeStaff.id} feedback={feedback} />
+                        <GapRows gaps={activeStaff.gaps} decisions={decisions} staffId={activeStaff.id} feedback={feedback} phase={activeStaff.phase} />
                     </div>
                 )}
 
                 {forwardedPlan && (
                     <div className="card">
-                        <div className="ch"><div className="ct">แผนผ่านการตรวจจากหัวหน้างานแล้ว</div><div className="cs">อยู่ระหว่างรอหัวหน้าฝ่ายตรวจสอบต่อ</div></div>
-                        <GapRows gaps={activeStaff.gaps} decisions={decisions} staffId={activeStaff.id} feedback={feedback} />
+                        <div className="ch"><div className="ct">แผนผ่านการตรวจจากหัวหน้างานแล้ว</div><div className="cs">อยู่ระหว่างรอผู้บังคับบัญชาตรวจสอบต่อ</div></div>
+                        <GapRows gaps={activeStaff.gaps} decisions={decisions} staffId={activeStaff.id} feedback={feedback} phase={activeStaff.phase} />
+                    </div>
+                )}
+
+                {deanConfirmPlan && (
+                    <div className="card">
+                        <div className="ch"><div className="ct">แผนผ่านการตรวจจากผู้บังคับบัญชาแล้ว</div><div className="cs">อยู่ระหว่างรอคณบดียืนยัน</div></div>
+                        <GapRows gaps={activeStaff.gaps} decisions={decisions} staffId={activeStaff.id} feedback={feedback} phase={activeStaff.phase} />
                     </div>
                 )}
 
                 {pendingPlan && (
                     <>
-                        {activeStaff.gaps.map((gap: any) => {
-                            const key = gapDecisionKey(activeStaff.id, gap.cd);
-                            const decision = decisions[key];
+                        {(() => {
+                            const reviewState = getSupervisorIDPReviewState(activeStaff.id, activeStaff.gaps, decisions, feedback);
+                            const hasRejected = reviewState.rejectedGapCodes.length > 0;
                             return (
-                                <div key={gap.cd} className="card mb14" style={{ overflow: "hidden" }}>
-                                    <div className="ch" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+                                <div className="card mb14 supervisor-review-brief">
+                                    <div className="cb flex ic jb g12 supervisor-review-brief-inner">
+                                        <div>
+                                            <div className="supervisor-review-title">ตรวจแผนรายข้อสมรรถนะ</div>
+                                            <div className="supervisor-review-subtitle">
+                                                ตรวจครบทุกข้อก่อน จึงค่อยส่งต่อท้ายหน้าได้ หากมีข้อไม่ผ่านต้องส่งกลับให้แก้ไข
+                                            </div>
+                                        </div>
                                         <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
-                                            <span className={gap.tg}>{gap.t}</span>
-                                            <div className="ct">{gap.n}</div>
-                                            <span className="muted fs12">คาดหวัง {gap.exp} · ได้ {gap.got} · <span className="rc fw7">Gap {gap.got - gap.exp}</span></span>
+                                            <span className="b bg">{activeStaff.gaps.length - reviewState.pendingGapCodes.length}/{activeStaff.gaps.length} ตรวจแล้ว</span>
+                                            {hasRejected && <span className="b br">{reviewState.rejectedGapCodes.length} ข้อไม่ผ่าน</span>}
                                         </div>
-                                        {decision && <span className={`b ${decision === "approved" ? "bg" : "br"}`}>{decision === "approved" ? "แผนผ่าน" : "แผนไม่ผ่าน"}</span>}
                                     </div>
-                                    <div className="cb">
-                                        <div className="fs12 fw7 mb4">เป้าหมายการพัฒนา</div>
-                                        <div className="muted fs13 mb12" style={{ padding: "10px 12px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r)" }}>{gap.goal}</div>
-                                        <div className="flex g6 mb12" style={{ flexWrap: "wrap" }}>
-                                            {gap.activities.map((activity: string) => <span key={activity} className="b bb">{activity}</span>)}
+                                </div>
+                            );
+                        })()}
+                        {activeStaff.gaps.map((gap: any) => {
+                            const activities = getSupervisorIDPActivities(gap, activeStaff.phase);
+                            const totalWeight = activities.reduce((sum: number, activity: any) => sum + Number(activity.weight || 0), 0);
+                            const weightNotice = getSupervisorIDPWeightNotice(totalWeight);
+                            const gapDecisionKey = buildSupervisorGapDecisionKey(activeStaff.id, gap.cd);
+                            const decision = decisions[gapDecisionKey];
+                            return (
+                                <div key={gap.cd} className="card mb14 supervisor-review-gap">
+                                    <div className="ch supervisor-review-gap-head">
+                                        <div className="flex ic g8 supervisor-review-gap-title-row">
+                                            <span className={gap.tg}>{gap.t}</span>
+                                            <div className="ct supervisor-review-gap-title">{gap.n}</div>
+                                            <span className="supervisor-review-meta">คาดหวัง {gap.exp} · ได้ {gap.got} · <span className="rc fw7">Gap {gap.got - gap.exp}</span></span>
+                                            <span className={`b ${totalWeight === 100 ? "bg" : totalWeight > 100 ? "br" : "bb"}`}>{totalWeight}/100%</span>
+                                            {weightNotice && <span className={`b ${weightNotice.badge}`}>{weightNotice.label}</span>}
                                         </div>
-                                        <textarea className="ta" style={{ minHeight: "46px" }} value={feedback[key] || ""} placeholder="ข้อเสนอแนะ / เหตุผลเมื่อแผนไม่ผ่าน" onChange={event => setFeedback(prev => ({ ...prev, [key]: event.target.value }))} />
-                                        <div className="flex g6 mt8">
-                                            <button className="btn btn-g btn-sm" onClick={() => decideGap(activeStaff.id, gap.cd, "approved")}>ผ่านแผนนี้</button>
-                                            <button className="btn btn-r btn-sm" onClick={() => decideGap(activeStaff.id, gap.cd, "rejected")}>แผนไม่ผ่าน</button>
+                                        {decision && <span className={`b ${decision === "approved" ? "bg" : "br"}`}>{decision === "approved" ? "ข้อสมรรถนะผ่าน" : "ข้อสมรรถนะไม่ผ่าน"}</span>}
+                                    </div>
+                                    <div className="cb supervisor-review-gap-body">
+                                        <div className="supervisor-review-section-label">เป้าหมายการพัฒนา</div>
+                                        <div className="supervisor-review-goal">{gap.goal}</div>
+                                        <div className="supervisor-review-activity-list">
+                                            {activities.map((activity: any) => (
+                                                <SupervisorIDPActivityRow key={`${gap.cd}-${activity.title}`} activity={activity} />
+                                            ))}
+                                        </div>
+                                        <div className="supervisor-review-comment-block">
+                                            <label className="lbl supervisor-review-comment-label">
+                                                ข้อเสนอแนะของข้อสมรรถนะนี้ {decision === "rejected" && <span style={{ color: "var(--red)" }}>*</span>}
+                                            </label>
+                                            <textarea
+                                                className="ta supervisor-review-textarea"
+                                                value={feedback[gapDecisionKey] || ""}
+                                                placeholder="ระบุข้อเสนอแนะรวมของข้อนี้ โดยเฉพาะเมื่อเลือกไม่ผ่าน"
+                                                onChange={event => setFeedback(prev => ({ ...prev, [gapDecisionKey]: event.target.value }))}
+                                            />
+                                            <div className="flex g8 supervisor-review-actions">
+                                                <button className="btn btn-g" onClick={() => decideGap(activeStaff.id, gap.cd, "approved")}>ผ่านข้อสมรรถนะ</button>
+                                                <button className="btn btn-r" onClick={() => decideGap(activeStaff.id, gap.cd, "rejected")}>ข้อสมรรถนะไม่ผ่าน</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             );
                         })}
-                        <div className="flex" style={{ justifyContent: "flex-end" }}>
-                            <button className="btn btn-p" onClick={() => continuePending(activeStaff.id, activeStaff.gaps)}>ดำเนินการต่อ</button>
-                        </div>
+                        {(() => {
+                            const reviewState = getSupervisorIDPReviewState(activeStaff.id, activeStaff.gaps, decisions, feedback);
+                            const hasRejected = reviewState.rejectedGapCodes.length > 0;
+                            return (
+                                <div className="card supervisor-review-footer">
+                                    <div className="cb flex ic jb g12 supervisor-review-footer-inner">
+                                        <div>
+                                            <div className="supervisor-review-footer-title">สรุปผลการตรวจ</div>
+                                            <div className={`fs12 ${reviewState.canForward ? "gcc" : hasRejected ? "rc" : "muted"}`} style={{ marginTop: "3px" }}>
+                                                {reviewState.canForward
+                                                    ? "ทุกข้อผ่านแล้ว สามารถส่งต่อผู้บังคับบัญชาได้"
+                                                    : hasRejected
+                                                        ? "มีข้อไม่ผ่าน ต้องส่งกลับให้บุคลากรแก้ไข"
+                                                        : reviewState.message}
+                                            </div>
+                                        </div>
+                                        <div className="flex g8" style={{ flexWrap: "wrap" }}>
+                                            {hasRejected && (
+                                                <button className="btn btn-r" onClick={() => continuePending(activeStaff.id, activeStaff.gaps, "return")}>
+                                                    ส่งกลับให้แก้ไข
+                                                </button>
+                                            )}
+                                            <button
+                                                className="btn btn-p"
+                                                disabled={!reviewState.canForward}
+                                                style={{ opacity: reviewState.canForward ? 1 : 0.45, cursor: reviewState.canForward ? "pointer" : "not-allowed" }}
+                                                onClick={() => continuePending(activeStaff.id, activeStaff.gaps, "forward")}
+                                            >
+                                                ส่งต่อผู้บังคับบัญชา
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </>
                 )}
 
-                {timelineMode && activeStaff.gaps.map((gap: any) => (
-                    <div key={gap.cd} className="card mb14" style={{ overflow: "hidden" }}>
-                        <div className="ch" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-                            <div className="flex ic g8">
-                                <span className={gap.tg}>{gap.t}</span>
-                                <div className="ct">{gap.n}</div>
-                                <span className="muted fs12">{gap.cd} · Gap {gap.got - gap.exp}</span>
+                {timelineMode && activeStaff.gaps.map((gap: any) => {
+                    const progress = getSupervisorIDPGapProgressSummary(gap, activeStaff.phase);
+                    const progressMeta = supervisorIDPGapProgressMeta[progress.status];
+                    const reviewKey = buildSupervisorGapDecisionKey(activeStaff.id, gap.cd);
+                    const canReview = activeStaff.phase === "inprogress" && progress.status === "submitted";
+                    const locked = !canReview;
+                    return (
+                        <div key={gap.cd} className="card mb14" style={{ overflow: "hidden" }}>
+                            <div className="ch" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+                                <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                                    <span className={gap.tg}>{gap.t}</span>
+                                    <div className="ct">{gap.n}</div>
+                                    <span className="muted fs12">{gap.cd} · Gap {gap.got - gap.exp}</span>
+                                    <span className="b bgr">{progress.doneCount}/{progress.totalCount} กิจกรรมเสร็จแล้ว</span>
+                                </div>
+                                <span className={`b ${progressMeta.badge}`}>{progressMeta.label}</span>
                             </div>
-                            <span className="b bg">{activeStaff.phase === "done" ? "เสร็จสิ้น" : "ระหว่างดำเนินการ"}</span>
+                            <div className="cb" style={{ padding: "12px" }}>
+                                {progress.activities.map((activity: any) => <ActivityTimeline key={activity.title} activity={activity} />)}
+
+                                {progress.status === "rejected" && (
+                                    <div style={{ background: "var(--red-bg)", border: "1px solid #fecaca", borderRadius: "var(--r)", padding: "12px 14px", marginBottom: "12px" }}>
+                                        <div className="fw8 fs13 rc">ส่งกลับให้แก้ไขแล้ว</div>
+                                        <div className="muted fs12 mt4">{gap.reviewer || "หัวหน้างาน"}{gap.reviewedDate ? ` · ${gap.reviewedDate}` : ""}</div>
+                                        <div className="fs12 mt8" style={{ background: "#fff", border: "1px solid #fecaca", borderRadius: "6px", padding: "8px 10px" }}>
+                                            {feedback[reviewKey] || gap.reviewComment || "รอลูกน้องแก้ไขและส่งตรวจอีกครั้ง"}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {progress.status === "done" && (
+                                    <div style={{ background: "var(--green-bg)", border: "1px solid var(--green-md)", borderRadius: "var(--r)", padding: "12px 14px", marginBottom: "12px" }}>
+                                        <div className="fw8 fs13 gcc">ตรวจผ่านสมรรถนะนี้แล้ว</div>
+                                        <div className="muted fs12 mt4">{gap.reviewer || "หัวหน้างาน"}{gap.reviewedDate ? ` · ${gap.reviewedDate}` : ""}</div>
+                                        {(feedback[reviewKey] || gap.reviewComment) && <div className="fs12 mt8">{feedback[reviewKey] || gap.reviewComment}</div>}
+                                    </div>
+                                )}
+
+                                {activeStaff.phase === "inprogress" && progress.status !== "done" && progress.status !== "rejected" && (
+                                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
+                                        <div className="flex ic jb g12 mb10" style={{ flexWrap: "wrap" }}>
+                                            <div>
+                                                <div className="fw8 fs13">ตรวจผลระดับสมรรถนะ</div>
+                                                <div className={`fs12 ${canReview ? "gcc" : "muted"}`} style={{ marginTop: "3px" }}>
+                                                    {canReview ? "ลูกน้องส่งตรวจแล้ว สามารถกดผ่านหรือส่งกลับได้" : "รอลูกน้องทำกิจกรรมให้ครบและกดส่งตรวจ"}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <textarea
+                                            className="ta"
+                                            style={{ minHeight: "56px", fontSize: "12px", opacity: locked ? 0.65 : 1 }}
+                                            disabled={locked}
+                                            value={feedback[reviewKey] || ""}
+                                            placeholder="ข้อเสนอแนะ / เหตุผลเมื่อส่งกลับ"
+                                            onChange={event => setFeedback(prev => ({ ...prev, [reviewKey]: event.target.value }))}
+                                        />
+                                        <div className="flex g8 mt10" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+                                            <button
+                                                className="btn btn-g"
+                                                disabled={locked}
+                                                style={{ opacity: locked ? 0.42 : 1, cursor: locked ? "not-allowed" : "pointer" }}
+                                                onClick={() => decideProgressGap(activeStaff.id, gap.cd, "done")}
+                                            >
+                                                ผ่านสมรรถนะนี้
+                                            </button>
+                                            <button
+                                                className="btn btn-r"
+                                                disabled={locked}
+                                                style={{ opacity: locked ? 0.42 : 1, cursor: locked ? "not-allowed" : "pointer" }}
+                                                onClick={() => decideProgressGap(activeStaff.id, gap.cd, "rejected")}
+                                            >
+                                                ส่งกลับให้แก้ไข
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <div className="cb" style={{ padding: "12px" }}>
-                            {(gap.activities || []).map((activity: any) => <ActivityTimeline key={activity.title} activity={activity} />)}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </>
         );
     }
@@ -1254,12 +1806,25 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
     return (
         <>
             <SupervisorIDPHeader currentUser={currentUser} supervisorUsers={supervisorUsers} onSupervisorChange={onSupervisorChange} />
-            <div className="mb16">
+            <div className="mb16 supervisor-idp-page-head">
                 <div className="sec-t">IDP & ติดตามทีม</div>
-                <div className="sec-s">ติดตามความก้าวหน้าแผนพัฒนาบุคลากรในมุมมองหัวหน้างาน</div>
+                <div className="sec-s">{managerDeptMode ? "ติดตามแผน IDP ของหัวหน้าหน่วยงานและบุคลากรในสายบังคับบัญชา" : "ติดตามความก้าวหน้าแผนพัฒนาบุคลากรในมุมมองหัวหน้างาน"}</div>
             </div>
+            {managerDeptMode && (
+                <div className="card mb14">
+                    <div className="cb flex ic jb g12" style={{ flexWrap: "wrap", padding: "12px 16px" }}>
+                        <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                            <span className="fs12 fw7 muted">หน่วยงาน:</span>
+                            <select className="sel" style={{ maxWidth: "360px" }} value={activeDept || "ทั้งหมด"} onChange={event => setActiveDept(event.target.value)}>
+                                {deptOptions.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                            </select>
+                        </div>
+                        
+                    </div>
+                </div>
+            )}
             <div
-                className="mb14"
+                className="mb14 supervisor-idp-stat-grid"
                 style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
@@ -1270,21 +1835,19 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
                     <button
                         key={tab.id}
                         type="button"
-                        className="sc"
+                        className="sc supervisor-idp-stat-card"
                         style={{
                             textAlign: "left",
                             cursor: "pointer",
-                            padding: "12px 14px",
-                            minHeight: "92px",
-                            borderTop: `3px solid ${tab.id === "notsent" ? "var(--text3)" : tab.id === "pending" ? "var(--yellow)" : tab.id === "rejected" ? "var(--red)" : tab.id === "inprogress" ? "var(--blue)" : "var(--green)"}`,
+                            borderTop: `3px solid ${tab.id === "idp" ? "var(--navy)" : tab.id === "notsent" ? "var(--text3)" : tab.id === "pending" ? "var(--yellow)" : tab.id === "inprogress" ? "var(--blue)" : "var(--green)"}`,
                             borderColor: activeTab === tab.id ? "var(--blue)" : "var(--border)",
                             fontFamily: "inherit"
                         }}
                         onClick={() => setActiveTab(tab.id)}
                     >
-                        <div className="sl" style={{ fontSize: "11px", marginBottom: "8px" }}>{tab.label}</div>
-                        <div className={`sv ${tab.id === "notsent" ? "" : tab.id === "pending" ? "yc" : tab.id === "rejected" ? "rc" : tab.id === "inprogress" ? "bc" : "gcc"}`} style={{ fontSize: "22px" }}>{getTabCount(tab.id)}</div>
-                        <div className="ss muted" style={{ marginTop: "4px" }}>{"คน"}</div>
+                        <div className="sl supervisor-idp-stat-label">{tab.label}</div>
+                        <div className={`sv supervisor-idp-stat-value ${tab.id === "idp" ? "" : tab.id === "notsent" ? "" : tab.id === "pending" ? "yc" : tab.id === "inprogress" ? "bc" : "gcc"}`}>{getTabCount(tab.id)}</div>
+                        <div className="ss muted supervisor-idp-stat-unit">{"คน"}</div>
                     </button>
                 ))}
             </div>
@@ -1301,12 +1864,12 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
                 const meta = supervisorIDPPhaseMeta[staff.phase];
                 const canReview = staff.phase === "pending";
                 return (
-                    <div key={staff.id} className="card mb12" style={{ borderLeft: `4px solid ${canReview ? "var(--orange)" : "var(--border)"}` }}>
-                        <div className="cb flex ic g12" style={{ padding: "14px 20px", flexWrap: "wrap" }}>
+                    <div key={staff.id} className="card mb12 supervisor-idp-staff-card" style={{ borderLeft: `4px solid ${canReview ? "var(--orange)" : "var(--border)"}` }}>
+                        <div className="cb flex ic g12 supervisor-idp-staff-card-inner">
                             <div className="av" style={{ width: "44px", height: "44px", background: "var(--navy)", fontSize: "16px" }}>{staff.n[0]}</div>
                             <div style={{ flex: 1, minWidth: "220px" }}>
-                                <div className="fw8 fs14">{staff.n}</div>
-                                <div className="muted fs12">{staff.p} · {staff.unit} · <span className={`b ${meta.badge}`}>{meta.label}</span></div>
+                                <div className="fw8 supervisor-idp-staff-name">{staff.n}</div>
+                                <div className="muted supervisor-idp-staff-meta">{staff.p} · {staff.unit} · <span className={`b ${meta.badge}`}>{meta.label}</span></div>
                             </div>
                             <button className={`btn ${canReview ? "btn-p" : "btn-s"} btn-sm`} onClick={() => setSelectedId(staff.id)}>{canReview ? "ตรวจสอบ" : "ดูข้อมูล"}</button>
                         </div>
@@ -1319,47 +1882,86 @@ const DetailedSupervisorIDP: React.FC<{ users: any[], currentUser?: any, supervi
     );
 };
 
-const GapRows: React.FC<{ gaps: any[], decisions?: Record<string, SupervisorIDPDecision>, staffId?: string, feedback?: Record<string, string> }> = ({ gaps, decisions, staffId, feedback }) => (
+const SupervisorIDPActivityRow: React.FC<{ activity: any, decision?: SupervisorIDPDecision, children?: React.ReactNode }> = ({ activity, decision, children }) => {
+    const status = supervisorIDPActivityStatusMeta[activity.status as SupervisorIDPActivityStatus] || supervisorIDPActivityStatusMeta.pending;
+    const displayStatus = decision
+        ? { label: decision === "approved" ? "ผ่าน" : "ไม่ผ่าน", badge: decision === "approved" ? "bg" : "br" }
+        : status;
+
+    return (
+        <div className="supervisor-idp-activity-row">
+            <div className="flex ic jb g8" style={{ flexWrap: "wrap" }}>
+                <div style={{ minWidth: "180px", flex: 1 }}>
+                    <div className="fw7 supervisor-idp-activity-title">{activity.title}</div>
+                    <div className="muted supervisor-idp-activity-meta">{activity.method} · {activity.startDate || "-"} ถึง {activity.due || "-"} · น้ำหนัก {activity.weight || "-"}%</div>
+                    {activity.note && <div className="muted supervisor-idp-activity-note">คำอธิบายกิจกรรม: {activity.note}</div>}
+                </div>
+                <span className={`b ${displayStatus.badge}`}>{displayStatus.label}</span>
+            </div>
+            {children}
+        </div>
+    );
+};
+
+const GapRows: React.FC<{ gaps: any[], decisions?: Record<string, SupervisorIDPDecision>, staffId?: string, feedback?: Record<string, string>, phase?: SupervisorIDPPhase }> = ({ gaps, decisions, staffId, feedback, phase }) => (
     <div className="cb" style={{ paddingTop: "8px" }}>
         {gaps.map(gap => {
             const key = staffId ? `${staffId}:${gap.cd}` : "";
             const decision = key ? decisions?.[key] : undefined;
+            const activities = getSupervisorIDPActivities(gap, phase);
+            const totalWeight = activities.reduce((sum: number, activity: any) => sum + Number(activity.weight || 0), 0);
+            const weightNotice = getSupervisorIDPWeightNotice(totalWeight);
             return (
-                <div key={gap.cd} className="flex ic g12" style={{ padding: "12px 0", borderBottom: "1px dashed var(--border)", flexWrap: "wrap" }}>
-                    <span className={gap.tg}>{gap.t}</span>
-                    <div style={{ flex: 1, minWidth: "180px" }}>
-                        <div className="fw7 fs13">{gap.n}</div>
-                        <div className="muted fs11">ระดับคาดหวัง {gap.exp} · ระดับที่ได้ {gap.got}</div>
-                        {decision === "rejected" && feedback?.[key] && <div className="fs11 rc mt4">เหตุผล: {feedback[key]}</div>}
+                <div key={gap.cd} style={{ padding: "12px 0", borderBottom: "1px dashed var(--border)" }}>
+                    <div className="flex ic g12" style={{ flexWrap: "wrap" }}>
+                        <span className={gap.tg}>{gap.t}</span>
+                        <div style={{ flex: 1, minWidth: "180px" }}>
+                            <div className="fw7 fs13">{gap.n}</div>
+                            <div className="muted fs11">ระดับคาดหวัง {gap.exp} · ระดับที่ได้ {gap.got}</div>
+                            {gap.goal && <div className="muted fs11 mt4">เป้าหมาย: {gap.goal}</div>}
+                            {decision === "rejected" && feedback?.[key] && <div className="fs11 rc mt4">เหตุผล: {feedback[key]}</div>}
+                        </div>
+                        <span className="fw8 rc fs13">Gap {gap.got - gap.exp}</span>
+                        {activities.length > 0 && <span className={`b ${totalWeight === 100 ? "bg" : totalWeight > 100 ? "br" : "bb"}`}>{totalWeight}/100%</span>}
+                        {weightNotice && activities.length > 0 && <span className={`b ${weightNotice.badge}`}>{weightNotice.label}</span>}
                     </div>
-                    <span className="fw8 rc fs13">Gap {gap.got - gap.exp}</span>
+                    {activities.length > 0 && (
+                        <div className="mt10" style={{ display: "grid", gap: "8px" }}>
+                            {activities.map((activity: any) => <SupervisorIDPActivityRow key={`${gap.cd}-${activity.title}`} activity={activity} />)}
+                        </div>
+                    )}
                 </div>
             );
         })}
     </div>
 );
 
-const ActivityTimeline: React.FC<{ activity: any }> = ({ activity }) => (
-    <div style={{ borderLeft: "4px solid var(--green)", borderRadius: "var(--r)", background: "#fbfdff", padding: "12px 14px", marginBottom: "12px" }}>
-        <div className="flex ic jb mb8" style={{ flexWrap: "wrap", gap: "8px" }}>
-            <div className="flex ic g8">
-                <span className="fw8 fs13">{activity.title}</span>
-                <span className="muted fs11">{activity.method}</span>
-            </div>
-            <span className="b bg">{activity.status}</span>
-        </div>
-        {activity.events.map((event: any) => (
-            <div key={`${activity.title}-${event.date}-${event.text}`} style={{ display: "grid", gridTemplateColumns: "58px minmax(220px, 1fr) 150px", gap: "10px", borderTop: "1px solid var(--border)", padding: "9px 0" }}>
-                <span className="muted fs11">{event.date}</span>
-                <div>
-                    <div className={`fs12 ${event.text.includes("ผ่าน") ? "gcc fw7" : ""}`}>{event.text}</div>
-                    <span className="b bgr mt4" style={{ whiteSpace: "normal" }}>{event.file}</span>
+const ActivityTimeline: React.FC<{ activity: any }> = ({ activity }) => {
+    const status = supervisorIDPActivityStatusMeta[activity.status as SupervisorIDPActivityStatus] || supervisorIDPActivityStatusMeta.pending;
+    const borderColor = activity.status === "approved" ? "var(--green)" : activity.status === "rejected" ? "var(--red)" : "var(--yellow)";
+
+    return (
+        <div style={{ borderLeft: `4px solid ${borderColor}`, borderRadius: "var(--r)", background: "#fbfdff", padding: "12px 14px", marginBottom: "12px" }}>
+            <div className="flex ic jb mb8" style={{ flexWrap: "wrap", gap: "8px" }}>
+                <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                    <span className="fw8 fs13">{activity.title}</span>
+                    <span className="muted fs11">{activity.method} · {activity.startDate || "-"} ถึง {activity.due || "-"} · น้ำหนัก {activity.weight || "-"}%</span>
                 </div>
-                <span className="muted fs11" style={{ textAlign: "right" }}>by {event.by}</span>
+                <span className={`b ${status.badge}`}>{status.label}</span>
             </div>
-        ))}
-    </div>
-);
+            {(activity.events || []).map((event: any) => (
+                <div key={`${activity.title}-${event.date}-${event.text}`} style={{ display: "grid", gridTemplateColumns: "58px minmax(220px, 1fr) 150px", gap: "10px", borderTop: "1px solid var(--border)", padding: "9px 0" }}>
+                    <span className="muted fs11">{event.date}</span>
+                    <div>
+                        <div className={`fs12 ${event.text.includes("ผ่าน") ? "gcc fw7" : ""}`}>{event.text}</div>
+                        <span className="b bgr mt4" style={{ whiteSpace: "normal" }}>{event.file}</span>
+                    </div>
+                    <span className="muted fs11" style={{ textAlign: "right" }}>by {event.by}</span>
+                </div>
+            ))}
+        </div>
+    );
+};
 
 type DeptHeadIDPPhase = "pendingPlan" | "deanPlan" | "inprogress" | "pendingActivity" | "done";
 

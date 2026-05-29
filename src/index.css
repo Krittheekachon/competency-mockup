@@ -255,3 +255,62 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .upload-area:hover { border-color: var(--blue); background: var(--blue-lt); }
 
 .hcell { width: 44px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; margin: 0 auto; font-size: 12px; font-weight: 800; }
+
+/* Supervisor IDP review surface */
+.supervisor-idp-page-head .sec-t { font-size: 22px; line-height: 1.25; }
+.supervisor-idp-page-head .sec-s { font-size: 15px; color: var(--text2); }
+.supervisor-idp-stat-grid { gap: 12px !important; }
+.supervisor-idp-stat-card { min-height: 108px; padding: 16px 18px !important; }
+.supervisor-idp-stat-label { font-size: 13px !important; color: var(--text2); line-height: 1.35; margin-bottom: 10px !important; }
+.supervisor-idp-stat-value { font-size: 30px !important; }
+.supervisor-idp-stat-unit { font-size: 12px !important; color: var(--text2); }
+.supervisor-idp-staff-card-inner { padding: 18px 22px !important; flex-wrap: wrap; }
+.supervisor-idp-staff-name { font-size: 16px; line-height: 1.35; }
+.supervisor-idp-staff-meta { font-size: 14px; margin-top: 3px; color: var(--text2); line-height: 1.55; }
+
+.supervisor-review-brief { border: 1px solid var(--blue-md); background: #fbfdff; }
+.supervisor-review-brief-inner { padding: 18px 22px !important; flex-wrap: wrap; }
+.supervisor-review-title { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.25; }
+.supervisor-review-subtitle { font-size: 15px; color: var(--text2); margin-top: 5px; line-height: 1.65; }
+.supervisor-review-gap { overflow: hidden; border-color: #d7e3f1; }
+.supervisor-review-gap-head { justify-content: space-between; flex-wrap: wrap; padding: 17px 22px; background: #fbfdff; }
+.supervisor-review-gap-title-row { flex-wrap: wrap; row-gap: 7px; }
+.supervisor-review-gap-title { font-size: 18px !important; line-height: 1.35; }
+.supervisor-review-meta { color: var(--text2); font-size: 15px; line-height: 1.45; }
+.supervisor-review-gap-body { padding: 20px 22px 22px; }
+.supervisor-review-section-label { font-size: 14px; color: var(--text2); font-weight: 800; margin-bottom: 7px; }
+.supervisor-review-goal { padding: 13px 15px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); font-size: 15px; color: var(--text); line-height: 1.75; margin-bottom: 16px; }
+.supervisor-review-activity-list { display: grid; gap: 10px; margin-bottom: 16px; }
+.supervisor-review-comment-block { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+.supervisor-review-comment-label { font-size: 15px; color: var(--text); margin-bottom: 8px; }
+.supervisor-review-textarea { min-height: 96px; font-size: 15px; line-height: 1.7; padding: 12px 14px; }
+.supervisor-review-actions { flex-wrap: wrap; margin-top: 12px; }
+.supervisor-review-actions .btn,
+.supervisor-review-footer .btn { min-height: 38px; padding: 9px 16px; font-size: 14px; }
+.supervisor-review-footer { position: sticky; bottom: 12px; z-index: 5; box-shadow: var(--sh-md); border-color: #cbd8e8; }
+.supervisor-review-footer-inner { padding: 16px 20px !important; flex-wrap: wrap; }
+.supervisor-review-footer-title { font-size: 17px; font-weight: 800; color: var(--text); }
+
+.supervisor-idp-activity-row { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 13px 15px; background: #fff; }
+.supervisor-idp-activity-title { font-size: 15px; color: var(--text); line-height: 1.45; }
+.supervisor-idp-activity-meta { font-size: 13px; margin-top: 5px; color: var(--text2); line-height: 1.55; }
+.supervisor-idp-activity-note { font-size: 13px; margin-top: 5px; color: var(--text2); line-height: 1.6; }
+
+@media (max-width: 960px) {
+  .supervisor-idp-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+@media (max-width: 640px) {
+  .supervisor-idp-page-head .sec-t { font-size: 20px; }
+  .supervisor-idp-stat-grid { grid-template-columns: 1fr !important; }
+  .supervisor-review-gap-head,
+  .supervisor-review-gap-body,
+  .supervisor-review-brief-inner,
+  .supervisor-review-footer-inner,
+  .supervisor-idp-staff-card-inner { padding-left: 16px !important; padding-right: 16px !important; }
+  .supervisor-review-gap-title { font-size: 17px !important; }
+  .supervisor-review-meta,
+  .supervisor-review-subtitle,
+  .supervisor-review-goal,
+  .supervisor-review-textarea { font-size: 14px; }
+}

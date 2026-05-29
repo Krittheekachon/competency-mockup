@@ -198,17 +198,17 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
     <>
       <div className="flex ic jb mb20">
         <div>
-          <div className="sec-t">{view === 'list' ? 'พจนานุกรมสมรรถนะ 📖' : view === 'add' ? 'เพิ่มสมรรถนะการประเมิน 🆕' : 'แก้ไขสมรรถนะการประเมิน 📝'}</div>
+          <div className="sec-t">{view === 'list' ? 'พจนานุกรมสมรรถนะ ' : view === 'add' ? 'เพิ่มสมรรถนะการประเมิน ' : 'แก้ไขสมรรถนะการประเมิน '}</div>
           <div className="sec-s">{view === 'list' ? 'CC (Core) · MC (Managerial) · FC1/FC2 (Functional) · ระดับ 1–5 · พฤติกรรมบ่งชี้' : 'กรอกข้อมูลสมรรถนะและรายละเอียดระดับพฤติกรรม'}</div>
         </div>
         <div className="flex" style={{ gap: "8px" }}>
           {view === 'list' ? (
             <>
-              <button className="btn btn-s" onClick={() => setShowImport(true)}>📥 Import Excel</button>
+              <button className="btn btn-s" onClick={() => setShowImport(true)}> Import Excel</button>
               <button className="btn btn-p" onClick={() => { clearForm(); setView("add"); }}>+ เพิ่มสมรรถนะ</button>
             </>
           ) : (
-            <button className="btn btn-s" onClick={closeForm}>⬅️ กลับหน้ารายการ</button>
+            <button className="btn btn-s" onClick={closeForm}>⬅ กลับหน้ารายการ</button>
           )}
         </div>
       </div>
@@ -223,7 +223,7 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
 
       {status && (
         <div className="status-msg anim-fade-in" style={{ position: "fixed", top: "20px", right: "20px", zIndex: 9999, padding: "12px 24px", borderRadius: "var(--r)", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.2)", background: status.type === 's' ? '#10b981' : '#ef4444', color: '#fff', fontWeight: 700, display: "flex", alignItems: "center", gap: "10px" }}>
-          <span>{status.type === 's' ? '✅' : '⚠️'}</span>
+          <span>{status.type === 's' ? '' : ''}</span>
           {status.msg}
         </div>
       )}
@@ -281,7 +281,7 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
                               <div className="flex col ic g8" style={{ marginTop: '4px' }}>
                                 <div className="muted fs10 fw7">LEVEL</div>
                                 <input className="inp ac" style={{ width: '50px' }} value={lv.lvl} onChange={e => updateLvlNum(lvIdx, e.target.value)} />
-                                <button className="btn-icon-r" title="ลบระดับนี้" onClick={() => removeLevelRow(lvIdx)}>🗑️</button>
+                                <button className="btn-icon-r" title="ลบระดับนี้" onClick={() => removeLevelRow(lvIdx)}>ลบ</button>
                               </div>
                             </td>
                           )}

@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { IDP_GAPS_DATA, IDP_ACTIVITIES_DATA } from '../data';
+import { IDP_GAPS_DATA, IDP_ACTIVITIES_DATA, INITIAL_COMPETENCIES } from '../data';
+import {
+    buildEmployeeIDPCatalogPatch,
+    deriveEmployeeIDPProgressStatus,
+    getEmployeeIDPActivityStatus,
+    getEmployeeIDPProgressStatusMeta,
+    getEmployeeIDPProgressSummary,
+    getEmployeeIDPRejectionNotice,
+    isEmployeeIDPActivityDone,
+    type EmployeeIDPProgressStatus
+} from './employee-idp-rules';
 
 const readEmployeeStorage = <T,>(key: string, fallback: T): T => {
     if (typeof window === "undefined") return fallback;
@@ -25,14 +35,17 @@ const EMPLOYEE_IDP_ACTIVITIES_KEY = "mock-employee-idp-activities";
 const EMPLOYEE_IDP_FORMS_KEY = "mock-employee-idp-forms";
 const EMPLOYEE_IDP_GOALS_KEY = "mock-employee-idp-goals";
 const EMPLOYEE_PROGRESS_FORMS_KEY = "mock-employee-progress-forms";
+const EMPLOYEE_PROGRESS_STATUS_KEY = "mock-employee-progress-status";
+
+const getIDPActivityApprovalStatus = getEmployeeIDPActivityStatus;
 
 // ==========================================
 // 1. COMPONENT: EmployeeAssess (ประเมินตนเอง)
 // ==========================================
 export const EmployeeAssess: React.FC<{ user: any, setUsers: any }> = ({ user, setUsers }) => {
-    const [expanded, setExpanded] = useState<number | null>(null);
+    const [expanded, setExpanded] = useState<string | null>(null);
     const assessDraftKey = `mock-employee-assess:${user?.sso || "default"}`;
-    const [scores, setScores] = useState<any>(() => readEmployeeStorage(assessDraftKey, { 0: 3, 1: 4, 2: 2, 3: 3, 4: 2 }));
+    const [scores, setScores] = useState<any>(() => readEmployeeStorage(assessDraftKey, {}));
 
     useEffect(() => {
         writeEmployeeStorage(assessDraftKey, scores);
@@ -48,97 +61,49 @@ export const EmployeeAssess: React.FC<{ user: any, setUsers: any }> = ({ user, s
         alert("\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e23\u0e48\u0e32\u0e07\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22");
     };
 
-    const sections = {
-        CC: [
-            {
-                cd: "CC-001",
-                n: "การบริการที่ดี",
-                levels: {
-                    1: ["รับเรื่องและตอบคำถามพื้นฐานตามแนวทางที่กำหนด", "แสดงมารยาทที่เหมาะสมต่อผู้รับบริการ", "ส่งต่อเรื่องที่เกินขอบเขตให้ผู้เกี่ยวข้อง"],
-                    2: ["ตอบสนองความต้องการผู้รับบริการได้ทันท่วงที", "ให้ข้อมูลที่ถูกต้องและครบถ้วนแก่ผู้รับบริการ", "แสดงความเป็นมิตร ยิ้มแย้ม ให้บริการด้วยใจ"],
-                    3: ["ติดตามผลจนผู้รับบริการได้รับคำตอบ", "ปรับวิธีสื่อสารให้เหมาะกับสถานการณ์", "ประสานงานเพื่อแก้ปัญหาบริการที่ซับซ้อนขึ้น"],
-                    4: ["คาดการณ์ปัญหาบริการและป้องกันล่วงหน้า", "ปรับปรุงขั้นตอนบริการให้ลดความผิดพลาดซ้ำ", "เป็นที่ปรึกษาให้เพื่อนร่วมงานด้านการบริการ"],
-                    5: ["กำหนดมาตรฐานบริการที่ยกระดับประสบการณ์ผู้รับบริการ", "ใช้ข้อเสนอแนะเพื่อพัฒนาระบบบริการทั้งหน่วยงาน", "สร้างวัฒนธรรมบริการที่ดีอย่างต่อเนื่อง"]
-                }
-            },
-            {
-                cd: "CC-003",
-                n: "การทำงานเป็นทีม",
-                levels: {
-                    1: ["รับผิดชอบงานของตนในทีมตามที่ได้รับมอบหมาย", "รับฟังข้อมูลพื้นฐานจากสมาชิกทีม", "แจ้งปัญหาที่กระทบงานทีมได้"],
-                    2: ["แบ่งปันข้อมูลและทรัพยากรกับทีมอย่างเต็มที่", "รับฟังความคิดเห็นผู้อื่นด้วยใจเปิดกว้าง", "ช่วยเหลือเพื่อนร่วมงานเมื่อมีปัญหา"],
-                    3: ["ประสานงานให้สมาชิกทำงานร่วมกันได้ต่อเนื่อง", "จัดการความเห็นต่างด้วยเหตุผล", "สนับสนุนให้ทีมส่งมอบงานตามเป้าหมาย"],
-                    4: ["เชื่อมทีมข้ามหน่วยเพื่อแก้ปัญหาร่วมกัน", "สร้างบรรยากาศที่สมาชิกกล้าแลกเปลี่ยน", "โค้ชสมาชิกให้ทำงานร่วมกันได้มีประสิทธิภาพ"],
-                    5: ["ออกแบบรูปแบบความร่วมมือที่ทีมอื่นนำไปใช้ได้", "ขับเคลื่อนทีมผ่านสถานการณ์ซับซ้อน", "สร้างเครือข่ายความร่วมมือระยะยาว"]
-                }
-            },
-            {
-                cd: "CC-004",
-                n: "จริยธรรมและความซื่อสัตย์",
-                levels: {
-                    1: ["ปฏิบัติตามกฎ ระเบียบ และคำแนะนำที่เกี่ยวข้อง", "หลีกเลี่ยงการใช้ข้อมูลโดยไม่เหมาะสม", "รายงานข้อผิดพลาดของตนตามจริง"],
-                    2: ["ปฏิบัติงานด้วยความซื่อสัตย์สุจริต", "รักษาความลับขององค์กรได้เป็นอย่างดี", "ยึดมั่นในหลักจริยธรรมวิชาชีพ"],
-                    3: ["ตัดสินใจโดยคำนึงถึงผลกระทบทางจริยธรรม", "ชี้แจงข้อมูลอย่างโปร่งใสตรวจสอบได้", "เตือนหรือแนะนำเพื่อนร่วมงานเมื่อพบความเสี่ยง"],
-                    4: ["จัดการประเด็นจริยธรรมที่ซับซ้อนด้วยความรอบคอบ", "ส่งเสริมระบบงานที่โปร่งใสและลดผลประโยชน์ทับซ้อน", "เป็นแบบอย่างด้านความรับผิดชอบ"],
-                    5: ["วางแนวปฏิบัติด้านจริยธรรมให้หน่วยงาน", "สร้างความเชื่อมั่นต่อผู้มีส่วนได้ส่วนเสีย", "ขับเคลื่อนวัฒนธรรมความซื่อสัตย์อย่างยั่งยืน"]
-                }
-            }
-        ],
-        MC: [],
-        FC: [
-            {
-                cd: "FC2-061",
-                n: "การใช้เทคโนโลยีดิจิทัล",
-                levels: {
-                    1: ["ใช้เครื่องมือดิจิทัลพื้นฐานตามขั้นตอน", "จัดเก็บไฟล์งานให้ค้นหาได้", "ขอความช่วยเหลือเมื่อพบปัญหาการใช้งาน"],
-                    2: ["ใช้โปรแกรมสำนักงานได้คล่องแคล่ว", "เลือกเครื่องมือดิจิทัลที่เหมาะกับงานประจำ", "รักษาความปลอดภัยข้อมูลพื้นฐานได้"],
-                    3: ["ใช้เครื่องมือดิจิทัลช่วยวิเคราะห์และติดตามงาน", "ประยุกต์ใช้ระบบร่วมงานออนไลน์ได้", "ใช้ AI เบื้องต้นเพื่อเพิ่มประสิทธิภาพงานอย่างเหมาะสม"],
-                    4: ["ปรับปรุงกระบวนการงานด้วยเทคโนโลยี", "แนะนำเครื่องมือดิจิทัลให้ทีมใช้งานร่วมกัน", "ประเมินความเสี่ยงข้อมูลจากการใช้เครื่องมือใหม่"],
-                    5: ["ออกแบบแนวทางดิจิทัลที่สร้างผลลัพธ์ระดับหน่วยงาน", "ผลักดันการใช้เทคโนโลยีอย่างมีธรรมาภิบาล", "ติดตามแนวโน้มเทคโนโลยีเพื่อยกระดับงาน"]
-                }
-            },
-            {
-                cd: "FC2-062",
-                n: "การวิเคราะห์ข้อมูล",
-                levels: {
-                    1: ["รวบรวมข้อมูลจากแหล่งที่กำหนดได้", "ตรวจสอบข้อมูลเบื้องต้นตามแบบฟอร์ม", "สรุปข้อเท็จจริงง่าย ๆ จากข้อมูลที่มี"],
-                    2: ["จัดหมวดหมู่และตรวจความครบถ้วนของข้อมูล", "เปรียบเทียบข้อมูลพื้นฐานเพื่อหาความต่าง", "สร้างตารางหรือกราฟพื้นฐานประกอบรายงาน"],
-                    3: ["วิเคราะห์ข้อมูลอย่างเป็นระบบตามโจทย์งาน", "นำเสนอข้อมูลในรูปแบบที่เข้าใจง่าย", "ใช้ข้อมูลสนับสนุนการตัดสินใจและแก้ปัญหา"],
-                    4: ["วิเคราะห์ข้อมูลหลายมิติและตรวจความน่าเชื่อถือ", "อธิบายแนวโน้มและปัจจัยที่เกี่ยวข้อง", "เสนอทางเลือกจากผลวิเคราะห์ให้ผู้เกี่ยวข้อง"],
-                    5: ["ออกแบบกรอบวิเคราะห์ข้อมูลให้ทีมใช้ร่วมกัน", "คาดการณ์ผลกระทบจากข้อมูลเชิงลึก", "พัฒนาการใช้ข้อมูลเพื่อยกระดับการตัดสินใจ"]
-                }
-            }
-        ]
-    };
-
     const typeConfig: any = {
         CC: { label: "CC — Core Competency", tag: "tag-cc", tagLabel: "CC", color: "#1E40AF" },
         MC: { label: "MC — Managerial Competency", tag: "tag-mc", tagLabel: "MC", color: "#6D28D9" },
-        FC: { label: "FC — Functional Competency", tag: "tag-fc", tagLabel: "FC", color: "#065f46" }
+        FC1: { label: "FC1 — Functional Competency", tag: "tag-fc1", tagLabel: "FC1", color: "#047857" },
+        FC2: { label: "FC2 — Functional Competency", tag: "tag-fc2", tagLabel: "FC2", color: "#065f46" }
     };
 
-    let itemCounter = 0;
-    const scoreLabels = ["ต่ำมาก", "ต่ำ", "พอใช้", "ดี", "ดีมาก"];
-    const getBehaviors = (item: any, score?: number) => {
-        if (!score) return [];
-        return item.levels[score as keyof typeof item.levels] || [];
+    const proficiencyLevelByName: Record<string, number> = {
+        "ปฏิบัติการ": 1,
+        "ชำนาญการ": 2,
+        "ชำนาญการพิเศษ": 3,
+        "เชี่ยวชาญ": 4,
+        "เชี่ยวชาญพิเศษ": 5
+    };
+    const userProficiencyLevel = proficiencyLevelByName[user?.l] || 1;
+    const sections = INITIAL_COMPETENCIES.reduce<Record<string, any[]>>((acc, item) => {
+        const key = typeConfig[item.t] ? item.t : "FC2";
+        acc[key] = [...(acc[key] || []), item];
+        return acc;
+    }, {});
+    const orderedSections = ["CC", "MC", "FC1", "FC2"].filter(type => sections[type]?.length);
+    const getBehaviors = (item: any) => {
+        const levels = Array.isArray(item.levels) ? item.levels : [];
+        const matchedLevel = levels.find((level: any) => Number(level.lvl) === userProficiencyLevel) || levels.find((level: any) => Number(level.lvl) === 1);
+        return matchedLevel?.indicators || [];
     };
 
     return (
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">ประเมินตนเอง 📋</div>
+                    <div className="sec-t">ประเมินตนเอง </div>
                     <div className="sec-s">รอบปี 2568 · กรอกให้ครบทุกสมรรถนะแล้วกด "ส่งให้หัวหน้า"</div>
                 </div>
                 <span className="b by">draft</span>
             </div>
 
             <div style={{ background: "var(--yellow-bg)", border: "1px solid #FDE68A", borderRadius: "var(--r)", padding: "10px 14px", marginBottom: "20px", fontSize: "12px", color: "var(--yellow)" }}>
-                ⚠ กรุณาเลือกคะแนนที่ตรงกับความสามารถที่คุณทำได้จริง อ้างอิงพฤติกรรมบ่งชี้ด้านล่าง
+                 ระบบแสดงพฤติกรรมบ่งชี้ตามตำแหน่งและระดับความชำนาญของคุณ
             </div>
 
-            {Object.entries(sections).map(([type, items]) => {
+            {orderedSections.map(type => {
+                const items = sections[type] || [];
                 if (!items || items.length === 0) return null;
                 const config = typeConfig[type];
                 return (
@@ -146,43 +111,36 @@ export const EmployeeAssess: React.FC<{ user: any, setUsers: any }> = ({ user, s
                         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px", paddingBottom: "8px", borderBottom: "2px solid var(--border)" }}>
                             <span style={{ background: config.color, color: "#fff", padding: "3px 10px", borderRadius: "5px", fontSize: "11px", fontWeight: 800, letterSpacing: ".05em" }}>{config.tagLabel}</span>
                             <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>{config.label}</span>
-                            <span style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text3)" }}>{items.filter((_, i) => scores[itemCounter + i]).length}/{items.length} กรอกแล้ว</span>
+                            <span style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text3)" }}>{items.filter(it => scores[it.cd]).length}/{items.length} กรอกแล้ว</span>
                         </div>
-                        {items.map((it, idx) => {
-                            const curIdx = itemCounter++;
-                            const score = scores[curIdx];
+                        {items.map((it) => {
+                            const score = scores[it.cd];
                             return (
                                 <div key={it.cd} className="ac" style={{ marginBottom: "8px" }}>
-                                    <div className="ah" onClick={() => setExpanded(expanded === curIdx ? null : curIdx)} style={{ background: '#fff' }}>
+                                    <div className="ah" onClick={() => setExpanded(expanded === it.cd ? null : it.cd)} style={{ background: '#fff' }}>
                                         <span className={config.tag} style={{ flexShrink: 0 }}>{config.tagLabel}</span>
                                         <span className="fw7 fs13" style={{ flex: 1, marginLeft: "2px" }}>{it.n}</span>
                                         <span style={{ fontSize: "12px", fontWeight: 700, color: score ? "var(--teal)" : "var(--red)" }}>
-                                            {score ? score + " / 5 ✓" : "ยังไม่กรอก"}
+                                            {score ? score + " / 5 " : "ยังไม่กรอก"}
                                         </span>
-                                        <span style={{ marginLeft: "10px", color: "var(--text3)", fontSize: "12px" }}>{expanded === curIdx ? "▴" : "▾"}</span>
+                                        <span style={{ marginLeft: "10px", color: "var(--text3)", fontSize: "12px" }}>{expanded === it.cd ? "▴" : "▾"}</span>
                                     </div>
-                                    <div className={`ab ${expanded === curIdx ? "open" : ""}`}>
+                                    <div className={`ab ${expanded === it.cd ? "open" : ""}`}>
                                         <div style={{ marginBottom: "14px" }}>
-                                            <div className="lbl mb6" style={{ fontSize: "11px" }}>พฤติกรรมบ่งชี้ (ใช้ประกอบการตัดสิน)</div>
-                                            {score ? (
-                                                <>
-                                                    <div className="fs11" style={{ padding: "8px 10px", borderRadius: "8px", background: "var(--blue-lt)", color: "var(--blue)", marginBottom: "8px" }}>
-                                                        ระดับ {score}: {scoreLabels[score - 1]}
-                                                    </div>
-                                                    <ul className="blist">
-                                                        {getBehaviors(it, score).map((b, i) => <li key={i}>{b}</li>)}
-                                                    </ul>
-                                                </>
+                                            <div className="lbl mb6" style={{ fontSize: "11px" }}>พฤติกรรมบ่งชี้ </div>
+                                            {getBehaviors(it).length > 0 ? (
+                                                <ul className="blist">
+                                                    {getBehaviors(it).map((b: string, i: number) => <li key={i}>{b}</li>)}
+                                                </ul>
                                             ) : (
-                                                <div className="muted fs12">เลือกคะแนนความสามารถเพื่อดูพฤติกรรมบ่งชี้ของระดับนั้น</div>
+                                                <div className="muted fs12">ยังไม่มีพฤติกรรมบ่งชี้สำหรับสมรรถนะนี้</div>
                                             )}
                                         </div>
-                                        <div className="lbl mb8">คะแนนความสามารถของคุณ <span style={{ color: "var(--red)" }}>*</span></div>
+                                        <div className="lbl mb8">โปรดเลือกคะแนนของคุณ <span style={{ color: "var(--red)" }}>*</span></div>
                                         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", marginBottom: "14px" }}>
                                             {[1, 2, 3, 4, 5].map(k => (
-                                                <div key={k} onClick={() => setScores({ ...scores, [curIdx]: k })} style={{ border: `2px solid ${score === k ? "var(--teal)" : "var(--border)"}`, borderRadius: "10px", padding: "14px 8px", cursor: "pointer", background: score === k ? "var(--teal-lt)" : "#fff", transition: ".15s", textAlign: "center" }}>
+                                                <div key={k} onClick={() => setScores({ ...scores, [it.cd]: k })} style={{ border: `2px solid ${score === k ? "var(--teal)" : "var(--border)"}`, borderRadius: "10px", padding: "16px 8px", cursor: "pointer", background: score === k ? "var(--teal-lt)" : "#fff", transition: ".15s", textAlign: "center" }}>
                                                     <div style={{ fontSize: "26px", fontWeight: 800, color: score === k ? "var(--teal)" : "var(--navy)", lineHeight: 1 }}>{k}</div>
-                                                    <div style={{ fontSize: "10px", color: "var(--text3)", marginTop: "4px" }}>{scoreLabels[k - 1]}</div>
                                                 </div>
                                             ))}
                                         </div>
@@ -190,7 +148,6 @@ export const EmployeeAssess: React.FC<{ user: any, setUsers: any }> = ({ user, s
                                         <div className="lbl mb8" style={{ fontSize: '11px' }}>แนบหลักฐานประกอบ <span className="lbl-opt">(ถ้ามี)</span></div>
                                         <div className="g2">
                                             <div className="upload-area" style={{ padding: '12px' }}>
-                                                <div style={{ fontSize: '18px', marginBottom: '4px' }}>📎</div>
                                                 <div className="fw6 fs12">อัปโหลดไฟล์</div>
                                                 <div className="muted fs11">PDF, Word, Excel, รูปภาพ</div>
                                             </div>
@@ -201,7 +158,7 @@ export const EmployeeAssess: React.FC<{ user: any, setUsers: any }> = ({ user, s
                                                 </div>
                                                 <div className="fg mb0">
                                                     <label className="lbl" style={{ fontWeight: 500, fontSize: '11px' }}>คำอธิบาย</label>
-                                                    <textarea className="ta" style={{ minHeight: '48px', fontSize: '12px' }} placeholder="อธิบายสั้นๆ..." />
+                                                    <textarea className="ta" style={{ minHeight: '48px', fontSize: '12px' }} placeholder="อธิบาย" />
                                                 </div>
                                             </div>
                                         </div>
@@ -214,7 +171,7 @@ export const EmployeeAssess: React.FC<{ user: any, setUsers: any }> = ({ user, s
             })}
 
             <div className="flex g8 mt4" style={{ paddingTop: '4px' }}>
-                <button className="btn btn-t" onClick={submitEval}>📤 ส่งให้หัวหน้า</button>
+                <button className="btn btn-t" onClick={submitEval}> ส่งให้หัวหน้า</button>
                 <button className="btn btn-s" onClick={saveAssessDraft}>{"บันทึกร่าง"}</button>
             </div>
         </>
@@ -242,10 +199,10 @@ export const EmployeeGap: React.FC<{ setPage: (p: string) => void }> = ({ setPag
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">สรุปผลสมรรถนะ 📊</div>
+                    <div className="sec-t">สรุปผลสมรรถนะ </div>
                     <div className="sec-s">ยืนยันโดย รศ.ดร.วิไล ใจดี · 5 พ.ค. 2568 · สถานะ: approved</div>
                 </div>
-                <button className="btn btn-s">📥 Export PDF</button>
+                <button className="btn btn-s"> Export PDF</button>
             </div>
 
             <div className="g2 mb14">
@@ -302,7 +259,7 @@ export const EmployeeGap: React.FC<{ setPage: (p: string) => void }> = ({ setPag
                             <td style={{ textAlign: 'center' }}>
                               <span style={{ display: 'inline-flex', width: '30px', height: '30px', borderRadius: '8px', background: g.sup >= g.exp ? 'var(--green-bg)' : 'var(--red-bg)', color: g.sup >= g.exp ? 'var(--green)' : 'var(--red)', fontSize: '14px', fontWeight: 800, alignItems: 'center', justifyContent: 'center' }}>{g.sup}</span>
                             </td>
-                            <td style={{ textAlign: 'center' }}>{diff >= 0 ? "✓" : "✖"}</td>
+                            <td style={{ textAlign: 'center' }}>{diff >= 0 ? "" : ""}</td>
                             <td style={{ textAlign: 'center' }}>{statusBadge}</td>
                           </tr>
                         );
@@ -315,7 +272,7 @@ export const EmployeeGap: React.FC<{ setPage: (p: string) => void }> = ({ setPag
             <div className="card">
                 <div className="ch">
                     <div>
-                        <div className="ct">⚠ สมรรถนะที่ต้องทำ IDP</div>
+                        <div className="ct"> สมรรถนะที่ต้องทำ IDP</div>
                         <div className="cs">สมรรถนะที่ยังไม่ผ่านเกณฑ์การประเมิน</div>
                     </div>
                     <div style={{ marginLeft: 'auto' }}>
@@ -331,7 +288,6 @@ export const EmployeeGap: React.FC<{ setPage: (p: string) => void }> = ({ setPag
                                 <span className="muted fs12" style={{ marginLeft: "8px" }}>{g.cd}</span>
                             </div>
                             <span className={`b ${g.t === 'CC' ? 'tag-cc' : g.t === 'MC' ? 'tag-mc' : g.t === 'FC1' ? 'tag-fc1' : g.t === 'FC2' ? 'tag-fc2' : 'tag-fc'}`}>{g.t}</span>
-                            <span className={`b ${g.pri === 'high' ? 'br' : 'by'}`}>เป้าหมาย: Level {g.exp} (ปัจจุบัน {g.sup})</span>
                             <span className={`b ${g.pri === 'high' ? 'br' : 'by'}`} style={{ marginLeft: '4px' }}>{g.pri === 'high' ? 'เร่งด่วน' : 'ต้องพัฒนา'}</span>
                         </div>
                     ))}
@@ -357,11 +313,12 @@ const DEFAULT_LEARNING_METHOD_OPTIONS: LearningMethodOption[] = [
 ];
 
 export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }> = ({ learningMethods = DEFAULT_LEARNING_METHOD_OPTIONS }) => {
-    const [gaps, setGaps] = useState(() => readEmployeeStorage(EMPLOYEE_IDP_GAPS_KEY, IDP_GAPS_DATA));
+    const [gaps, setGaps] = useState(() => IDP_GAPS_DATA);
     const [openForms, setOpenForms] = useState<Set<number>>(new Set());
-    const [activitiesByGap, setActivitiesByGap] = useState(() => readEmployeeStorage(EMPLOYEE_IDP_ACTIVITIES_KEY, IDP_ACTIVITIES_DATA));
-    const [activityForm, setActivityForm] = useState<Record<number, any>>(() => readEmployeeStorage(EMPLOYEE_IDP_FORMS_KEY, {}));
-    const [goalsByGap, setGoalsByGap] = useState<Record<string, string>>(() => readEmployeeStorage(EMPLOYEE_IDP_GOALS_KEY, {}));
+    const [activitiesByGap, setActivitiesByGap] = useState(() => IDP_ACTIVITIES_DATA);
+    const [activityForm, setActivityForm] = useState<Record<number, any>>({});
+    const [goalsByGap, setGoalsByGap] = useState<Record<string, string>>({});
+    const [rejectedEditGapCode, setRejectedEditGapCode] = useState<string | null>(null);
 
     useEffect(() => {
         writeEmployeeStorage(EMPLOYEE_IDP_GAPS_KEY, gaps);
@@ -388,18 +345,21 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
     };
 
     const getForm = (idx: number) =>
-        activityForm[idx] || { catalog: "", method: "", title: "", startDate: "", endDate: "", duration: "", weight: "", note: "" };
+        activityForm[idx] || { catalog: "", method: "", title: "", startDate: "", endDate: "", duration: "", weight: "", cost: "", note: "" };
     const setForm = (idx: number, val: any) => setActivityForm(prev => ({ ...prev, [idx]: { ...getForm(idx), ...val } }));
+    const resetForm = (idx: number) => setActivityForm(prev => ({ ...prev, [idx]: { catalog: "", method: "", title: "", startDate: "", endDate: "", weight: "", cost: "", note: "" } }));
+
+    const toDateInput = (value?: string) => (/^\d{4}-\d{2}-\d{2}$/.test(value || "") ? value : "");
 
     const catalogOptions = [
-        "[Formal] หลักสูตร AI & Data Analytics",
-        "[Formal] Workshop การสื่อสาร",
-        "[Formal] e-Learning ภาษาอังกฤษ",
-        "[Social] Mentoring Program",
-        "[Social] Coaching by หัวหน้าฝ่าย",
-        "[Social] Peer Learning / Group Activity",
-        "[Experiential] OJT / มอบหมายโครงการพิเศษ",
-        "[Experiential] Job Rotation",
+        { key: "formal-ai-data", method: "formal", title: "หลักสูตร AI & Data Analytics", group: "Formal", cost: 4500, desc: "เรียนรู้พื้นฐานการวิเคราะห์ข้อมูล การใช้ AI ในงาน และการสร้าง dashboard เพื่อสนับสนุนการตัดสินใจ" },
+        { key: "formal-communication", method: "formal", title: "Workshop การสื่อสาร", group: "Formal", cost: 1500, desc: "ฝึกการสื่อสารเชิงโครงสร้าง การนำเสนอประเด็นสำคัญ และการรับมือสถานการณ์สื่อสารที่ซับซ้อน" },
+        { key: "formal-english", method: "formal", title: "e-Learning ภาษาอังกฤษ", group: "Formal", cost: 0, desc: "พัฒนาทักษะภาษาอังกฤษเพื่อการทำงาน การอ่านเอกสาร และการสื่อสารในบริบทมหาวิทยาลัย" },
+        { key: "social-mentoring", method: "social", title: "Mentoring Program", group: "Social", cost: 0, desc: "นัดหมาย mentor เพื่อรับคำแนะนำ วางแผนพัฒนา และสะท้อนผลการเรียนรู้จากการทำงานจริง" },
+        { key: "social-coaching", method: "social", title: "Coaching by หัวหน้าฝ่าย", group: "Social", cost: 0, desc: "รับ coaching จากหัวหน้าฝ่ายเพื่อแก้โจทย์งานจริง ปรับพฤติกรรมการทำงาน และติดตามผลเป็นระยะ" },
+        { key: "social-peer-learning", method: "social", title: "Peer Learning / Group Activity", group: "Social", cost: 0, desc: "เรียนรู้ร่วมกับเพื่อนร่วมงานผ่านกิจกรรมกลุ่ม แลกเปลี่ยนประสบการณ์ และสรุปบทเรียนร่วมกัน" },
+        { key: "experiential-ojt", method: "experiential", title: "OJT / มอบหมายโครงการพิเศษ", group: "Experiential", cost: 0, desc: "ฝึกปฏิบัติจากงานจริงหรือโครงการพิเศษ พร้อมผลลัพธ์ที่ตรวจสอบได้และข้อสะท้อนจากผู้เกี่ยวข้อง" },
+        { key: "experiential-job-rotation", method: "experiential", title: "Job Rotation", group: "Experiential", cost: 0, desc: "หมุนเวียนเรียนรู้งานในบทบาทหรือหน่วยงานที่เกี่ยวข้อง เพื่อเพิ่มมุมมองและทักษะการประสานงาน" },
     ];
 
     const methodPalette = [
@@ -414,6 +374,19 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
         ...methodPalette[index % methodPalette.length]
     }));
     const methodMap = new Map(methods.map(method => [method.key, method]));
+    const catalogMap = new Map(catalogOptions.map(item => [item.key, item]));
+    const applyCatalogSelection = (idx: number, value: string) => {
+        if (value === "custom") {
+            setForm(idx, { catalog: value, method: "", title: "" });
+            return;
+        }
+        const selectedCatalog = catalogMap.get(value);
+        if (!selectedCatalog) {
+            setForm(idx, { catalog: value, method: "", title: "", note: "" });
+            return;
+        }
+        setForm(idx, buildEmployeeIDPCatalogPatch(selectedCatalog));
+    };
 
     const saveIDPDraft = () => {
         writeEmployeeStorage(EMPLOYEE_IDP_GAPS_KEY, gaps);
@@ -423,12 +396,68 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
         alert("\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e23\u0e48\u0e32\u0e07 IDP \u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22");
     };
 
+    const getWeightNotice = (totalWeight: number) => {
+        if (totalWeight === 100) return null;
+        if (totalWeight < 100) return { label: `ขาด ${100 - totalWeight}%`, cls: "by" };
+        return { label: `เกิน ${totalWeight - 100}%`, cls: "br" };
+    };
+
     const submitGapPlan = (gapCode: string) => {
+        const gap = gaps.find((item: any) => item.cd === gapCode);
+        const activities = activitiesByGap[gapCode] || [];
+        const totalWeight = activities.reduce((sum: number, act: any) => sum + Number(act.weight || 0), 0);
+        if (!activities.length) {
+            alert("กรุณาเพิ่มกิจกรรมพัฒนาก่อนส่งแผน");
+            return;
+        }
+        if (totalWeight !== 100) {
+            const notice = getWeightNotice(totalWeight);
+            if (!window.confirm(`น้ำหนักกิจกรรมของ "${gap?.n || gapCode}" รวม ${totalWeight}/100%\n${notice?.label || "ยังไม่ครบ 100%"}\n\nต้องการยืนยันส่งต่อหรือไม่?`)) return;
+        }
+        if (!window.confirm(`ยืนยันส่งแผน "${gap?.n || gapCode}" ให้หัวหน้างานตรวจสอบ?\nหลังส่งแล้วจะไม่สามารถแก้ไขได้ ยกเว้นกรณีแผนไม่ผ่าน`)) return;
+        setActivitiesByGap(prev => ({
+            ...prev,
+            [gapCode]: (prev[gapCode] || []).map((act: any) => (
+                act.result === "failed" || act.result === "done" || act.result === "passed"
+                    ? act
+                    : { ...act, st: "รออนุมัติ", stC: "by" }
+            ))
+        }));
         setGaps((prev: any[]) => prev.map(gap => gap.cd === gapCode ? { ...gap, status: "submitted" } : gap));
         alert("\u0e2a\u0e48\u0e07\u0e41\u0e1c\u0e19 IDP \u0e43\u0e2b\u0e49\u0e2b\u0e31\u0e27\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27");
     };
 
     const submitAllIDP = () => {
+        const readyGaps = gaps.filter((gap: any) => gap.status === "draft" || gap.status === "rejected");
+        const missingActivities = readyGaps.filter((gap: any) => !(activitiesByGap[gap.cd] || []).length);
+        if (missingActivities.length) {
+            alert(`กรุณาเพิ่มกิจกรรมพัฒนาให้ครบก่อนส่ง\nยังไม่มีกิจกรรม: ${missingActivities.map((gap: any) => gap.n).join(", ")}`);
+            return;
+        }
+        const invalidWeightGaps = readyGaps
+            .map((gap: any) => {
+                const totalWeight = (activitiesByGap[gap.cd] || []).reduce((sum: number, act: any) => sum + Number(act.weight || 0), 0);
+                const notice = getWeightNotice(totalWeight);
+                return notice ? `${gap.n}: ${totalWeight}/100% (${notice.label})` : null;
+            })
+            .filter(Boolean);
+        if (invalidWeightGaps.length) {
+            if (!window.confirm(`น้ำหนักกิจกรรมยังไม่ครบหรือเกิน 100%\n${invalidWeightGaps.join("\n")}\n\nต้องการยืนยันส่งต่อหรือไม่?`)) return;
+        }
+        if (!window.confirm("ยืนยันส่ง IDP ทั้งหมดให้หัวหน้างานตรวจสอบ?\nหลังส่งแล้วจะไม่สามารถแก้ไขได้ ยกเว้นกรณีแผนไม่ผ่าน")) return;
+        setActivitiesByGap(prev => {
+            const readyCodes = new Set(readyGaps.map((gap: any) => gap.cd));
+            return Object.fromEntries(Object.entries(prev).map(([gapCode, acts]) => [
+                gapCode,
+                readyCodes.has(gapCode)
+                    ? (acts as any[]).map((act: any) => (
+                        act.result === "failed" || act.result === "done" || act.result === "passed"
+                            ? act
+                            : { ...act, st: "รออนุมัติ", stC: "by" }
+                    ))
+                    : acts
+            ]));
+        });
         setGaps((prev: any[]) => prev.map(gap => gap.status === "draft" || gap.status === "rejected" ? { ...gap, status: "submitted" } : gap));
         alert("\u0e2a\u0e48\u0e07 IDP \u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27");
     };
@@ -444,34 +473,95 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
             alert("น้ำหนักต้องอยู่ระหว่าง 1-100");
             return;
         }
+        if (f.cost && +f.cost < 0) {
+            alert("ค่าใช้จ่ายต้องไม่ต่ำกว่า 0");
+            return;
+        }
         const gap = gaps[idx];
         const selectedMethod = methodMap.get(f.method);
         const methodTheme = selectedMethod
             ? { ic: selectedMethod.ic, bg: selectedMethod.bg }
             : { ic: "LR", bg: "#EFF6FF" };
 
-        setActivitiesByGap(prev => ({
-            ...prev,
-            [gap.cd]: [
-                ...(prev[gap.cd] || []),
-                {
-                    ...methodTheme,
-                    t: f.title.trim(),
-                    m: selectedMethod?.label || f.method,
-                    due: f.endDate,
-                    weight: f.weight,
-                    note: f.note,
-                    st: "ร่าง",
-                    stC: "by",
-                    result: null,
-                    logs: []
-                }
-            ]
-        }));
+        const nextActivity = {
+            ...methodTheme,
+            t: f.title.trim(),
+            m: selectedMethod?.label || f.method,
+            catalog: f.catalog && f.catalog !== "custom" ? f.catalog : undefined,
+            startDate: f.startDate,
+            due: f.endDate,
+            weight: f.weight,
+            cost: f.cost,
+            note: f.note,
+            st: "ร่าง",
+            stC: "bgr",
+            result: null,
+            logs: []
+        };
+        const editIndex = typeof f.editIndex === "number" ? f.editIndex : null;
 
-        setForm(idx, { catalog: "", method: "", title: "", startDate: "", endDate: "", weight: "", note: "" });
+        setActivitiesByGap(prev => {
+            const current = prev[gap.cd] || [];
+            return {
+                ...prev,
+                [gap.cd]: editIndex === null
+                    ? [...current, nextActivity]
+                    : current.map((act: any, index: number) => index === editIndex ? { ...act, ...nextActivity } : act)
+            };
+        });
+
+        resetForm(idx);
         toggleForm(idx);
     };
+
+    const canEditGap = (status: string) => status === "draft" || status === "rejected";
+    const getActivityProgress = (activities: any[]) => {
+        const totalWeight = activities.reduce((sum, act) => sum + Number(act.weight || 0), 0);
+        const hasFailed = activities.some(act => act.result === "failed" || act.st === "ไม่ผ่าน");
+        const allPassed = activities.length > 0 && activities.every(act => act.result === "done" || act.result === "passed" || act.st === "ผ่าน" || act.st === "เสร็จสิ้น");
+        return { totalWeight, hasFailed, allPassed };
+    };
+    const getPlanStatus = (gap: any, activities: any[]) => {
+        const progress = getActivityProgress(activities);
+        if (progress.hasFailed) return { badge: "ไม่ผ่าน", cls: "br" };
+        if (progress.allPassed) return { badge: "ผ่าน", cls: "bg" };
+        if (gap.status === "submitted") return { badge: "ส่งแล้ว รอประเมิน", cls: "by" };
+        if (activities.length > 0) return { badge: "ร่าง", cls: "bgr" };
+        if (gap.status === "rejected") return { badge: "แผนไม่ผ่าน", cls: "br" };
+        return { badge: "ยังไม่ส่ง", cls: "bgr" };
+    };
+    const editActivity = (gapCode: string, actIndex: number) => {
+        const gapIndex = gaps.findIndex((gap: any) => gap.cd === gapCode);
+        const act = (activitiesByGap[gapCode] || [])[actIndex];
+        if (gapIndex < 0 || !act) return;
+
+        const method = methods.find(item => item.label === act.m)?.key || "";
+        const catalog = act.catalog || catalogOptions.find(item => item.title === act.t && item.method === method)?.key || "custom";
+        setForm(gapIndex, {
+            catalog,
+            method,
+            editIndex: actIndex,
+            title: act.t || "",
+            startDate: toDateInput(act.startDate),
+            endDate: toDateInput(act.due),
+            weight: String(act.weight || ""),
+            cost: String(act.cost || ""),
+            note: act.note || ""
+        });
+        setOpenForms(prev => {
+            const next = new Set(prev);
+            next.add(gapIndex);
+            return next;
+        });
+        setRejectedEditGapCode(null);
+    };
+    const cancelActivityForm = (idx: number) => {
+        resetForm(idx);
+        toggleForm(idx);
+    };
+
+    const rejectedEditGap = rejectedEditGapCode ? gaps.find((gap: any) => gap.cd === rejectedEditGapCode) : null;
+    const rejectedEditActivities = rejectedEditGap ? (activitiesByGap[rejectedEditGap.cd] || []) : [];
 
     return (
         <>
@@ -498,13 +588,14 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
             </div>
 
             {gaps.map((g, idx) => {
-                const status = g.status === 'submitted'
-                    ? { badge: 'ส่งแล้ว รออนุมัติ', cls: 'by' }
-                    : g.status === 'rejected'
-                        ? { badge: 'ไม่ผ่าน', cls: 'br' }
-                        : { badge: '', cls: '' };
                 const activities = activitiesByGap[g.cd] || [];
+                const status = getPlanStatus(g, activities);
+                const progress = getActivityProgress(activities);
+                const weightNotice = getWeightNotice(progress.totalWeight);
+                const editable = canEditGap(g.status);
                 const form = getForm(idx);
+                const isCatalogActivity = !!form.catalog && form.catalog !== "custom";
+                const rejectionNotice = g.status === "rejected" ? getEmployeeIDPRejectionNotice(g) : null;
 
                 return (
                     <div key={g.cd} className="idp-gap" style={{ marginBottom: '20px', scrollMarginTop: '110px', overflow: 'hidden' }}>
@@ -514,35 +605,37 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
                                 <span className={g.t === 'CC' ? 'tag-cc' : g.t === 'MC' ? 'tag-mc' : g.t === 'FC1' ? 'tag-fc1' : g.t === 'FC2' ? 'tag-fc2' : 'tag-fc'}>{g.t}</span>
                                 <span className="fw8 fs14">{g.n}</span>
                                 <span className="muted fs12" style={{ marginLeft: '4px' }}>คาดหวัง {g.exp} ปัจจุบัน {g.actual}</span>
+                                <span className={`b ${progress.totalWeight === 100 ? "bg" : progress.totalWeight > 100 ? "br" : "bb"}`}>{progress.totalWeight}/100%</span>
+                                {weightNotice && <span className={`b ${weightNotice.cls}`}>{weightNotice.label}</span>}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {g.status === 'draft' ? (
-                                    <button className="btn btn-t btn-sm" onClick={() => submitGapPlan(g.cd)}>{"ส่งให้หัวหน้า"}</button>
-                                ) : (
-                                    <span className={`b ${status.cls}`}>{status.badge}</span>
-                                )}
+                                <span className={`b ${status.cls}`}>{status.badge}</span>
+                                {editable && <button className="btn btn-t btn-sm" onClick={() => submitGapPlan(g.cd)}>{"ส่งให้หัวหน้า"}</button>}
                             </div>
                         </div>
 
-                        {g.status === 'rejected' && (
-                            <div style={{ background: '#FEF2F2', borderBottom: '1px solid #FECACA', padding: '12px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                                <div style={{ fontSize: '20px', flexShrink: 0 }}>!</div>
+                        {rejectionNotice && (
+                            <div style={{ background: '#FEF2F2', borderBottom: '1px solid #FECACA', padding: '14px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                                <div style={{ fontSize: '20px', flexShrink: 0, width: "28px", height: "28px", borderRadius: "50%", background: "var(--red-bg)", color: "var(--red)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>!</div>
                                 <div style={{ flex: 1 }}>
-                                    <div className="fw7 fs13" style={{ color: 'var(--red)', marginBottom: '3px' }}>แผนนี้ไม่ผ่านการอนุมัติ</div>
-                                    <div className="fs12" style={{ color: '#991B1B', marginBottom: '6px' }}>
-                                        <span className="fw6">{g.rejectedBy}</span> {g.rejectedDate}
+                                    <div className="fw8" style={{ color: 'var(--red)', marginBottom: '4px', fontSize: "15px" }}>{rejectionNotice.title}</div>
+                                    <div className="fs13" style={{ color: '#991B1B', marginBottom: '8px', lineHeight: 1.6 }}>
+                                        <span className="fw7">{rejectionNotice.competencyName}</span>
+                                        <span className="muted" style={{ color: "#991B1B" }}> · ไม่ผ่านโดย </span>
+                                        <span className="fw7">{rejectionNotice.reviewer}</span>
+                                        {rejectionNotice.date && <span> · {rejectionNotice.date}</span>}
                                     </div>
-                                    <div className="fs12" style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: '6px', padding: '8px 10px', color: 'var(--text2)' }}>
-                                        {g.rejectComment}
+                                    <div style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: '6px', padding: '10px 12px', color: 'var(--text)', fontSize: "13px", lineHeight: 1.7 }}>
+                                        {rejectionNotice.comment}
                                     </div>
                                 </div>
-                                <button className="btn btn-r btn-sm" style={{ flexShrink: 0 }}>แก้ไขแผน</button>
+                                <button className="btn btn-r btn-sm" style={{ flexShrink: 0 }} onClick={() => setRejectedEditGapCode(g.cd)}>แก้ไขแผนสมรรถนะนี้</button>
                             </div>
                         )}
 
                         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--blue-md)', background: '#fff' }}>
                             <label className="lbl">เป้าหมายการพัฒนา <span style={{ color: 'var(--red)' }}>*</span></label>
-                            <textarea className="ta" style={{ minHeight: '52px', marginTop: '5px' }} placeholder="ระบุเป้าหมายการพัฒนา..." />
+                            <textarea className="ta" style={{ minHeight: '52px', marginTop: '5px', background: editable ? "#fff" : "var(--bg)" }} placeholder="ระบุเป้าหมายการพัฒนา..." disabled={!editable} value={goalsByGap[g.cd] || ""} onChange={e => setGoalsByGap(prev => ({ ...prev, [g.cd]: e.target.value }))} />
                         </div>
 
                         <div style={{ background: '#fff' }}>
@@ -551,9 +644,22 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
                                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--blue)', flexShrink: 0 }}></div>
                                     <div style={{ flex: 1 }}>
                                         <div className="fw6 fs13">{act.t}</div>
-                                        <div className="muted fs11">{act.m} ครบ {act.due}</div>
+                                        <div className="muted fs11">{act.m} · {act.startDate || "-"} ถึง {act.due} · น้ำหนัก {act.weight || "-"}% · ค่าใช้จ่าย {act.cost ? Number(act.cost).toLocaleString("th-TH") : "0"} บาท</div>
+                                        {act.note && <div className="muted fs11 mt4">คำอธิบายกิจกรรม: {act.note}</div>}
                                     </div>
-                                    <span className={`b ${act.stC}`}>{act.st}</span>
+                                    {(() => {
+                                        const activityStatus = getIDPActivityApprovalStatus(act, g.status);
+                                        return (
+                                            <div className="flex ic g8" style={{ flexShrink: 0 }}>
+                                                <span className={`b ${activityStatus.cls}`}>{activityStatus.label}</span>
+                                                {editable && (
+                                                    <button className="btn btn-s btn-sm" type="button" onClick={() => editActivity(g.cd, aIdx)}>
+                                                        แก้ไข
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             ))}
                             {activities.length === 0 && (
@@ -564,30 +670,35 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
                             )}
                         </div>
 
+                        {editable ? (
                         <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', background: '#fff' }}>
                             <button className="btn btn-s btn-sm" type="button" onClick={() => toggleForm(idx)}>
                                 {openForms.has(idx) ? '−' : '+'} เพิ่มกิจกรรม
                             </button>
                         </div>
+                        ) : (
+                        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', background: 'var(--bg)' }} className="muted fs12">
+                            ส่งแผนแล้ว ไม่สามารถแก้ไขกิจกรรมได้ ยกเว้นกรณีแผนไม่ผ่าน
+                        </div>
+                        )}
 
-                        {openForms.has(idx) && (
+                        {editable && openForms.has(idx) && (
                             <div style={{ padding: '18px', background: '#F8FBFF', borderTop: '1px solid #DBE7F5', animation: 'slideDown .22s ease' }}>
-                                <div className="fw7 fs13 mb14">เพิ่มกิจกรรมพัฒนา</div>
+                                <div className="fw7 fs13 mb14">{typeof form.editIndex === "number" ? "แก้ไขกิจกรรมพัฒนา" : "เพิ่มกิจกรรมพัฒนา"}</div>
 
                                 <div className="g2 mb12">
                                     <div className="fg" style={{ margin: 0 }}>
-                                        <label className="lbl" style={{ fontSize: '11px' }}>เลือกกิจกรรมจาก Catalog (HR)</label>
+                                        <label className="lbl" style={{ fontSize: '11px' }}>เลือกกิจกรรมจาก Catalog หรือกำหนดเอง </label>
                                         <select
                                             className="sel"
                                             style={{ fontSize: '12px', marginTop: '4px' }}
                                             value={form.catalog}
                                             onChange={e => {
-                                                const val = e.target.value;
-                                                setForm(idx, { catalog: val, title: val && val !== 'custom' ? val : '' });
+                                                applyCatalogSelection(idx, e.target.value);
                                             }}
                                         >
                                             <option value="">— เลือกกิจกรรมจาก Catalog —</option>
-                                            {catalogOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                                            {catalogOptions.map(c => <option key={c.key} value={c.key}>[{c.group}] {c.title}</option>)}
                                             <option value="custom">ระบุกิจกรรมเอง</option>
                                         </select>
                                     </div>
@@ -597,6 +708,7 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
                                             className="sel"
                                             style={{ fontSize: '12px', marginTop: '4px' }}
                                             value={form.method}
+                                            disabled={isCatalogActivity}
                                             onChange={e => setForm(idx, { method: e.target.value })}
                                         >
                                             <option value="">— เลือกประเภท —</option>
@@ -613,13 +725,13 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
                                         className="inp"
                                         style={{ fontSize: '12px', marginTop: '4px' }}
                                         value={form.title}
-                                        readOnly={!!form.catalog && form.catalog !== 'custom'}
+                                        readOnly={isCatalogActivity}
                                         onChange={e => setForm(idx, { title: e.target.value })}
-                                        placeholder="เช่น อบรม AI & Data Analytics หรือระบุกิจกรรมของตัวเอง"
+                                        placeholder={isCatalogActivity ? "ระบบเติมจาก Catalog HR" : "เช่น อบรม AI & Data Analytics หรือระบุกิจกรรมของตัวเอง"}
                                     />
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                                     <div className="fg" style={{ margin: 0 }}>
                                         <label className="lbl" style={{ fontSize: '11px' }}>วันที่เริ่ม <span style={{ color: 'var(--red)' }}>*</span></label>
                                         <input type="date" className="inp" style={{ fontSize: '12px', marginTop: '4px' }} value={form.startDate} onChange={e => setForm(idx, { startDate: e.target.value })} />
@@ -654,23 +766,37 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
                                             <div style={{ color: 'var(--red)', fontSize: '11px', marginTop: '3px' }}>น้ำหนักต้องอยู่ระหว่าง 1-100</div>
                                         )}
                                     </div>
+                                    <div className="fg" style={{ margin: 0 }}>
+                                        <label className="lbl" style={{ fontSize: '11px' }}>ค่าใช้จ่าย (บาท) <span className="lbl-opt">(ถ้ามี)</span></label>
+                                        <input
+                                            type="number"
+                                            className="inp"
+                                            min={0}
+                                            style={{ fontSize: '12px', marginTop: '4px', borderColor: form.cost && +form.cost < 0 ? 'var(--red)' : undefined }}
+                                            value={form.cost}
+                                            onChange={e => setForm(idx, { cost: e.target.value })}
+                                            placeholder="เช่น 1500"
+                                        />
+                                        {form.cost && +form.cost < 0 && (
+                                            <div style={{ color: 'var(--red)', fontSize: '11px', marginTop: '3px' }}>ค่าใช้จ่ายต้องไม่ต่ำกว่า 0</div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="fg mb14">
-                                    <label className="lbl" style={{ fontSize: '11px' }}>หมายเหตุ <span className="lbl-opt">(ไม่บังคับ)</span></label>
-                                    <textarea className="ta" style={{ fontSize: '12px', minHeight: '52px', marginTop: '4px' }} value={form.note} onChange={e => setForm(idx, { note: e.target.value })} placeholder="อธิบายว่าทำไมถึงเลือกกิจกรรมนี้ หรือรายละเอียดเพิ่มเติม..." />
+                                    <label className="lbl" style={{ fontSize: '11px' }}>คำอธิบายกิจกรรม <span className="lbl-opt">(ไม่บังคับ)</span></label>
+                                    <textarea className="ta" style={{ fontSize: '12px', minHeight: '52px', marginTop: '4px' }} value={form.note} onChange={e => setForm(idx, { note: e.target.value })} placeholder="อธิบายรายละเอียดกิจกรรม ผลลัพธ์ที่คาดหวัง หรือเหตุผลที่เลือกกิจกรรมนี้..." />
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
-                                    <button className="btn btn-s btn-sm" type="button" onClick={() => toggleForm(idx)}>ยกเลิก</button>
-                                    <button className="btn btn-s btn-sm" type="button">บันทึกร่าง</button>
+                                    <button className="btn btn-s btn-sm" type="button" onClick={() => cancelActivityForm(idx)}>ยกเลิก</button>
                                     <button
                                         className="btn btn-p btn-sm"
                                         type="button"
                                         onClick={() => addActivity(idx)}
-                                        disabled={!form.title.trim() || !form.method || !form.startDate || !form.endDate || !form.weight || form.endDate < form.startDate || +form.weight > 100 || +form.weight <= 0}
+                                        disabled={!form.title.trim() || !form.method || !form.startDate || !form.endDate || !form.weight || form.endDate < form.startDate || +form.weight > 100 || +form.weight <= 0 || (!!form.cost && +form.cost < 0)}
                                     >
-                                        เพิ่มกิจกรรม
+                                        {typeof form.editIndex === "number" ? "บันทึกกิจกรรม" : "เพิ่มกิจกรรม"}
                                     </button>
                                 </div>
                             </div>
@@ -683,6 +809,49 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
                 <button className="btn btn-t" onClick={submitAllIDP}>{"ส่ง IDP ทั้งหมด"}</button>
                 <button className="btn btn-s" onClick={saveIDPDraft}>{"บันทึกร่าง"}</button>
             </div>
+
+            {rejectedEditGap && (
+                <div className="mo" style={{ zIndex: 320 }} onMouseDown={() => setRejectedEditGapCode(null)}>
+                    <div className="mo-box" style={{ width: "720px", maxWidth: "calc(100vw - 32px)", overflow: "hidden" }} onMouseDown={event => event.stopPropagation()}>
+                        <div className="mo-h">
+                            <div>
+                                <div className="fw8 fs15">แก้ไขกิจกรรมในสมรรถนะนี้</div>
+                                <div className="muted fs12 mt4">{rejectedEditGap.n} · สมรรถนะนี้ไม่ผ่าน</div>
+                            </div>
+                            <button className="btn btn-s btn-sm" onClick={() => setRejectedEditGapCode(null)}>ปิด</button>
+                        </div>
+                        <div className="mo-b" style={{ padding: "14px 18px" }}>
+                            {rejectedEditActivities.length ? (
+                                <div style={{ display: "grid", gap: "10px" }}>
+                                    {rejectedEditActivities.map((act: any, actIndex: number) => {
+                                        const activityStatus = getIDPActivityApprovalStatus(act, rejectedEditGap.status);
+                                        return (
+                                            <div key={`${act.t}-${actIndex}`} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", padding: "12px", display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
+                                                <div>
+                                                    <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                                                        <div className="fw7 fs13">{act.t}</div>
+                                                        <span className={`b ${activityStatus.cls}`}>{activityStatus.label}</span>
+                                                    </div>
+                                                    <div className="muted fs11 mt6">{act.m} · {act.startDate || "-"} ถึง {act.due || "-"} · น้ำหนัก {act.weight || "-"}% · ค่าใช้จ่าย {act.cost ? Number(act.cost).toLocaleString("th-TH") : "0"} บาท</div>
+                                                    {act.note && <div className="muted fs11 mt4">คำอธิบายกิจกรรม: {act.note}</div>}
+                                                </div>
+                                                <button className="btn btn-p btn-sm" onClick={() => editActivity(rejectedEditGap.cd, actIndex)}>
+                                                    แก้ไข
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div style={{ padding: "26px 12px", textAlign: "center" }}>
+                                    <div className="fw7 fs13 mb6">ยังไม่มีกิจกรรมในแผนนี้</div>
+                                    <div className="muted fs12">ปิดหน้าต่างนี้แล้วเพิ่มกิจกรรมใหม่ในแผนได้เลย</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
@@ -691,8 +860,14 @@ export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }>
 // 4. COMPONENT: EmployeeProgress (อัปเดตความก้าวหน้า)
 // ==========================================
 export const EmployeeProgress: React.FC = () => {
-    const [activitiesByGap, setActivitiesByGap] = useState(() => readEmployeeStorage(EMPLOYEE_IDP_ACTIVITIES_KEY, IDP_ACTIVITIES_DATA));
+    const [activitiesByGap, setActivitiesByGap] = useState(() => IDP_ACTIVITIES_DATA);
     const [progressForms, setProgressForms] = useState<Record<string, { note: string; evidenceUrl: string; evidenceDesc: string; fileName: string }>>(() => readEmployeeStorage(EMPLOYEE_PROGRESS_FORMS_KEY, {}));
+    const [progressStatusByGap, setProgressStatusByGap] = useState<Record<string, EmployeeIDPProgressStatus>>(() =>
+        readEmployeeStorage(
+            EMPLOYEE_PROGRESS_STATUS_KEY,
+            IDP_GAPS_DATA.reduce((acc, gap) => ({ ...acc, [gap.cd]: deriveEmployeeIDPProgressStatus(gap) }), {})
+        )
+    );
 
     useEffect(() => {
         writeEmployeeStorage(EMPLOYEE_IDP_ACTIVITIES_KEY, activitiesByGap);
@@ -701,6 +876,11 @@ export const EmployeeProgress: React.FC = () => {
     useEffect(() => {
         writeEmployeeStorage(EMPLOYEE_PROGRESS_FORMS_KEY, progressForms);
     }, [progressForms]);
+
+    useEffect(() => {
+        writeEmployeeStorage(EMPLOYEE_PROGRESS_STATUS_KEY, progressStatusByGap);
+    }, [progressStatusByGap]);
+
     const list = IDP_GAPS_DATA.map(g => ({ g, acts: activitiesByGap[g.cd] || [] }));
 
     const getFormKey = (gapCode: string, actIdx: number) => `${gapCode}-${actIdx}`;
@@ -714,17 +894,17 @@ export const EmployeeProgress: React.FC = () => {
         const key = getFormKey(gapCode, actIdx);
         setProgressForms(prev => ({ ...prev, [key]: { note: '', evidenceUrl: '', evidenceDesc: '', fileName: '' } }));
     };
-    const buildLogMessage = (form: { note: string; evidenceUrl: string; evidenceDesc: string; fileName: string }, mode: 'draft' | 'saved') => {
+    const buildLogMessage = (form: { note: string; evidenceUrl: string; evidenceDesc: string; fileName: string }, mode: 'draft' | 'saved' | 'complete') => {
         const parts = [form.note.trim()];
         if (form.fileName) parts.push(`แนบไฟล์: ${form.fileName}`);
         if (form.evidenceUrl.trim()) parts.push(`URL: ${form.evidenceUrl.trim()}`);
         if (form.evidenceDesc.trim()) parts.push(`คำอธิบาย: ${form.evidenceDesc.trim()}`);
         const summary = parts.filter(Boolean).join(' | ');
-        return mode === 'draft'
-            ? summary ? `บันทึกร่าง: ${summary}` : 'บันทึกร่างความก้าวหน้า'
-            : summary || 'อัปเดตความก้าวหน้า';
+        if (mode === 'draft') return summary ? `บันทึกร่าง: ${summary}` : 'บันทึกร่างความก้าวหน้า';
+        if (mode === 'complete') return summary ? `ทำกิจกรรมเสร็จสิ้น: ${summary}` : 'ทำกิจกรรมเสร็จสิ้น';
+        return summary || 'อัปเดตความก้าวหน้า';
     };
-    const saveProgress = (gapCode: string, actIdx: number, mode: 'draft' | 'saved') => {
+    const saveProgress = (gapCode: string, actIdx: number, mode: 'draft' | 'saved' | 'complete') => {
         const form = getForm(gapCode, actIdx);
         if (!form.note.trim() && !form.fileName && !form.evidenceUrl.trim() && !form.evidenceDesc.trim()) {
             alert('กรุณากรอกบันทึกหรือแนบหลักฐานอย่างน้อย 1 รายการ');
@@ -739,24 +919,49 @@ export const EmployeeProgress: React.FC = () => {
                 return {
                     ...act,
                     ...(mode === 'draft'
-                        ? { st: 'ร่าง', stC: 'by' }
-                        : act.result === 'done'
-                            ? { st: act.st, stC: act.stC }
-                            : { st: 'กำลังดำเนินการ', stC: 'bt' }),
+                        ? { st: 'ร่าง', stC: 'bgr' }
+                        : mode === 'complete'
+                            ? { st: 'เสร็จสิ้นกิจกรรม', stC: 'bg', result: 'done', progressDone: true }
+                            : isEmployeeIDPActivityDone(act)
+                                ? { st: act.st, stC: act.stC }
+                                : { st: 'กำลังดำเนินการ', stC: 'bt' }),
                     logs: [
                         {
                             d: today,
                             n: buildLogMessage(form, mode),
                             by: 'สมชาย มีสุข',
-                            type: mode === 'draft' ? 'draft' : 'log'
+                            type: mode === 'draft' ? 'draft' : mode === 'complete' ? 'complete' : 'log'
                         },
                         ...(act.logs || [])
                     ]
                 };
             })
         }));
+        setProgressStatusByGap(prev => ({
+            ...prev,
+            [gapCode]: prev[gapCode] === 'done' || prev[gapCode] === 'submitted' ? prev[gapCode] : 'developing'
+        }));
         clearForm(gapCode, actIdx);
-        alert(mode === 'draft' ? 'บันทึกร่างเรียบร้อย' : 'บันทึกความก้าวหน้าเรียบร้อย');
+        alert(mode === 'draft' ? 'บันทึกร่างเรียบร้อย' : mode === 'complete' ? 'บันทึกว่ากิจกรรมเสร็จสิ้นแล้ว' : 'บันทึกความก้าวหน้าเรียบร้อย');
+    };
+
+    const submitGapProgress = (gapCode: string, acts: any[]) => {
+        const currentStatus = progressStatusByGap[gapCode] || 'developing';
+        const summary = getEmployeeIDPProgressSummary(acts, currentStatus);
+        if (!summary.canSubmit) return;
+        const today = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+        setProgressStatusByGap(prev => ({ ...prev, [gapCode]: 'submitted' }));
+        setActivitiesByGap(prev => ({
+            ...prev,
+            [gapCode]: (prev[gapCode] || []).map(act => ({
+                ...act,
+                logs: [
+                    { d: today, n: 'ส่งสมรรถนะนี้ให้หัวหน้าตรวจสอบ', by: 'สมชาย มีสุข', type: 'submit' },
+                    ...(act.logs || [])
+                ]
+            }))
+        }));
+        alert('ส่งให้หัวหน้าตรวจสอบเรียบร้อย');
     };
 
     return (
@@ -767,21 +972,52 @@ export const EmployeeProgress: React.FC = () => {
             </div>
 
             {list.map(({ g, acts }) => {
-                const hasFailed = acts.some(a => a.result === 'failed');
+                const status = progressStatusByGap[g.cd] || deriveEmployeeIDPProgressStatus(g);
+                const statusMeta = getEmployeeIDPProgressStatusMeta(status);
+                const summary = getEmployeeIDPProgressSummary(acts, status);
+                const notice = status === 'rejected' ? getEmployeeIDPRejectionNotice(g) : null;
+                const canEdit = status !== 'submitted' && status !== 'done';
+                const hasActivities = summary.totalCount > 0;
                 return (
                     <div key={g.cd} style={{ marginBottom: '24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '10px 14px', background: hasFailed ? '#FEF2F2' : 'var(--blue-lt)', border: `1px solid ${hasFailed ? '#FECACA' : 'var(--blue-md)'}`, borderLeft: `4px solid ${hasFailed ? 'var(--red)' : 'var(--blue)'}`, borderRadius: 'var(--r-lg)' }}>
-                            {hasFailed && <span style={{ fontSize: '16px', flexShrink: 0 }}>!</span>}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '12px 14px', background: status === 'rejected' ? '#FEF2F2' : status === 'done' ? 'var(--green-bg)' : 'var(--blue-lt)', border: `1px solid ${status === 'rejected' ? '#FECACA' : status === 'done' ? 'var(--green-md)' : 'var(--blue-md)'}`, borderLeft: `4px solid ${status === 'rejected' ? 'var(--red)' : status === 'done' ? 'var(--green)' : 'var(--blue)'}`, borderRadius: 'var(--r-lg)', flexWrap: 'wrap' }}>
                             <span className={g.t === 'CC' ? 'tag-cc' : g.t === 'MC' ? 'tag-mc' : g.t === 'FC1' ? 'tag-fc1' : g.t === 'FC2' ? 'tag-fc2' : 'tag-fc'}>{g.t}</span>
-                            <span className="fw7 fs13" style={{ color: hasFailed ? 'var(--red)' : 'inherit' }}>{g.n}</span>
+                            <span className="fw8 fs14" style={{ color: status === 'rejected' ? 'var(--red)' : 'inherit' }}>{g.n}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-                                {hasFailed && <span className="b br">มีกิจกรรมไม่ผ่าน</span>}
-                                <span className={`b ${g.pri === 'high' ? 'br' : 'by'}`}>{g.pri === 'high' ? 'เร่งด่วน' : 'ต้องพัฒนา'}</span>
+                                <span className="b bgr">{hasActivities ? `${summary.doneCount}/${summary.totalCount} กิจกรรมเสร็จแล้ว` : 'ยังไม่มีกิจกรรม'}</span>
+                                <span className={`b ${statusMeta.cls}`}>{statusMeta.label}</span>
                             </div>
                         </div>
 
+                        {notice && (
+                            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r)', padding: '12px 14px', marginBottom: '12px' }}>
+                                <div className="fw8 fs13" style={{ color: 'var(--red)', marginBottom: '4px' }}>{notice.title}: {notice.competencyName}</div>
+                                <div className="fs12" style={{ color: '#991B1B', marginBottom: '8px' }}>ส่งกลับโดย {notice.reviewer}{notice.date ? ` · ${notice.date}` : ''}</div>
+                                <div className="fs12" style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: '6px', padding: '8px 10px', color: 'var(--text2)' }}>{notice.comment}</div>
+                            </div>
+                        )}
+
+                        {!hasActivities && (
+                            <div className="card mb10" style={{ borderStyle: 'dashed', background: '#fff' }}>
+                                <div className="cb flex ic jb g12" style={{ flexWrap: 'wrap' }}>
+                                    <div>
+                                        <div className="fw8 fs14">ยังไม่มีกิจกรรมสำหรับสมรรถนะนี้</div>
+                                        <div className="muted fs12 mt4">ต้องเพิ่มกิจกรรมในหน้าแผน IDP ก่อน จึงจะอัปเดตความก้าวหน้าและส่งหัวหน้าตรวจสอบได้</div>
+                                    </div>
+                                    <span className="b bt">ต้องเพิ่มกิจกรรม</span>
+                                </div>
+                            </div>
+                        )}
+
                         {acts.map((act, aIdx) => {
                             const form = getForm(g.cd, aIdx);
+                            const activityStatus = getIDPActivityApprovalStatus(act);
+                            const done = isEmployeeIDPActivityDone(act);
+                            const displayStatus = done
+                                ? { label: 'เสร็จสิ้นกิจกรรม', cls: 'bg' }
+                                : status === 'rejected'
+                                    ? { label: 'ต้องแก้ไข', cls: 'bt' }
+                                    : activityStatus;
                             return (
                                 <div key={aIdx} className="card mb10">
                                     <div className="ch">
@@ -790,26 +1026,11 @@ export const EmployeeProgress: React.FC = () => {
                                             <div className="fw7 fs13">{act.t}</div>
                                             <div className="muted fs12 mt4">{act.m} · ครบ {act.due}</div>
                                         </div>
-                                        <span className={`b ${act.stC}`}>{act.st}</span>
+                                        <span className={`b ${displayStatus.cls}`}>{displayStatus.label}</span>
                                     </div>
 
-                                    {act.result === 'failed' && (
-                                        <div style={{ background: '#FEF2F2', borderTop: '1px solid #FECACA', borderBottom: '1px solid #FECACA', padding: '12px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                                            <div style={{ fontSize: '20px', flexShrink: 0 }}>!</div>
-                                            <div style={{ flex: 1 }}>
-                                                <div className="fw7 fs13" style={{ color: 'var(--red)', marginBottom: '2px' }}>กิจกรรมนี้ไม่ผ่าน</div>
-                                                <div className="fs12" style={{ color: '#991B1B', marginBottom: '6px' }}>
-                                                    <span className="fw6">{act.rejectedBy}</span> · {act.rejectedDate}
-                                                </div>
-                                                <div className="fs12" style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: '6px', padding: '8px 10px', color: 'var(--text2)', marginBottom: '10px' }}>
-                                                    "{act.rejectComment}"
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
                                     <div className="cb" style={{ paddingTop: '10px' }}>
-                                        {act.result !== 'failed' && (
+                                        {canEdit && !done && (
                                             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '12px', marginBottom: '12px' }}>
                                                 <div className="fw7 fs12 mb8">บันทึกความก้าวหน้าใหม่</div>
                                                 <div className="fg mb8">
@@ -835,8 +1056,7 @@ export const EmployeeProgress: React.FC = () => {
                                                                     e.currentTarget.value = '';
                                                                 }}
                                                             />
-                                                            <div style={{ fontSize: '18px', marginBottom: '4px' }}>📎</div>
-                                                            <div className="fw6 fs12">{form.fileName || 'คลิกเพื่อแนบไฟล์'}</div>
+                                                                        <div className="fw6 fs12">{form.fileName || 'คลิกเพื่อแนบไฟล์'}</div>
                                                             <div className="muted fs11">PDF, Word, รูปภาพ</div>
                                                         </label>
                                                     </div>
@@ -865,7 +1085,8 @@ export const EmployeeProgress: React.FC = () => {
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
                                                     <button className="btn btn-s btn-sm" type="button" onClick={() => saveProgress(g.cd, aIdx, 'draft')}>บันทึกร่าง</button>
-                                                    <button className="btn btn-t btn-sm" type="button" onClick={() => saveProgress(g.cd, aIdx, 'saved')}>บันทึก</button>
+                                                    <button className="btn btn-t btn-sm" type="button" onClick={() => saveProgress(g.cd, aIdx, 'saved')}>บันทึกความก้าวหน้า</button>
+                                                    <button className="btn btn-g btn-sm" type="button" onClick={() => saveProgress(g.cd, aIdx, 'complete')}>กิจกรรมเสร็จสิ้น</button>
                                                 </div>
                                             </div>
                                         )}
@@ -882,6 +1103,36 @@ export const EmployeeProgress: React.FC = () => {
                                 </div>
                             );
                         })}
+
+                        <div className="card" style={{ borderStyle: 'dashed', background: '#fff' }}>
+                            <div className="cb flex ic jb g12" style={{ flexWrap: 'wrap' }}>
+                                <div>
+                                    <div className="fw8 fs13">ส่งสมรรถนะนี้ให้หัวหน้าตรวจสอบ</div>
+                                    <div className={`fs12 ${summary.canSubmit ? 'gcc' : 'muted'}`} style={{ marginTop: '3px' }}>
+                                        {status === 'submitted'
+                                            ? 'ส่งแล้ว รอหัวหน้าตรวจสอบ'
+                                            : status === 'done'
+                                                ? 'หัวหน้าตรวจผ่านแล้ว'
+                                                : !hasActivities
+                                                    ? 'ต้องเพิ่มกิจกรรมในแผน IDP ก่อน จึงจะส่งหัวหน้าตรวจสอบได้'
+                                                : summary.canSubmit
+                                                    ? 'กิจกรรมครบแล้ว สามารถส่งให้หัวหน้าตรวจสอบได้'
+                                                    : `ต้องทำกิจกรรมให้ครบก่อน ตอนนี้เสร็จแล้ว ${summary.doneCount}/${summary.totalCount} กิจกรรม`}
+                                    </div>
+                                </div>
+                                <button
+                                    className="btn btn-p"
+                                    disabled={!summary.canSubmit || status === 'submitted' || status === 'done'}
+                                    style={{
+                                        opacity: summary.canSubmit && status !== 'submitted' && status !== 'done' ? 1 : 0.42,
+                                        cursor: summary.canSubmit && status !== 'submitted' && status !== 'done' ? 'pointer' : 'not-allowed'
+                                    }}
+                                    onClick={() => submitGapProgress(g.cd, acts)}
+                                >
+                                    ส่งให้หัวหน้าตรวจสอบ
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 );
             })}
@@ -906,7 +1157,7 @@ export const EmployeeIDPDetail: React.FC = () => {
                     gap: 1,
                     acts: [
                         {
-                            ic: "👥",
+                            ic: "",
                             t: "Peer Learning / Group Activity",
                             m: "Social Learning",
                             logs: [
@@ -923,7 +1174,7 @@ export const EmployeeIDPDetail: React.FC = () => {
                     gap: 1,
                     acts: [
                         {
-                            ic: "💻",
+                            ic: "",
                             t: "อบรม AI & Data Analytics",
                             m: "Formal Learning",
                             logs: [
@@ -947,7 +1198,7 @@ export const EmployeeIDPDetail: React.FC = () => {
                     gap: 1,
                     acts: [
                         {
-                            ic: "🗂️",
+                            ic: "",
                             t: "โครงการพัฒนาระบบฐานข้อมูล",
                             m: "Experiential Learning",
                             logs: [
@@ -1007,15 +1258,15 @@ export const EmployeeIDPDetail: React.FC = () => {
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">รายละเอียด IDP 📊</div>
+                    <div className="sec-t">รายละเอียด IDP </div>
                     <div className="sec-s">ภาพรวม · Timeline · ประวัติย้อนหลัง</div>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "6px", padding: "4px 12px", background: "var(--navy)", borderRadius: "20px" }}>
-                        <span style={{ fontSize: "12px" }}>🏷️</span>
+                        <span style={{ fontSize: "12px" }}></span>
                         <span style={{ fontSize: "12px", fontWeight: 700, color: "#fff" }}>รอบประเมิน 2568</span>
                         <span style={{ fontSize: "11px", color: "rgba(255,255,255,.6)" }}>รอบปัจจุบัน</span>
                     </div>
                 </div>
-                <button className="btn btn-s">📥 Export PDF</button>
+                <button className="btn btn-s"> Export PDF</button>
             </div>
 
             <div className="g4 mb20">
@@ -1044,7 +1295,7 @@ export const EmployeeIDPDetail: React.FC = () => {
             <div className="card mb20">
                 <div className="ch">
                     <div>
-                        <div className="ct">🕒 Timeline กิจกรรม IDP</div>
+                        <div className="ct"> Timeline กิจกรรม IDP</div>
                         <div className="cs">กดที่กิจกรรมเพื่อดูรายละเอียดและหลักฐาน</div>
                     </div>
                 </div>
@@ -1084,7 +1335,7 @@ export const EmployeeIDPDetail: React.FC = () => {
 
                                 {act.result === "failed" && (
                                     <div style={{ background: "#FEF2F2", borderTop: "1px solid #FECACA", padding: "10px 18px 10px 36px", display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                                        <span style={{ fontSize: "16px", flexShrink: 0 }}>❌</span>
+                                        <span style={{ fontSize: "16px", flexShrink: 0 }}></span>
                                         <div>
                                             <div className="fw7 fs12" style={{ color: "var(--red)" }}>ไม่ผ่าน · {act.rejectedBy} · {act.rejectedDate}</div>
                                             <div style={{ fontSize: "12px", color: "#991B1B", marginTop: "3px" }}>"{act.rejectComment}"</div>
@@ -1121,7 +1372,7 @@ export const EmployeeIDPDetail: React.FC = () => {
                                                                 </div>
                                                                 {log.evidence && (
                                                                     <div style={{ marginTop: "8px", padding: "6px 10px", background: "var(--blue-lt)", borderRadius: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
-                                                                        <span style={{ fontSize: "14px" }}>📎</span>
+                                                                        <span style={{ fontSize: "14px" }}></span>
                                                                         <span style={{ fontSize: "11px", color: "var(--blue)", fontWeight: 600 }}>{log.evidence}</span>
                                                                         <span style={{ fontSize: "10px", color: "var(--text3)", marginLeft: "auto" }}>คลิกเพื่อดู →</span>
                                                                     </div>
@@ -1142,7 +1393,7 @@ export const EmployeeIDPDetail: React.FC = () => {
 
             <div className="card">
                 <div className="ch" style={{ flexDirection: "column", alignItems: "flex-start", gap: "12px" }}>
-                    <div className="ct">📁 ประวัติ IDP ย้อนหลัง</div>
+                    <div className="ct"> ประวัติ IDP ย้อนหลัง</div>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                         {rounds.map(round => {
                             const isActive = activeRound === round.id;
@@ -1214,7 +1465,7 @@ export const EmployeeIDPDetail: React.FC = () => {
                     ) : (
                         <div style={{ padding: "16px 0" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", background: "var(--green-bg)", border: "1px solid var(--green-md)", borderRadius: "var(--r)", marginBottom: "16px" }}>
-                                <span>✅</span>
+                                <span></span>
                                 <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--green)" }}>{activeRoundData.n} — เสร็จสิ้นแล้ว</span>
                             </div>
                             {((activeRoundData as { gaps?: any[] }).gaps || []).map((gap: any, idx: number) => (
@@ -1231,7 +1482,7 @@ export const EmployeeIDPDetail: React.FC = () => {
                                                 <span style={{ fontSize: "15px" }}>{act.ic}</span>
                                                 <span className="fw6 fs12">{act.t}</span>
                                                 <span className="muted fs11">{act.m}</span>
-                                                <span className="b bg" style={{ marginLeft: "auto", fontSize: "9px" }}>ผ่านแล้ว ✓</span>
+                                                <span className="b bg" style={{ marginLeft: "auto", fontSize: "9px" }}>ผ่านแล้ว </span>
                                             </div>
                                             {act.logs.map((log: any, logIdx: number) => (
                                                 <div key={logIdx} style={{ display: "flex", gap: "8px", padding: "6px 0", borderTop: "1px dashed var(--border)", alignItems: "flex-start" }}>
@@ -1240,7 +1491,7 @@ export const EmployeeIDPDetail: React.FC = () => {
                                                         <div style={{ fontSize: "11px", color: log.type === "done" ? "var(--green)" : "var(--text2)", fontWeight: log.type === "done" ? 700 : 400 }}>{log.n}</div>
                                                         {log.evidence && (
                                                             <div style={{ marginTop: "4px", display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 9px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "20px" }}>
-                                                                <span style={{ fontSize: "12px" }}>📎</span>
+                                                                <span style={{ fontSize: "12px" }}></span>
                                                                 <span style={{ fontSize: "11px", color: "var(--blue)", fontWeight: 600 }}>{log.evidence}</span>
                                                                 <span style={{ fontSize: "10px", color: "var(--text3)" }}>↗</span>
                                                             </div>

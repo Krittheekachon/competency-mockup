@@ -104,7 +104,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
     <>
       <div className="flex ic jb mb20">
         <div>
-          <div className="sec-t">จัดการโครงสร้างองค์กร 🌿</div>
+          <div className="sec-t">จัดการโครงสร้างองค์กร </div>
           <div className="sec-s">กำหนดกลุ่มงานและสายการบังคับบัญชา · {viewModel === 'dept' ? 'มุมมองรายกลุ่มงาน' : 'มุมมองสายงานบังคับบัญชา'}</div>
         </div>
         <div className="flex g8">
@@ -112,12 +112,12 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
             className={`btn btn-s ${viewModel === 'dept' ? 'btn-p' : ''}`} 
             onClick={() => setViewModel('dept')}
             style={{ borderRadius: '12px' }}
-          >🏢 รายกลุ่มงาน</button>
+          > รายกลุ่มงาน</button>
           <button 
             className={`btn btn-s ${viewModel === 'hierarchy' ? 'btn-p' : ''}`} 
             onClick={() => { setViewModel('hierarchy'); setDrillPath([]); }}
             style={{ borderRadius: '12px' }}
-          >🌳 สายการบังคับบัญชา</button>
+          > สายการบังคับบัญชา</button>
         </div>
       </div>
 
@@ -126,13 +126,13 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
           {/* Dept List Sidebar */}
           <div className="org-side">
             <div className="p12" style={{ borderBottom: '1px solid var(--border)', background: '#fff' }}>
-              <input className="inp inp-sm" style={{ fontSize: '12px' }} placeholder="🔍 ค้นหาสังกัด/กลุ่มงาน..." value={deptSearch} onChange={e => setDeptSearch(e.target.value)} />
+              <input className="inp inp-sm" style={{ fontSize: '12px' }} placeholder=" ค้นหาสังกัด/กลุ่มงาน..." value={deptSearch} onChange={e => setDeptSearch(e.target.value)} />
             </div>
             <div className="org-side-h flex ic jb">
               <span>กลุ่มงาน</span>
               <div style={{ position: 'relative' }}>
                 <button className={`btn btn-xs ${filterType !== 'ทั้งหมด' ? 'btn-p' : 'btn-s'}`} style={{ fontSize: '10px', padding: '4px 8px' }} onClick={() => setShowFilter(!showFilter)}>
-                  🔍 {filterType}
+                   {filterType}
                 </button>
                 {showFilter && (
                   <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 50, background: '#fff', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', width: '240px', padding: '6px', maxHeight: '300px', overflowY: 'auto' }}>
@@ -163,7 +163,6 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
               })}
               {filteredDepts.length === 0 && (
                 <div style={{ padding: '32px 16px', textAlign: 'center', fontSize: '12px', color: 'var(--text3)' }}>
-                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>🏜️</div>
                   ไม่พบข้อมูลในหมวดนี้
                 </div>
               )}
@@ -173,7 +172,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
           {/* User List Main */}
           <div className="org-main">
             <div className="card mb16 p12 flex ic g12">
-              <div className="muted fs16">🔍</div>
+              <div className="muted fs16"></div>
               <input className="inp" style={{ border: 'none', background: 'transparent', padding: '4px 0', fontSize: '14px' }} placeholder="ค้นหาชื่อบุคลากร (ค้นหาข้ามกลุ่มงานได้ที่นี่)..." value={search} onChange={e => setSearch(e.target.value)} />
               {search && <button className="btn btn-s btn-xs" onClick={() => setSearch("")}>ล้าง</button>}
             </div>
@@ -236,7 +235,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                               <td style={{ minWidth: "140px" }}>
                                 {u.sup ? (
                                   <div className="flex ic g6">
-                                    <span className="fs11" style={{ opacity: 0.6 }}>👤</span>
+                                    <span className="fs11" style={{ opacity: 0.6 }}></span>
                                     <span className="fs12" style={{ color: "var(--text2)" }}>{u.sup}</span>
                                   </div>
                                 ) : <span className="fs11 muted">—</span>}
@@ -244,7 +243,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                               <td style={{ minWidth: "140px" }}>
                                 {u.evaluator2 ? (
                                   <div className="flex ic g6">
-                                    <span className="fs11" style={{ opacity: 0.6 }}>👤</span>
+                                    <span className="fs11" style={{ opacity: 0.6 }}></span>
                                     <span className="fs12" style={{ color: "var(--text2)" }}>{u.evaluator2}</span>
                                   </div>
                                 ) : <span className="fs11 muted">—</span>}
@@ -266,14 +265,12 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                 </div>
                 {listUsers.length === 0 && (
                   <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text3)' }}>
-                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔎</div>
                     {isSearchActive ? 'ไม่พบบุคลากรที่ค้นหา' : 'กลุ่มงานนี้ยังไม่มีบุคลากร'}
                   </div>
                 )}
               </div>
             ) : (
               <div className="card flex col ic jc" style={{ height: '400px', background: '#fff', borderStyle: 'dashed', borderWidth: '2px' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏢</div>
                 <div className="fw7 fs16 mb4" style={{ color: 'var(--navy)' }}>ยังไม่ได้เลือกกลุ่มงาน</div>
                 <div className="muted fs13">กรุณาเลือกกลุ่มงานจากรายการด้านซ้ายมือ หรือค้นหาชื่อบุคลากรด้านบน</div>
               </div>
@@ -286,7 +283,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
             <div className="p32" style={{ background: '#fff', borderBottom: '1px solid #edf2f7' }}>
               <div className="flex ic g12 mb16 wrap">
                 <div className={`breadcrumb-item ${drillPath.length === 0 ? 'active' : ''}`} onClick={() => popDrillPath(-1)}>
-                  <span style={{ fontSize: '20px' }}>📂</span> คณะวิศวกรรมศาสตร์
+                  <span style={{ fontSize: '20px' }}></span> คณะวิศวกรรมศาสตร์
                 </div>
                 {drillPath.map((it, idx) => (
                   <React.Fragment key={idx}>
@@ -299,7 +296,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
               </div>
               <div className="flex ic jb">
                 <div className="fs13 fw5" style={{ color: 'var(--text3)' }}>
-                  {drillPath.length === 0 ? "📍 ระดับผู้บริหารคณะ" : `📍 รายชื่อผู้ที่มีหัวหน้างานเป็น: ${drillPath[drillPath.length - 1].n}`}
+                  {drillPath.length === 0 ? " ระดับผู้บริหารคณะ" : ` รายชื่อผู้ที่มีหัวหน้างานเป็น: ${drillPath[drillPath.length - 1].n}`}
                 </div>
               </div>
             </div>
@@ -368,7 +365,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                             </div>
                           </td>
                           <td style={{ paddingRight: '40px', textAlign: 'right', paddingTop: '24px', paddingBottom: '24px' }} onClick={e => e.stopPropagation()}>
-                            <button className="btn-settings" onClick={() => openModal("modal-user", u)} title="แก้ไขผู้ใช้">⚙️</button>
+                            <button className="btn-settings" onClick={() => openModal("modal-user", u)} title="แก้ไขผู้ใช้">แก้ไข</button>
                           </td>
                         </tr>
                       );
@@ -378,7 +375,6 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
               </div>
               {currentHierarchyUsers.length === 0 && (
                 <div className="flex col ic jc" style={{ padding: '120px 20px', color: 'var(--text3)' }}>
-                  <div style={{ fontSize: '56px', marginBottom: '20px' }}>📁</div>
                   <div className="fw8 fs18 mb6" style={{ color: 'var(--navy)' }}>ยังไม่มีผู้รับการประเมินถัดไป</div>
                   <div className="muted fs14" style={{ maxWidth: '300px', textAlign: 'center', lineHeight: '1.6' }}>
                     ไม่พบผู้ที่มีหัวหน้างานเป็น {drillPath[drillPath.length - 1]?.n}

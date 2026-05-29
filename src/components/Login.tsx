@@ -10,7 +10,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       <div className="lw">
         <div className="ll">
           <div className="ll-in">
-            <div className="ll-ico">🎓</div>
             <div className="ll-fac">Faculty of Engineering · KKU HR System</div>
             <div className="ll-title">ระบบบริหารสมรรถนะ<br />และแผนพัฒนารายบุคคล</div>
             <div className="ll-sub">Competency & IDP Management System</div>

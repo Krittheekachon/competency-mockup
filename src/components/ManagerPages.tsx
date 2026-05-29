@@ -45,6 +45,14 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
         if (!user.d) return "ไม่ระบุหน่วยงาน";
         return user.d.includes(" > ") ? user.d.split(" > ")[0] : user.d;
     };
+    const getGroupName = (user: any) => {
+        if (!user.d) return "ไม่ระบุกลุ่มงาน";
+        const parts = user.d.split(" > ");
+        if (user.w === "สายสนับสนุน") return parts[1] || parts[0] || "ไม่ระบุกลุ่มงาน";
+        if (user.w === "สายวิชาการ") return parts[0] || user.p || "ไม่ระบุกลุ่มงาน";
+        if (user.w === "สายงานบริหาร") return parts[0] || user.p || "ไม่ระบุกลุ่มงาน";
+        return parts[0] || user.d;
+    };
     const isAssessedUser = (user: any) => !["draft", "", undefined, null].includes(user.evalStatus);
     const getMockFailedCompetencies = (user: any) => {
         if (Array.isArray(user.mockFailedCompetencies)) return user.mockFailedCompetencies;
@@ -236,13 +244,55 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             user.failedCompetencies.forEach(item => {
                 const current = compMap.get(item.n) || { n: item.n, t: item.t, tg: item.tg, fail: 0, note: "" };
                 current.fail += 1;
-                current.note = current.fail > 1 ? "ควรวางแผนพัฒนาร่วมกัน" : "ติดตามรายบุคคล";
+                current.note = "";
                 compMap.set(item.n, current);
             });
         });
 
         reportDetailRows[dept.n] = Array.from(compMap.values()).sort((a, b) => b.fail - a.fail);
     });
+    const sortSummaryRows = <T extends { n: string; total: number; pass: number; fail: number }>(rows: T[]) => {
+        const direction = deptSortDir === "asc" ? 1 : -1;
+
+        return [...rows].sort((a, b) => {
+            let result = 0;
+            if (deptSort === "pass") result = b.pass - a.pass || b.total - a.total || a.n.localeCompare(b.n, "th");
+            else if (deptSort === "all") result = a.n.localeCompare(b.n, "th") || b.total - a.total;
+            else result = b.fail - a.fail || b.total - a.total || a.n.localeCompare(b.n, "th");
+            return result * direction;
+        });
+    };
+    const reportWorklineRows = Array.from(new Set(filteredReportUsers.map(user => user.w || "ไม่ระบุสายงาน"))).map(workline => {
+        const worklineUsers = filteredReportUsers.filter(user => (user.w || "ไม่ระบุสายงาน") === workline);
+        const worklineAssessed = worklineUsers.filter(user => user.assessed);
+        const worklineFailed = worklineAssessed.filter(user => user.failedCompetencies.length > 0);
+        const groups = sortSummaryRows(Array.from(new Set(worklineUsers.map(getGroupName))).map(groupName => {
+            const groupUsers = worklineUsers.filter(user => getGroupName(user) === groupName);
+            const groupAssessed = groupUsers.filter(user => user.assessed);
+            const groupFailed = groupAssessed.filter(user => user.failedCompetencies.length > 0);
+            const weakDetail = aggregateWeakDetails(groupFailed);
+
+            return {
+                id: `${workline}-${groupName}`,
+                n: groupName,
+                total: groupUsers.length,
+                assessed: groupAssessed.length,
+                pass: groupAssessed.length - groupFailed.length,
+                fail: groupFailed.length,
+                weakDetail
+            };
+        }));
+
+        return {
+            n: workline,
+            total: worklineUsers.length,
+            assessed: worklineAssessed.length,
+            pass: worklineAssessed.length - worklineFailed.length,
+            fail: worklineFailed.length,
+            groups
+        };
+    });
+    const sortedReportWorklineRows = sortSummaryRows(reportWorklineRows);
     const reportProblemGroups = Array.from(new Set(filteredReportUsers.map(user => user.w || "ไม่ระบุสายงาน"))).map((workline, groupIndex) => {
         const worklineUsers = filteredReportUsers.filter(user => (user.w || "ไม่ระบุสายงาน") === workline);
         const compMap = new Map<string, { n: string; t: string; tg: string; count: number; depts: Map<string, number> }>();
@@ -286,7 +336,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
         const failPct = 100 - getPct(dept.pass, dept.assessed);
 
         if (failPct > 40) {
-            return { label: "⚠ ความเสี่ยงสูง", badge: "br", rank: 0, color: "var(--red)" };
+            return { label: " ความเสี่ยงสูง", badge: "br", rank: 0, color: "var(--red)" };
         }
         if (failPct >= 20) {
             return { label: "ต้องเฝ้าระวัง", badge: "by", rank: 1, color: "var(--yellow)" };
@@ -340,7 +390,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
     return (
         <>
             <div className="mb20">
-                <div className="sec-t" style={{ color: "var(--navy)", fontSize: "24px" }}>ภาพรวม Competency คณะ</div>
+                <div className="sec-t" style={{ color: "var(--navy)", fontSize: "24px" }}>ภาพรวมผลการประเมินคณะ</div>
                 <div className="sec-s">คณะวิศวกรรมศาสตร์ · รอบประเมิน 2568</div>
             </div>
 
@@ -349,8 +399,8 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                     {[
                         { l: "บุคลากรทั้งหมด", v: totalStaff, s: worklineSummary || "ยังไม่มีข้อมูลผู้ใช้", c: "#fff" },
                         { l: "ประเมินแล้ว", v: assessed, s: `รอ ${totalStaff - assessed} คน`, c: "#fff" },
-                        { l: "ผ่านเกณฑ์", v: passed, s: `${passPct}% ของที่ประเมิน`, c: "#4ade80" },
-                        { l: "ไม่ผ่านเกณฑ์", v: failed, s: `${100 - passPct}% ของที่ประเมิน`, c: "#fca5a5" }
+                        { l: "ผ่านเกณฑ์", v: passed, s: ` คน`, c: "#4ade80" },
+                        { l: "ไม่ผ่านเกณฑ์", v: failed, s: `คน`, c: "#fca5a5" }
                     ].map((m, i) => (
                         <div key={m.l} style={{ padding: "0 28px", borderLeft: i ? "1px solid rgba(255,255,255,.14)" : "none" }}>
                             <div className="fw7 fs12" style={{ color: "rgba(255,255,255,.48)", marginBottom: "8px" }}>{m.l}</div>
@@ -372,8 +422,8 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
             <div className="card mb16">
                 <div className="ch">
                     <div>
-                        <div className="ct">ผลรายหน่วยงาน</div>
-                        <div className="cs">กดที่หน่วยงานเพื่อดูรายสายงาน</div>
+                        <div className="ct">ผลรายสายงาน / กลุ่มงาน</div>
+                        <div className="cs">เรียงจากสายงาน แล้วแสดงรายละเอียดรายกลุ่มงาน</div>
                     </div>
                     <div className="flex ic g6" style={{ flex: "0 0 auto" }}>
                         <span className="fs11 fw7 muted">สายงาน:</span>
@@ -422,7 +472,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                             style={{ width: "160px", height: "32px", padding: "4px 10px", fontSize: "12px" }}
                         >
                             <option value="all">ทั้งหมด</option>
-                            <option value="risk">ความเสี่ยง</option>
+                            <option value="risk">จำนวนผู้ไม่ผ่าน</option>
                             <option value="pass">จำนวนผู้ผ่าน</option>
                         </select>
                         <button
@@ -445,125 +495,115 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                             <span className="flex ic g6 fs11 muted"><span style={{ width: "22px", height: "8px", borderRadius: "99px", background: "#FECACA", display: "inline-block" }} /> ไม่ผ่าน</span>
                             <span className="flex ic g6 fs11 muted"><span style={{ width: "22px", height: "8px", borderRadius: "99px", background: "#e2e8f0", display: "inline-block" }} /> ยังไม่มีการประเมิน</span>
                         </div>
-                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-                            <span className="fs11 fw7 muted">เกณฑ์ความเสี่ยง:</span>
-                            <span className="b br" style={{ fontSize: "10px" }}>ไม่ผ่าน &gt; 40% = สูง</span>
-                            <span className="b by" style={{ fontSize: "10px" }}>20-40% = เฝ้าระวัง</span>
-                            <span className="b bg" style={{ fontSize: "10px" }}>&lt; 20% = อยู่ในเกณฑ์ดี</span>
-                            <span className="b muted" style={{ fontSize: "10px" }}>0 คนประเมิน = ยังไม่มีการประเมิน</span>
-                        </div>
                     </div>
                 </div>
-                <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                    <div className="muted fs11 fw7" style={{ display: "grid", gridTemplateColumns: "4px minmax(220px, 1.4fr) 128px minmax(160px, 1fr) 132px 20px", alignItems: "center", gap: "12px", padding: "0 16px 2px" }}>
-                        <span />
-                        <span>หน่วยงาน</span>
-                        <span style={{ textAlign: "center" }}>ผลประเมิน</span>
-                        <span>สัดส่วนผ่าน / ไม่ผ่าน</span>
-                        <span style={{ textAlign: "center" }}>สถานะ</span>
-                        <span />
-                    </div>
-                    {rankedDeptRows.map((d) => {
-                        const passWidth = getPct(d.pass, d.assessed);
-                        const failWidth = d.assessed ? 100 - passWidth : 0;
-                        const assessedPct = getPct(d.assessed, d.total);
-                        const riskStatus = getRiskStatus(d);
-                        const missingAssessments = d.total - d.assessed;
-                        const hasPendingAssessments = missingAssessments > 0;
-                        const isCoverageLow = assessedPct < 100;
-                        const isOpen = openDept === d.n;
+                <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {sortedReportWorklineRows.map(section => {
+                        const sectionPassWidth = getPct(section.pass, section.assessed);
+                        const sectionFailWidth = section.assessed ? 100 - sectionPassWidth : 0;
                         return (
-                            <div key={d.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setOpenDept(isOpen ? null : d.n)}
-                                    style={{ width: "100%", padding: "12px 16px", background: "#fff", cursor: "pointer", display: "grid", gridTemplateColumns: "4px minmax(220px, 1.4fr) 128px minmax(160px, 1fr) 132px 20px", alignItems: "center", gap: "12px", border: 0, textAlign: "left", fontFamily: "inherit" }}
-                                >
-                                    <div style={{ width: "4px", height: "36px", borderRadius: "3px", background: riskStatus.color, flexShrink: 0 }} />
-                                    <div style={{ minWidth: 0 }}>
-                                        <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.n}>{d.n}</div>
-                                        <div style={{ fontSize: "11px", color: "var(--text3)", marginTop: "2px" }}>{d.total} คน · ประเมินแล้ว {d.assessed} คน</div>
-                                        {isCoverageLow && <div className="fs11 mt4" style={{ color: "var(--text2)" }}>ข้อมูลประเมินยังไม่ครบ</div>}
+                            <div key={section.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden", background: "var(--bg)" }}>
+                                <div style={{ padding: "14px 16px", background: "var(--navy)", color: "#fff", display: "grid", gridTemplateColumns: "minmax(180px, 1fr) 120px 140px minmax(180px, 1fr)", gap: "14px", alignItems: "center" }}>
+                                    <div>
+                                        <div className="fw8 fs14">{section.n}</div>
+                                        <div className="fs11" style={{ color: "rgba(255,255,255,.62)", marginTop: "2px" }}>{section.groups.length} กลุ่มงาน · ประเมินแล้ว {section.assessed}/{section.total} คน</div>
                                     </div>
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", alignItems: "stretch" }}>
-                                        <div style={{ textAlign: "center", padding: "4px 8px", background: "var(--green-bg)", borderRadius: "var(--r)", border: "1px solid var(--green-md)" }}>
-                                            <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--green)" }}>{d.pass}</div>
-                                            <div style={{ fontSize: "10px", color: "var(--green)", fontWeight: 700 }}>ผ่าน</div>
+                                    <div style={{ textAlign: "center" }}>
+                                        <div className="fw8 fs18">{section.total}</div>
+                                        <div className="fs10" style={{ color: "rgba(255,255,255,.62)" }}>สมาชิกทั้งหมด</div>
+                                    </div>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                                        <div style={{ textAlign: "center", padding: "5px 8px", background: "rgba(34,197,94,.14)", borderRadius: "8px", border: "1px solid rgba(134,239,172,.35)" }}>
+                                            <div className="fw8 fs14" style={{ color: "#86efac" }}>{section.pass}</div>
+                                            <div className="fs10" style={{ color: "#bbf7d0" }}>ผ่าน</div>
                                         </div>
-                                        <div style={{ textAlign: "center", padding: "4px 8px", background: "var(--red-bg)", borderRadius: "var(--r)", border: "1px solid #FCA5A5" }}>
-                                            <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--red)" }}>{d.fail}</div>
-                                            <div style={{ fontSize: "10px", color: "var(--red)", fontWeight: 700 }}>ไม่ผ่าน</div>
+                                        <div style={{ textAlign: "center", padding: "5px 8px", background: "rgba(239,68,68,.14)", borderRadius: "8px", border: "1px solid rgba(252,165,165,.35)" }}>
+                                            <div className="fw8 fs14" style={{ color: "#fca5a5" }}>{section.fail}</div>
+                                            <div className="fs10" style={{ color: "#fecaca" }}>ไม่ผ่าน</div>
                                         </div>
                                     </div>
                                     <div style={{ minWidth: 0 }}>
-                                        <div style={{ height: "10px", borderRadius: "6px", overflow: "hidden", display: "flex" }}>
-                                            {d.assessed ? (
-                                                <>
-                                                    <div style={{ width: `${passWidth}%`, background: "var(--green)", transition: ".3s" }} />
-                                                    <div style={{ width: `${failWidth}%`, background: "#FECACA", transition: ".3s" }} />
-                                                </>
-                                            ) : (
-                                                <div style={{ width: "100%", background: "#e2e8f0", transition: ".3s" }} />
-                                            )}
+                                        <div style={{ height: "9px", borderRadius: "99px", overflow: "hidden", display: "flex", background: "rgba(255,255,255,.18)" }}>
+                                            <div style={{ width: `${sectionPassWidth}%`, background: "var(--green)" }} />
+                                            <div style={{ width: `${sectionFailWidth}%`, background: "#FECACA" }} />
                                         </div>
-                                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "3px" }}>
-                                            <span style={{ fontSize: "10px", color: "var(--text3)" }}>{passWidth}%</span>
-                                            <span style={{ fontSize: "10px", color: "var(--text3)" }}>{failWidth}%</span>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", fontSize: "10px", color: "rgba(255,255,255,.62)" }}>
+                                            <span>{sectionPassWidth}%</span>
+                                            <span>{sectionFailWidth}%</span>
                                         </div>
                                     </div>
-                                    <span className={`b ${riskStatus.badge}`} style={{ justifyContent: "center", width: "100%" }}>{riskStatus.label}</span>
-                                    <span style={{ fontSize: "11px", color: "var(--text3)", justifySelf: "center" }}>{isOpen ? "▴" : "▾"}</span>
-                                </button>
-                                {isOpen && (
-                                    <>
-                                        <div style={{ margin: "8px 20px 0 20px", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden", background: "var(--bg)" }}>
-                                            {reportDetailRows[d.n]?.length ? reportDetailRows[d.n].map((row) => (
-                                                <div key={row.n} className="flex ic g12" style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                                                    <div className="flex ic g8" style={{ flex: 1 }}>
-                                                        <span className={row.tg}>{row.t}</span>
-                                                        <span className="fw6 fs12">{row.n}</span>
+                                </div>
+                                <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                                    <div className="muted fs11 fw7" style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1.3fr) 104px 128px minmax(180px, 1fr) 20px", alignItems: "center", gap: "12px", padding: "0 14px" }}>
+                                        <span>กลุ่มงาน</span>
+                                        <span style={{ textAlign: "center" }}>สมาชิกทั้งหมด</span>
+                                        <span style={{ textAlign: "center" }}>ผลประเมิน</span>
+                                        <span>สัดส่วนผ่าน / ไม่ผ่าน</span>
+                                        <span />
+                                    </div>
+                                    {section.groups.map(group => {
+                                        const passWidth = getPct(group.pass, group.assessed);
+                                        const failWidth = group.assessed ? 100 - passWidth : 0;
+                                        const isOpen = openDept === group.id;
+                                        return (
+                                            <div key={group.id} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", background: "#fff", overflow: "hidden" }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOpenDept(isOpen ? null : group.id)}
+                                                    style={{ width: "100%", padding: "12px 14px", border: 0, background: "#fff", cursor: "pointer", display: "grid", gridTemplateColumns: "minmax(220px, 1.3fr) 104px 128px minmax(180px, 1fr) 20px", alignItems: "center", gap: "12px", textAlign: "left", fontFamily: "inherit" }}
+                                                >
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <div className="fw8 fs13" style={{ color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={group.n}>{group.n}</div>
+                                                        <div className="muted fs11 mt4">{group.total} คน · ประเมินแล้ว {group.assessed} คน</div>
                                                     </div>
-                                                    <span className="b br">{row.fail} คน</span>
-                                                    <span className="muted fs12">{row.note}</span>
-                                                </div>
-                                            )) : (
-                                                <div className="muted fs12" style={{ padding: "14px" }}>ยังไม่มีรายการสมรรถนะที่ต้องติดตาม</div>
-                                            )}
-                                        </div>
-                                        <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
-                                            <div style={{ padding: "10px 16px 4px", fontSize: "10px", fontWeight: 800, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em" }}>รายสายงาน</div>
-                                            <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                                                {d.lines.map(line => {
-                                                    const linePass = line.total - line.fail;
-                                                    const linePct = getPct(linePass, line.total);
-                                                    return (
-                                                        <div key={line.n} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden", background: "#fff" }}>
-                                                            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px" }}>
-                                                                <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text)", flex: "0 0 150px" }}>{line.n}</div>
-                                                                <div style={{ display: "flex", gap: "10px", fontSize: "12px" }}>
-                                                                    <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ {linePass} ผ่าน</span>
-                                                                    <span style={{ color: "var(--red)", fontWeight: 700 }}>✗ {line.fail} ไม่ผ่าน</span>
-                                                                </div>
-                                                                <div style={{ flex: 1, height: "7px", background: "var(--border)", borderRadius: "4px", overflow: "hidden" }}>
-                                                                    <div style={{ height: "100%", width: `${linePct}%`, background: "var(--green)" }} />
-                                                                </div>
-                                                                <span style={{ fontSize: "11px", color: "var(--text3)" }}>{line.total} คน</span>
-                                                            </div>
-                                                            <div style={{ borderTop: "1px solid var(--border)", background: "#FFFBEB", padding: "8px 14px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
-                                                                <span style={{ fontSize: "10px", fontWeight: 800, color: "var(--yellow)" }}>⚠ สมรรถนะที่ตก:</span>
-                                                                {line.weakDetail.map(weak => (
-                                                                    <span key={weak.n} style={{ fontSize: "11px", padding: "2px 8px", background: "var(--red-bg)", color: "var(--red)", borderRadius: "20px", fontWeight: 700 }}>
-                                                                        ⚠ {weak.n} <span style={{ background: "var(--red)", color: "#fff", borderRadius: "10px", padding: "0 5px", fontSize: "10px" }}>{weak.cnt} คน</span>
-                                                                    </span>
-                                                                ))}
-                                                            </div>
+                                                    <div style={{ textAlign: "center" }}>
+                                                        <div className="fw8 fs15" style={{ color: "var(--navy)" }}>{group.total}</div>
+                                                        <div className="muted fs10">คน</div>
+                                                    </div>
+                                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                                                        <div style={{ textAlign: "center", padding: "4px 8px", background: "var(--green-bg)", borderRadius: "var(--r)", border: "1px solid var(--green-md)" }}>
+                                                            <div className="fw8 fs14" style={{ color: "var(--green)" }}>{group.pass}</div>
+                                                            <div className="fs10 fw7" style={{ color: "var(--green)" }}>ผ่าน</div>
                                                         </div>
-                                                    );
-                                                })}
+                                                        <div style={{ textAlign: "center", padding: "4px 8px", background: "var(--red-bg)", borderRadius: "var(--r)", border: "1px solid #FCA5A5" }}>
+                                                            <div className="fw8 fs14" style={{ color: "var(--red)" }}>{group.fail}</div>
+                                                            <div className="fs10 fw7" style={{ color: "var(--red)" }}>ไม่ผ่าน</div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <div style={{ height: "10px", borderRadius: "6px", overflow: "hidden", display: "flex", background: "#e2e8f0" }}>
+                                                            {group.assessed ? (
+                                                                <>
+                                                                    <div style={{ width: `${passWidth}%`, background: "var(--green)" }} />
+                                                                    <div style={{ width: `${failWidth}%`, background: "#FECACA" }} />
+                                                                </>
+                                                            ) : (
+                                                                <div style={{ width: "100%", background: "#e2e8f0" }} />
+                                                            )}
+                                                        </div>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "3px" }}>
+                                                            <span style={{ fontSize: "10px", color: "var(--text3)" }}>{passWidth}%</span>
+                                                            <span style={{ fontSize: "10px", color: "var(--text3)" }}>{failWidth}%</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="muted" style={{ justifySelf: "center" }}>{isOpen ? "▴" : "▾"}</span>
+                                                </button>
+                                                {isOpen && (
+                                                    <div style={{ borderTop: "1px solid var(--border)", background: "#FFFBEB", padding: "10px 14px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                                                        <span className="fw8 fs11" style={{ color: "var(--yellow)" }}>สมรรถนะที่ไม่ผ่าน</span>
+                                                        {group.weakDetail.length ? group.weakDetail.map(weak => (
+                                                            <span key={weak.n} style={{ fontSize: "11px", padding: "3px 8px", background: "var(--red-bg)", color: "var(--red)", borderRadius: "20px", fontWeight: 700 }}>
+                                                                {weak.n} <span style={{ background: "var(--red)", color: "#fff", borderRadius: "10px", padding: "0 5px", fontSize: "10px" }}>{weak.cnt} คน</span>
+                                                            </span>
+                                                        )) : (
+                                                            <span className="muted fs12">ไม่มีหัวข้อที่ไม่ผ่าน</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                    </>
-                                )}
+                                        );
+                                    })}
+                                </div>
                             </div>
                         );
                     })}
@@ -577,7 +617,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
                 </div>
                 <div className="cb" style={{ padding: "12px 22px 22px" }}>
                     <div style={{ background: "var(--yellow-bg)", border: "1px solid #fde68a", borderRadius: "9px", color: "var(--yellow)", padding: "12px 16px", marginBottom: "20px", fontSize: "13px" }}>
-                        ⚠ บุคลากร 1 คนสามารถไม่ผ่านได้หลายสมรรถนะ ผลรวมอาจสูงกว่าจำนวนจริง
+                         บุคลากร 1 คนสามารถไม่ผ่านได้หลายสมรรถนะ ผลรวมอาจสูงกว่าจำนวนจริง
                     </div>
                     {reportProblemGroups.map((group) => (
                         <div key={group.label} style={{ marginBottom: "26px" }}>
@@ -636,88 +676,69 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
 
 export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-
-    const idpStats = {
-        completed: 18,
-        inProgress: 22,
-        submitted: 13,
-        draft: 10,
-        noIdp: 10
+    const getGroupName = (user: any) => {
+        if (!user.d) return "ไม่ระบุกลุ่มงาน";
+        const parts = user.d.split(" > ");
+        if (user.w === "สายสนับสนุน") return parts[1] || parts[0] || "ไม่ระบุกลุ่มงาน";
+        if (user.w === "สายวิชาการ") return parts[0] || user.p || "ไม่ระบุกลุ่มงาน";
+        if (user.w === "สายงานบริหาร") return parts[0] || user.p || "ไม่ระบุกลุ่มงาน";
+        return parts[0] || user.d;
     };
+    const getIdpStatus = (user: any) => {
+        if (user.evalStatus === "dean_approved") return "completed";
+        if (user.evalStatus === "dept_evaluated") return "submitted";
+        if (user.evalStatus === "unit_evaluated") return "in_progress";
+        if (user.evalStatus === "self_submitted") return "draft";
+        return "no_idp";
+    };
+    const getIdpTopic = (user: any) => {
+        if (user.w === "สายวิชาการ") return "AI Literacy";
+        if ((user.p || "").includes("คอมพิวเตอร์") || (user.d || "").includes("เทคโนโลยี")) return "ดิจิทัล & Data";
+        if ((user.p || "").includes("ทรัพยากร")) return "การพัฒนาทรัพยากรบุคคล";
+        return "สมรรถนะตามแผนพัฒนา";
+    };
+    const idpPeople = users
+        .filter(user => user.act !== false && user.r !== "manager" && user.r !== "manager_dept")
+        .map(user => ({
+            ...user,
+            groupName: getGroupName(user),
+            idpStatus: getIdpStatus(user),
+            idpTopic: getIdpTopic(user)
+        }));
+    const groupProgress = Array.from(new Set(idpPeople.map(user => String(user.groupName)))).map(groupName => {
+        const members = idpPeople.filter(user => user.groupName === groupName);
+        const hasIDP = members.filter(user => user.idpStatus !== "no_idp").length;
 
-    const groupProgress = [
-        {
-            d: "สำนักงานคณะฯ",
-            total: 12,
-            hasIDP: 10,
-            idpList: [
-                { n: "สมชาย มีสุข", pos: "นักวิชาการ", topic: "ดิจิทัล & AI", status: "in_progress" },
-                { n: "วรรณา เพชรดี", pos: "เจ้าหน้าที่", topic: "การสื่อสาร", status: "completed" },
-                { n: "มานิตย์ แสง", pos: "นักวิชาการ", topic: "วิเคราะห์ข้อมูล", status: "draft" }
-            ]
-        },
-        {
-            d: "ภาควิชาวิศวฯ คอม",
-            total: 20,
-            hasIDP: 18,
-            idpList: [
-                { n: "รศ.ดร.วิไล ใจดี", pos: "อาจารย์", topic: "AI Literacy", status: "submitted" },
-                { n: "นภัสสร ทองดี", pos: "นักวิชาการ", topic: "AI & Data", status: "in_progress" }
-            ]
-        },
-        {
-            d: "ภาควิชาวิศวฯ ไฟฟ้า",
-            total: 16,
-            hasIDP: 14,
-            idpList: [
-                { n: "ธนาวุฒิ สว่างใจ", pos: "นักวิเคราะห์", topic: "ดิจิทัล", status: "draft" }
-            ]
-        },
-        {
-            d: "ภาควิชาวิศวฯ โยธา",
-            total: 18,
-            hasIDP: 15,
-            idpList: [
-                { n: "อรจิรา พรม", pos: "อาจารย์", topic: "AI Literacy", status: "submitted" }
-            ]
-        },
-        {
-            d: "ภาควิชาวิศวฯ อุตสาหการ",
-            total: 7,
-            hasIDP: 6,
-            idpList: [
-                { n: "สุภาพร แก้วมะณี", pos: "เจ้าหน้าที่", topic: "ดิจิทัล", status: "completed" }
-            ]
-        }
-    ];
-
-    const noProgress = [
-        { n: "มานิตย์ แสง", pos: "นักวิชาการ", d: "สำนักงานคณะฯ", reason: "draft" },
-        { n: "ชาญวิทย์ ดีงาม", pos: "เจ้าหน้าที่", d: "สำนักงานคณะฯ", reason: "no_idp" },
-        { n: "ธนาวุฒิ สว่างใจ", pos: "นักวิเคราะห์", d: "ภาควิชาวิศวฯ ไฟฟ้า", reason: "draft" },
-        { n: "สุมาลี วงศ์ทอง", pos: "นักวิชาการ", d: "ภาควิชาวิศวฯ ไฟฟ้า", reason: "no_idp" },
-        { n: "วรรณา แสงทอง", pos: "เจ้าหน้าที่", d: "ภาควิชาวิศวฯ โยธา", reason: "no_idp" },
-        { n: "ประภาส ศรีสุข", pos: "อาจารย์", d: "ภาควิชาวิศวฯ โยธา", reason: "draft" },
-        { n: "กิตติพงษ์ ทองมา", pos: "อาจารย์", d: "ภาควิชาวิศวฯ อุตสาหการ", reason: "no_idp" },
-        { n: "รัตนา พรมมา", pos: "เจ้าหน้าที่", d: "ภาควิชาวิศวฯ อุตสาหการ", reason: "draft" }
-    ];
-
-    const userByName = new Map<string, any>(users.map(user => [user.n, user]));
+        return {
+            d: groupName,
+            total: members.length,
+            hasIDP,
+            members
+        };
+    }).sort((a, b) => (b.total - b.hasIDP) - (a.total - a.hasIDP) || b.total - a.total || String(a.d).localeCompare(String(b.d), "th"));
     const selectedDetail = groupProgress.find(group => group.d === selectedGroup);
     const totalFail = groupProgress.reduce((total, group) => total + group.total, 0);
-    const totalHasIDP = idpStats.completed + idpStats.inProgress + idpStats.submitted + idpStats.draft;
-    const pctIDP = Math.round((totalHasIDP / totalFail) * 100);
+    const totalHasIDP = groupProgress.reduce((total, group) => total + group.hasIDP, 0);
+    const totalNoIDP = totalFail - totalHasIDP;
+    const idpStats = {
+        completed: idpPeople.filter(user => user.idpStatus === "completed").length,
+        inProgress: idpPeople.filter(user => user.idpStatus === "in_progress").length,
+        submitted: idpPeople.filter(user => user.idpStatus === "submitted").length,
+        draft: idpPeople.filter(user => user.idpStatus === "draft").length,
+        noIdp: totalNoIDP
+    };
+    const noProgress = idpPeople.filter(user => user.idpStatus === "no_idp");
 
     const statusMeta: Record<string, { label: string; badge: string }> = {
         completed: { label: "เสร็จสิ้น", badge: "bg" },
         in_progress: { label: "กำลังดำเนินการ", badge: "bt" },
         submitted: { label: "รออนุมัติ", badge: "by" },
-        draft: { label: "Draft", badge: "bgr" }
+        draft: { label: "Draft", badge: "bgr" },
+        no_idp: { label: "ยังไม่ทำ IDP", badge: "bgr" }
     };
 
     const noProgressMeta: Record<string, { label: string; badge: string }> = {
-        draft: { label: "ยังไม่ส่งแผน (Draft)", badge: "by" },
-        no_idp: { label: "ยังไม่มีการทำ IDP", badge: "bgr" },
+        no_idp: { label: "ยังไม่ทำ IDP", badge: "bgr" },
         rejected: { label: "แผนไม่ผ่านการอนุมัติ", badge: "br" }
     };
 
@@ -732,7 +753,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
     return (
         <>
             <div className="mb20">
-                <div className="sec-t">ภาพรวม IDP คณะ 📋</div>
+                <div className="sec-t">ภาพรวม IDP คณะ </div>
                 <div className="sec-s">สถานะ IDP ของบุคลากรทั้งคณะวิศวกรรมศาสตร์ · รอบ 2568</div>
             </div>
 
@@ -744,9 +765,8 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
                             <div style={{ display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
                                 <span style={{ color: "var(--teal)", fontSize: "36px", fontWeight: 800, lineHeight: 1 }}>{totalHasIDP}</span>
                                 <span style={{ color: "var(--text3)", fontSize: "16px", fontWeight: 600 }}>/ {totalFail} คน</span>
-                                <span style={{ background: "var(--teal)", borderRadius: "20px", color: "#fff", fontSize: "13px", fontWeight: 800, padding: "3px 10px" }}>{pctIDP}%</span>
                             </div>
-                            <div className="fs12 muted mt4">ยังไม่ได้ทำ IDP อีก <span className="fw7 rc">{idpStats.noIdp} คน</span></div>
+                            <div className="fs12 muted mt4">ยังไม่ทำ IDP <span className="fw7 rc">{totalNoIDP} คน</span></div>
                         </div>
 
                         <div style={{ flex: 2, minWidth: "280px" }}>
@@ -777,16 +797,17 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
                 <div className="sc"><div className="sl">เสร็จสิ้น</div><div className="sv gcc">{idpStats.completed}</div><div className="ss muted">คน</div></div>
                 <div className="sc"><div className="sl">กำลังดำเนินการ</div><div className="sv bc">{idpStats.inProgress}</div><div className="ss muted">คน</div></div>
                 <div className="sc"><div className="sl">รออนุมัติ</div><div className="sv yc">{idpStats.submitted}</div><div className="ss muted">คน</div></div>
-                <div className="sc"><div className="sl">Draft / ยังไม่มี IDP</div><div className="sv rc">{idpStats.draft + idpStats.noIdp}</div><div className="ss muted">Draft {idpStats.draft} · ไม่มี IDP {idpStats.noIdp}</div></div>
+                <div className="sc"><div className="sl">ยังไม่ทำ IDP</div><div className="sv rc">{totalNoIDP}</div><div className="ss muted">คน</div></div>
             </div>
 
             <div className="g2 mb14">
                 <div className="card">
-                    <div className="ch"><div className="ct">ความคืบหน้า IDP รายหน่วยงาน</div></div>
+                    <div className="ch"><div className="ct">ความคืบหน้า IDP รายกลุ่มงาน</div></div>
                     <div className="cb" style={{ padding: 0 }}>
                         {groupProgress.map(group => {
                             const pct = Math.round((group.hasIDP / group.total) * 100);
-                            const barColor = pct >= 90 ? "var(--green)" : pct >= 70 ? "var(--teal)" : pct >= 50 ? "var(--yellow)" : "var(--red)";
+                            const noIdp = group.total - group.hasIDP;
+                            const barColor = "var(--teal)";
 
                             return (
                                 <div key={group.d} style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
@@ -799,7 +820,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
                                         <div className="pw" style={{ flex: 1, height: "7px", overflow: "hidden" }}>
                                             <div className="pb" style={{ width: `${pct}%`, background: barColor }} />
                                         </div>
-                                        <span className="fs11 fw7" style={{ color: barColor, textAlign: "right", width: "36px" }}>{pct}%</span>
+                                        <span className="fs11 fw7" style={{ color: noIdp ? "var(--red)" : "var(--green)", textAlign: "right", width: "100px" }}>ยังไม่ทำ IDP {noIdp} คน</span>
                                     </div>
                                 </div>
                             );
@@ -810,22 +831,21 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
                 <div className="card">
                     <div className="ch">
                         <div>
-                            <div className="ct">บุคลากรที่ยังไม่มีความคืบหน้า IDP</div>
+                            <div className="ct">บุคลากรที่ยังไม่ทำ IDP</div>
                             <div className="cs">{noProgress.length} คน</div>
                         </div>
                         <button className="btn btn-p btn-sm" style={{ marginLeft: "auto" }} onClick={() => alert(`ส่งแจ้งเตือนไปยัง ${noProgress.length} คนแล้ว`)}>แจ้งเตือนทั้งหมด</button>
                     </div>
                     <div className="cb" style={{ padding: 0 }}>
                         {noProgress.map(item => {
-                            const user = userByName.get(item.n);
-                            const meta = noProgressMeta[item.reason];
+                            const meta = noProgressMeta.no_idp;
 
                             return (
                             <div key={item.n} style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "8px" }}>
                                 <div className="av" style={{ width: "30px", height: "30px", fontSize: "12px", background: "var(--navy)" }}>{item.n[0]}</div>
                                 <div style={{ flex: 1 }}>
-                                    <div className="fw6 fs12">{user ? `${user.t}${user.n}` : item.n}</div>
-                                    <div className="muted fs11">{item.pos} · {item.d}</div>
+                                    <div className="fw6 fs12">{item.t}{item.n}</div>
+                                    <div className="muted fs11">{item.p} · {item.groupName}</div>
                                 </div>
                                 <span className={`b ${meta.badge}`} style={{ maxWidth: "132px", textAlign: "right", whiteSpace: "normal", lineHeight: 1.3 }}>{meta.label}</span>
                             </div>
@@ -839,20 +859,19 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
                 <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedGroup(null)}>
                     <div className="mo-box" style={{ width: "520px" }} onMouseDown={event => event.stopPropagation()}>
                         <div className="mo-h">
-                            <div className="fw8 fs14">{selectedDetail.d} · รายละเอียด IDP</div>
+                            <div className="fw8 fs14">{selectedDetail.d} · สมาชิกและสถานะ IDP</div>
                             <button className="btn btn-s btn-sm" onClick={() => setSelectedGroup(null)}>ปิด</button>
                         </div>
                         <div className="mo-b">
-                            {selectedDetail.idpList.map(item => {
-                                const meta = statusMeta[item.status];
-                                const user = userByName.get(item.n);
+                            {selectedDetail.members.map(item => {
+                                const meta = statusMeta[item.idpStatus];
 
                                 return (
                                     <div key={item.n} style={{ padding: "12px 0", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "12px" }}>
                                         <div className="av" style={{ width: "34px", height: "34px", fontSize: "13px", background: "var(--navy)" }}>{item.n[0]}</div>
                                         <div style={{ flex: 1 }}>
-                                            <div className="fw6 fs13">{user ? `${user.t}${user.n}` : item.n}</div>
-                                            <div className="muted fs11">{item.pos} · เรื่อง: {item.topic}</div>
+                                            <div className="fw6 fs13">{item.t}{item.n}</div>
+                                            <div className="muted fs11">{item.p} · {item.idpStatus === "no_idp" ? "ยังไม่มีแผน IDP" : `เรื่อง: ${item.idpTopic}`}</div>
                                         </div>
                                         <span className={`b ${meta.badge}`}>{meta.label}</span>
                                     </div>
@@ -875,33 +894,109 @@ const getApprovalRows = (users: any[]) => {
     ];
     const source = activeStaff.length ? activeStaff : fallback;
 
-    return source.map((user, index) => ({
+    return source.map((user, index) => {
+        const deptParts = (user.d || "ไม่ระบุหน่วยงาน").split(" > ");
+        const dept = deptParts[0] || "ไม่ระบุหน่วยงาน";
+        const group = deptParts.length > 1 ? deptParts[deptParts.length - 1] : dept;
+        const expectedScore = 4;
+        const selfScore = 2 + (index % 3);
+        const supervisorScore = Math.min(5, selfScore + (index % 2));
+        const deptHeadScore = Math.min(5, supervisorScore + (index % 3 === 0 ? 1 : 0));
+        const finalScore = deptHeadScore;
+        const gapCount = index % 3;
+
+        return {
         id: user.sso || `mock-${index}`,
         employee: `${user.t || ""}${user.n}`,
         position: user.p || "บุคลากร",
-        dept: user.d || "ไม่ระบุหน่วยงาน",
+        dept,
+        rawDept: user.d || "ไม่ระบุหน่วยงาน",
+        group,
+        workline: user.w || "ไม่ระบุสายงาน",
         evaluator1: user.sup || "",
         evaluator2: user.evaluator2 || "กิตติพงศ์ แสงทอง",
-        score: 3 + (index % 3),
+        expectedScore,
+        selfScore,
+        supervisorScore,
+        deptHeadScore,
+        finalScore,
+        gapCount,
+        approvalStatus: "pending",
         submittedAt: `${18 + (index % 6)} พ.ค. 2568`,
         competencyDetails: [
-            { n: "AI Literacy", expected: 4, actual: index % 2 ? 3 : 4, note: index % 2 ? "ควรพัฒนาเพิ่มเติม" : "ผ่านตามเกณฑ์" },
-            { n: "การใช้เทคโนโลยีดิจิทัล", expected: 4, actual: index % 3 ? 3 : 4, note: index % 3 ? "มีช่องว่างระดับสมรรถนะ" : "ผ่านตามเกณฑ์" },
-            { n: "การทำงานเป็นทีม", expected: 3, actual: 3, note: "อยู่ในเกณฑ์" }
+            { n: "AI Literacy", expected: 4, self: selfScore, supervisor: supervisorScore, deptHead: deptHeadScore, actual: finalScore, note: finalScore < 4 ? "มีช่องว่างระดับสมรรถนะ" : "ผ่านตามเกณฑ์" },
+            { n: "การใช้เทคโนโลยีดิจิทัล", expected: 4, self: Math.max(1, selfScore - 1), supervisor: supervisorScore, deptHead: finalScore, actual: finalScore, note: finalScore < 4 ? "ควรพัฒนาเพิ่มเติม" : "ผ่านตามเกณฑ์" },
+            { n: "การทำงานเป็นทีม", expected: 3, self: 3, supervisor: 3 + (index % 2), deptHead: 3 + (index % 2), actual: 3 + (index % 2), note: "อยู่ในเกณฑ์" }
         ],
         idpDetails: [
-            { topic: "AI Literacy", method: "Workshop + OJT", due: "ก.ค. 2568", outcome: "ใช้ AI ช่วยงานประจำได้" },
-            { topic: "การวิเคราะห์ข้อมูล", method: "Online course", due: "ส.ค. 2568", outcome: "ทำ dashboard สรุปงานได้" }
+            { topic: "AI Literacy", method: "Workshop + OJT", due: "ก.ค. 2568", outcome: "ใช้ AI ช่วยงานประจำได้", cost: 2500, status: "รออนุมัติ" },
+            { topic: "การวิเคราะห์ข้อมูล", method: "Online course", due: "ส.ค. 2568", outcome: "ทำ dashboard สรุปงานได้", cost: 1200, status: "รออนุมัติ" }
         ]
-    }));
+    };
+    });
+};
+
+const getApprovalFilterOptions = (rows: any[]) => ({
+    worklines: Array.from(new Set(rows.map(row => row.workline))).filter(Boolean),
+    depts: Array.from(new Set(rows.map(row => row.dept))).filter(Boolean),
+    groups: Array.from(new Set(rows.map(row => row.group))).filter(Boolean),
+    positions: Array.from(new Set(rows.map(row => row.position))).filter(Boolean)
+});
+
+const filterApprovalRows = (rows: any[], filters: Record<string, string>) => rows.filter(row => (
+    (filters.workline === "all" || row.workline === filters.workline) &&
+    (filters.dept === "all" || row.dept === filters.dept) &&
+    (filters.group === "all" || row.group === filters.group) &&
+    (filters.position === "all" || row.position === filters.position)
+));
+
+const ApprovalFilters: React.FC<{ rows: any[]; filters: Record<string, string>; setFilters: any }> = ({ rows, filters, setFilters }) => {
+    const options = getApprovalFilterOptions(rows);
+    const update = (key: string, value: string) => setFilters((prev: Record<string, string>) => ({ ...prev, [key]: value }));
+
+    return (
+        <div className="card mb14">
+            <div className="cb" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(160px, 1fr))", gap: "12px" }}>
+                {[
+                    { key: "workline", label: "สายงาน", values: options.worklines },
+                    { key: "dept", label: "หน่วยงาน", values: options.depts },
+                    { key: "group", label: "กลุ่มงาน", values: options.groups },
+                    { key: "position", label: "ตำแหน่ง", values: options.positions }
+                ].map(item => (
+                    <label key={item.key} className="fg" style={{ margin: 0 }}>
+                        <span className="lbl">{item.label}</span>
+                        <select className="sel" value={filters[item.key]} onChange={event => update(item.key, event.target.value)}>
+                            <option value="all">ทั้งหมด</option>
+                            {item.values.map(value => <option key={value} value={value}>{value}</option>)}
+                        </select>
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
 };
 
 export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users }) => {
     const [approvedIds, setApprovedIds] = useState<string[]>([]);
+    const [rejectedIds, setRejectedIds] = useState<string[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [filters, setFilters] = useState({ workline: "all", dept: "all", group: "all", position: "all" });
     const approvalRows = getApprovalRows(users);
+    const filteredRows = filterApprovalRows(approvalRows, filters);
     const selected = approvalRows.find(row => row.id === selectedId);
-    const approve = (id: string) => setApprovedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    const approve = (id: string) => {
+        setRejectedIds(prev => prev.filter(item => item !== id));
+        setApprovedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    };
+    const reject = (id: string) => {
+        setApprovedIds(prev => prev.filter(item => item !== id));
+        setRejectedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    };
+    const getDecision = (id: string) => approvedIds.includes(id)
+        ? { label: "อนุมัติแล้ว", badge: "bg" }
+        : rejectedIds.includes(id)
+            ? { label: "ไม่อนุมัติ", badge: "br" }
+            : { label: "รออนุมัติ", badge: "by" };
 
     return (
         <>
@@ -909,34 +1004,36 @@ export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users })
                 <div className="sec-t">อนุมัติผลการประเมินรายบุคคล</div>
                 <div className="sec-s">ตรวจสอบผู้ถูกประเมิน หัวหน้างาน และผู้บังคับบัญชา ก่อนยืนยันผลการประเมิน</div>
             </div>
+            <ApprovalFilters rows={approvalRows} filters={filters} setFilters={setFilters} />
             <div className="card">
-                <div className="ch"><div className="ct">รายการผลการประเมินที่รอยืนยัน</div></div>
+                <div className="ch"><div className="ct">รายการผลการประเมินที่รออนุมัติ</div><div className="cs">{filteredRows.length} รายการ</div></div>
                 <div className="cb" style={{ padding: 0 }}>
                     <table className="tbl">
                         <thead>
                             <tr>
                                 <th>ผู้ถูกประเมิน</th>
+                                <th>สายงาน / กลุ่มงาน</th>
                                 <th>หัวหน้างาน</th>
                                 <th>ผู้บังคับบัญชา</th>
-                                <th style={{ width: "100px", textAlign: "center" }}>คะแนน</th>
                                 <th style={{ width: "118px" }}>สถานะ</th>
-                                <th style={{ width: "190px" }}>จัดการ</th>
+                                <th style={{ width: "236px" }}>จัดการ</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {approvalRows.map(row => {
-                                const approved = approvedIds.includes(row.id);
+                            {filteredRows.map(row => {
+                                const decision = getDecision(row.id);
                                 return (
                                     <tr key={row.id}>
                                         <td><div className="fw7 fs13">{row.employee}</div><div className="muted fs11">{row.position} · {row.dept}</div></td>
+                                        <td><div className="fw6 fs12">{row.workline}</div><div className="muted fs11">{row.group}</div></td>
                                         <td><div className="fw6 fs12">{row.evaluator1 || "—"}</div></td>
                                         <td><div className="fw6 fs12">{row.evaluator2}</div></td>
-                                        <td style={{ textAlign: "center" }}><span className="fw8" style={{ color: "var(--blue)" }}>{row.score}</span><span className="muted fs10"> / 5</span></td>
-                                        <td><span className={`b ${approved ? "bg" : "by"}`}>{approved ? "ยืนยันแล้ว" : "รอยืนยัน"}</span></td>
+                                        <td><span className={`b ${decision.badge}`}>{decision.label}</span></td>
                                         <td>
                                             <div className="flex ic g6">
                                                 <button className="btn btn-s btn-xs" onClick={() => setSelectedId(row.id)}>ดูรายละเอียด</button>
-                                                <button className={`btn ${approved ? "btn-g" : "btn-p"} btn-xs`} disabled={approved} onClick={() => approve(row.id)}>{approved ? "ยืนยันแล้ว" : "ยืนยัน"}</button>
+                                                <button className="btn btn-p btn-xs" onClick={() => approve(row.id)}>อนุมัติ</button>
+                                                <button className="btn btn-r btn-xs" onClick={() => reject(row.id)}>ไม่อนุมัติ</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -948,21 +1045,47 @@ export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users })
             </div>
             {selected && (
                 <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedId(null)}>
-                    <div className="mo-box" style={{ width: "720px" }} onMouseDown={event => event.stopPropagation()}>
+                    <div className="mo-box" style={{ width: "1040px" }} onMouseDown={event => event.stopPropagation()}>
                         <div className="mo-h">
                             <div><div className="fw8 fs14">{selected.employee}</div><div className="muted fs11">{selected.evaluator1 || "ไม่มีหัวหน้างาน"} · {selected.evaluator2}</div></div>
                             <button className="btn btn-s btn-sm" onClick={() => setSelectedId(null)}>ปิด</button>
                         </div>
                         <div className="mo-b">
-                            {selected.competencyDetails.map(item => (
-                                <div key={item.n} style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 150px", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)", alignItems: "center" }}>
-                                    <div className="fw7 fs13">{item.n}<div className="muted fs11">{item.note}</div></div>
-                                    <span className="b bgr" style={{ justifyContent: "center" }}>คาดหวัง {item.expected}</span>
-                                    <span className={`b ${item.actual >= item.expected ? "bg" : "br"}`} style={{ justifyContent: "center" }}>ได้ {item.actual}</span>
-                                    <span className="muted fs11">ส่งเมื่อ {selected.submittedAt}</span>
-                                </div>
-                            ))}
-                            <button className={`btn ${approvedIds.includes(selected.id) ? "btn-g" : "btn-p"} btn-sm mt12`} disabled={approvedIds.includes(selected.id)} onClick={() => approve(selected.id)} style={{ width: "100%", justifyContent: "center" }}>{approvedIds.includes(selected.id) ? "ยืนยันผลการประเมินแล้ว" : "ยืนยันผลการประเมิน"}</button>
+                            <div style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
+                                <table className="tbl" style={{ margin: 0 }}>
+                                    <thead>
+                                        <tr>
+                                            <th>สมรรถนะ</th>
+                                            <th style={{ width: "110px", textAlign: "center" }}>คาดหวัง</th>
+                                            <th style={{ width: "130px", textAlign: "center" }}>ประเมินตนเอง</th>
+                                            <th style={{ width: "120px", textAlign: "center" }}>หัวหน้าหน่วย</th>
+                                            <th style={{ width: "130px", textAlign: "center" }}>ผู้บังคับบัญชา</th>
+                                            <th style={{ width: "96px", textAlign: "center" }}>Gap</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selected.competencyDetails.map(item => {
+                                            const gap = Math.max(0, item.expected - item.actual);
+
+                                            return (
+                                                <tr key={item.n}>
+                                                    <td><div className="fw7 fs13">{item.n}</div></td>
+                                                    <td style={{ textAlign: "center" }}><span className="b bgr" style={{ justifyContent: "center", minWidth: "54px" }}>{item.expected}</span></td>
+                                                    <td style={{ textAlign: "center" }}><span className="b bt" style={{ justifyContent: "center", minWidth: "54px" }}>{item.self}</span></td>
+                                                    <td style={{ textAlign: "center" }}><span className="b bt" style={{ justifyContent: "center", minWidth: "54px" }}>{item.supervisor}</span></td>
+                                                    <td style={{ textAlign: "center" }}><span className="b by" style={{ justifyContent: "center", minWidth: "54px" }}>{item.deptHead}</span></td>
+                                                    <td style={{ textAlign: "center" }}><span className={`b ${gap ? "br" : "bg"}`} style={{ justifyContent: "center", minWidth: "54px" }}>{gap}</span></td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="muted fs11 mt8">ส่งเมื่อ {selected.submittedAt}</div>
+                            <div className="flex ic g8 mt12">
+                                <button className="btn btn-p btn-sm" onClick={() => approve(selected.id)} style={{ flex: 1, justifyContent: "center" }}>อนุมัติผลการประเมิน</button>
+                                <button className="btn btn-r btn-sm" onClick={() => reject(selected.id)} style={{ flex: 1, justifyContent: "center" }}>ไม่อนุมัติ</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -973,10 +1096,25 @@ export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users })
 
 export const ManagerIDPApproval: React.FC<{ users: any[] }> = ({ users }) => {
     const [approvedIds, setApprovedIds] = useState<string[]>([]);
+    const [rejectedIds, setRejectedIds] = useState<string[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [filters, setFilters] = useState({ workline: "all", dept: "all", group: "all", position: "all" });
     const approvalRows = getApprovalRows(users);
+    const filteredRows = filterApprovalRows(approvalRows, filters);
     const selected = approvalRows.find(row => row.id === selectedId);
-    const approve = (id: string) => setApprovedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    const approve = (id: string) => {
+        setRejectedIds(prev => prev.filter(item => item !== id));
+        setApprovedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    };
+    const reject = (id: string) => {
+        setApprovedIds(prev => prev.filter(item => item !== id));
+        setRejectedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    };
+    const getDecision = (id: string) => approvedIds.includes(id)
+        ? { label: "อนุมัติแล้ว", badge: "bg" }
+        : rejectedIds.includes(id)
+            ? { label: "ไม่อนุมัติ", badge: "br" }
+            : { label: "รออนุมัติ", badge: "by" };
 
     return (
         <>
@@ -984,34 +1122,38 @@ export const ManagerIDPApproval: React.FC<{ users: any[] }> = ({ users }) => {
                 <div className="sec-t">อนุมัติแผน IDP รายบุคคล</div>
                 <div className="sec-s">ตรวจสอบแผน IDP จากหัวหน้างานและผู้บังคับบัญชา ก่อนยืนยันแผนพัฒนารายบุคคล</div>
             </div>
+            <ApprovalFilters rows={approvalRows} filters={filters} setFilters={setFilters} />
             <div className="card">
-                <div className="ch"><div className="ct">รายการแผน IDP ที่รอยืนยัน</div></div>
+                <div className="ch"><div className="ct">รายการแผน IDP ที่รออนุมัติ</div><div className="cs">{filteredRows.length} รายการ</div></div>
                 <div className="cb" style={{ padding: 0 }}>
                     <table className="tbl">
                         <thead>
                             <tr>
                                 <th>ผู้ถูกประเมิน</th>
+                                <th>สายงาน / กลุ่มงาน</th>
                                 <th>หัวหน้างาน</th>
                                 <th>ผู้บังคับบัญชา</th>
                                 <th>หัวข้อ IDP</th>
                                 <th style={{ width: "118px" }}>สถานะ</th>
-                                <th style={{ width: "190px" }}>จัดการ</th>
+                                <th style={{ width: "236px" }}>จัดการ</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {approvalRows.map(row => {
-                                const approved = approvedIds.includes(row.id);
+                            {filteredRows.map(row => {
+                                const decision = getDecision(row.id);
                                 return (
                                     <tr key={row.id}>
                                         <td><div className="fw7 fs13">{row.employee}</div><div className="muted fs11">{row.position} · {row.dept}</div></td>
+                                        <td><div className="fw6 fs12">{row.workline}</div><div className="muted fs11">{row.group}</div></td>
                                         <td><div className="fw6 fs12">{row.evaluator1 || "—"}</div></td>
                                         <td><div className="fw6 fs12">{row.evaluator2}</div></td>
                                         <td><div className="flex ic g4" style={{ flexWrap: "wrap" }}>{row.idpDetails.map(item => <span key={item.topic} className="b bt">{item.topic}</span>)}</div></td>
-                                        <td><span className={`b ${approved ? "bg" : "by"}`}>{approved ? "ยืนยันแล้ว" : "รอยืนยัน"}</span></td>
+                                        <td><span className={`b ${decision.badge}`}>{decision.label}</span></td>
                                         <td>
                                             <div className="flex ic g6">
                                                 <button className="btn btn-s btn-xs" onClick={() => setSelectedId(row.id)}>ดูรายละเอียด</button>
-                                                <button className={`btn ${approved ? "btn-g" : "btn-t"} btn-xs`} disabled={approved} onClick={() => approve(row.id)}>{approved ? "ยืนยันแล้ว" : "ยืนยัน"}</button>
+                                                <button className="btn btn-t btn-xs" onClick={() => approve(row.id)}>อนุมัติ</button>
+                                                <button className="btn btn-r btn-xs" onClick={() => reject(row.id)}>ไม่อนุมัติ</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -1023,21 +1165,84 @@ export const ManagerIDPApproval: React.FC<{ users: any[] }> = ({ users }) => {
             </div>
             {selected && (
                 <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedId(null)}>
-                    <div className="mo-box" style={{ width: "720px" }} onMouseDown={event => event.stopPropagation()}>
+                    <div className="mo-box" style={{ width: "920px" }} onMouseDown={event => event.stopPropagation()}>
                         <div className="mo-h">
                             <div><div className="fw8 fs14">{selected.employee}</div><div className="muted fs11">{selected.evaluator1 || "ไม่มีหัวหน้างาน"} · {selected.evaluator2}</div></div>
                             <button className="btn btn-s btn-sm" onClick={() => setSelectedId(null)}>ปิด</button>
                         </div>
                         <div className="mo-b">
-                            {selected.idpDetails.map(item => (
-                                <div key={item.topic} style={{ display: "grid", gridTemplateColumns: "150px 150px 100px 1fr", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)", alignItems: "center" }}>
-                                    <span className="b bt" style={{ justifyContent: "center" }}>{item.topic}</span>
-                                    <span className="fw6 fs12">{item.method}</span>
-                                    <span className="b bgr" style={{ justifyContent: "center" }}>{item.due}</span>
-                                    <span className="muted fs12">{item.outcome}</span>
-                                </div>
-                            ))}
-                            <button className={`btn ${approvedIds.includes(selected.id) ? "btn-g" : "btn-t"} btn-sm mt12`} disabled={approvedIds.includes(selected.id)} onClick={() => approve(selected.id)} style={{ width: "100%", justifyContent: "center" }}>{approvedIds.includes(selected.id) ? "ยืนยันแผน IDP แล้ว" : "ยืนยันแผน IDP"}</button>
+                            <div className="mb12" style={{ display: "grid", gap: "12px" }}>
+                                {selected.competencyDetails.map((item, index) => {
+                                    const gap = Math.max(0, item.expected - item.deptHead);
+                                    const activity = selected.idpDetails[index % selected.idpDetails.length] || { topic: item.n, method: "IDP Activity", due: "-", outcome: "พัฒนาสมรรถนะตามแผนที่เสนอ", status: "รออนุมัติ" };
+                                    const tagText = index === 1 ? "FC2" : "CC";
+                                    const tagClass = index === 1 ? "tag-fc" : "tag-cc";
+                                    const weight = 100;
+
+                                    return (
+                                        <div key={item.n} className="card supervisor-review-gap" style={{ margin: 0 }}>
+                                            <div className="ch supervisor-review-gap-head">
+                                                <div className="flex ic g8 supervisor-review-gap-title-row">
+                                                    <span className={tagClass}>{tagText}</span>
+                                                    <div className="ct supervisor-review-gap-title">{item.n}</div>
+                                                    <span className="supervisor-review-meta">คาดหวัง {item.expected} · ได้ {item.deptHead} · <span className={gap ? "rc fw7" : "gcc fw7"}>Gap {gap}</span></span>
+                                                    <span className="b bg">{weight}/100%</span>
+                                                </div>
+                                            </div>
+                                            <div className="cb supervisor-review-gap-body">
+                                                <div className="supervisor-review-section-label">เป้าหมายการพัฒนา</div>
+                                                <div className="supervisor-review-goal">{activity.outcome}</div>
+                                                <div className="supervisor-review-activity-list">
+                                                    <div className="supervisor-idp-activity-row">
+                                                        <div className="flex ic jb g8" style={{ flexWrap: "wrap" }}>
+                                                            <div style={{ minWidth: "180px", flex: 1 }}>
+                                                                <div className="fw7 supervisor-idp-activity-title">{activity.topic}</div>
+                                                                <div className="muted supervisor-idp-activity-meta">{activity.method} · - ถึง {activity.due} · น้ำหนัก {weight}%</div>
+                                                                <div className="muted supervisor-idp-activity-note">คำอธิบายกิจกรรม: {activity.outcome}</div>
+                                                            </div>
+                                                            <span className="b by">{activity.status}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
+                                <table className="tbl" style={{ margin: 0 }}>
+                                    <thead>
+                                        <tr>
+                                            <th>สมรรถนะ</th>
+                                            <th style={{ width: "110px", textAlign: "center" }}>คาดหวัง</th>
+                                            <th style={{ width: "130px", textAlign: "center" }}>ประเมินตนเอง</th>
+                                            <th style={{ width: "120px", textAlign: "center" }}>หัวหน้าหน่วย</th>
+                                            <th style={{ width: "130px", textAlign: "center" }}>ผู้บังคับบัญชา</th>
+                                            <th style={{ width: "96px", textAlign: "center" }}>Gap</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selected.competencyDetails.map(item => {
+                                            const gap = Math.max(0, item.expected - item.deptHead);
+
+                                            return (
+                                                <tr key={item.n}>
+                                                    <td><div className="fw7 fs13">{item.n}</div></td>
+                                                    <td style={{ textAlign: "center" }}><span className="b bgr" style={{ justifyContent: "center", minWidth: "54px" }}>{item.expected}</span></td>
+                                                    <td style={{ textAlign: "center" }}><span className="b bt" style={{ justifyContent: "center", minWidth: "54px" }}>{item.self}</span></td>
+                                                    <td style={{ textAlign: "center" }}><span className="b bt" style={{ justifyContent: "center", minWidth: "54px" }}>{item.supervisor}</span></td>
+                                                    <td style={{ textAlign: "center" }}><span className="b by" style={{ justifyContent: "center", minWidth: "54px" }}>{item.deptHead}</span></td>
+                                                    <td style={{ textAlign: "center" }}><span className={`b ${gap ? "br" : "bg"}`} style={{ justifyContent: "center", minWidth: "54px" }}>{gap}</span></td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="flex ic g8 mt12">
+                                <button className="btn btn-t btn-sm" onClick={() => approve(selected.id)} style={{ flex: 1, justifyContent: "center" }}>อนุมัติแผน IDP</button>
+                                <button className="btn btn-r btn-sm" onClick={() => reject(selected.id)} style={{ flex: 1, justifyContent: "center" }}>ไม่อนุมัติ</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1065,7 +1270,7 @@ export const DeptMonitor: React.FC<{ users: any[] }> = ({ users }) => {
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">ภาพรวมหน่วยงาน (ผู้บังคับบัญชา) 🏢</div>
+                    <div className="sec-t">ภาพรวมหน่วยงาน (ผู้บังคับบัญชา) </div>
                     <div className="sec-s">ตรวจสอบผลการประเมินจากหัวหน้าหน่วยงานใน {activeDept} เพื่อส่งต่อผู้บริหาร</div>
                 </div>
                 <div className="flex ic g8">
@@ -1086,18 +1291,18 @@ export const DeptMonitor: React.FC<{ users: any[] }> = ({ users }) => {
                 <div className="ch">
                     <div className="ct">รายการประเมินจากรอบหัวหน้าหน่วยงาน — {activeDept}</div>
                     <div style={{ marginLeft: 'auto' }}>
-                        <button className="btn btn-g btn-sm" onClick={() => alert("ยืนยันผลประเมินทั้งหมดในฝ่ายและส่งให้ผู้บริหารคณะเรียบร้อย")}>✅ ยันประเมินทั้งฝ่าย</button>
+                        <button className="btn btn-g btn-sm" onClick={() => alert("ยืนยันผลประเมินทั้งหมดในฝ่ายและส่งให้ผู้บริหารคณะเรียบร้อย")}> ยันประเมินทั้งฝ่าย</button>
                     </div>
                 </div>
                 <div className="cb" style={{ padding: 0 }}>
                     {deptWorks.map((w, wi) => (
                         <div key={wi} className={wi !== deptWorks.length - 1 ? "mb0" : ""}>
                             <div style={{ background: 'var(--navy)', color: '#fff', padding: '10px 16px', fontWeight: 700, fontSize: '14px', position: 'sticky', top: 0, zIndex: 10 }}>
-                                📁 {w.work}
+                                 {w.work}
                             </div>
                             {w.units.map((un, ui) => (
                                 <div key={ui} style={{ borderBottom: (ui === w.units.length - 1 && wi === deptWorks.length - 1) ? "" : "8px solid var(--bg)" }}>
-                                    <div style={{ background: '#f8fafc', padding: '8px 16px', borderLeft: '4px solid var(--blue)', fontSize: '13px', fontWeight: 700, color: 'var(--blue)' }}>🏠 {un}</div>
+                                    <div style={{ background: '#f8fafc', padding: '8px 16px', borderLeft: '4px solid var(--blue)', fontSize: '13px', fontWeight: 700, color: 'var(--blue)' }}> {un}</div>
                                     <div className="cb" style={{ padding: 0 }}>
                                         <table className="tbl">
                                             <thead>
@@ -1131,7 +1336,7 @@ export const DeptMonitor: React.FC<{ users: any[] }> = ({ users }) => {
                                                             {s.s === 'self_submitted' && <span className="b by">รอ Unit Head</span>}
                                                             {(!s.s || s.s === 'draft') && <span className="b muted">รอดำเนินการ</span>}
                                                         </td>
-                                                        <td><button className="btn btn-s btn-sm" style={{ padding: '4px 8px', fontSize: '11px' }}>🔍 รีวิวผล</button></td>
+                                                        <td><button className="btn btn-s btn-sm" style={{ padding: '4px 8px', fontSize: '11px' }}> รีวิวผล</button></td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -1159,7 +1364,7 @@ export const DeptMonitor: React.FC<{ users: any[] }> = ({ users }) => {
                         ))}
                     </div>
                     <div className="mt12 text-center">
-                        <button className="btn btn-s btn-sm">📑 ดาวน์โหลดรายงานสรุปทั้ง {activeDept} (PDF)</button>
+                        <button className="btn btn-s btn-sm"> ดาวน์โหลดรายงานสรุปทั้ง {activeDept} (PDF)</button>
                     </div>
                 </div>
             </div>

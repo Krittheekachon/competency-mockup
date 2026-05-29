@@ -35,10 +35,10 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
     const validateCycleDates = (next = form) => {
         const nextErrors = { se: "", sup: "" };
         if (next.ss && next.se && next.se <= next.ss) {
-            nextErrors.se = "⚠ วันปิดรอบต้องอยู่หลังวันเปิดรอบ";
+            nextErrors.se = " วันปิดรอบต้องอยู่หลังวันเปิดรอบ";
         }
         if (next.ss && next.sup && next.sup < next.ss) {
-            nextErrors.sup = "⚠ เวลาสิ้นสุดหัวหน้างานต้องไม่ต่ำกว่าวันเปิดรอบประเมินตนเอง";
+            nextErrors.sup = " เวลาสิ้นสุดหัวหน้างานต้องไม่ต่ำกว่าวันเปิดรอบประเมินตนเอง";
         }
         setErrors(nextErrors);
         return !nextErrors.se && !nextErrors.sup;
@@ -56,7 +56,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
             return;
         }
         if (!validateCycleDates()) return;
-        alert(modal === "new" ? `เปิดรอบประเมิน "${form.n}" แล้ว ✓` : "บันทึกการแก้ไขแล้ว ✓");
+        alert(modal === "new" ? `เปิดรอบประเมิน "${form.n}" แล้ว ` : "บันทึกการแก้ไขแล้ว ");
         setModal(null);
     };
 
@@ -64,7 +64,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">รอบการประเมิน 🗓️</div>
+                    <div className="sec-t">รอบการประเมิน </div>
                     <div className="sec-s">เปิด-ปิดรอบ กำหนดช่วงเวลา ตรวจสอบสถานะ</div>
                 </div>
                 <button className="btn btn-p" onClick={openNewCycleModal}>+ เปิดรอบใหม่</button>
@@ -79,7 +79,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
                 <div className="sc">
                     <div className="sl">ส่งแบบประเมินแล้ว</div>
                     <div className="sv gcc">189<span style={{ fontSize: '14px', color: 'var(--text3)' }}>/247</span></div>
-                    <div className="ss rc">⚠ เหลือ 58 คน</div>
+                    <div className="ss rc"> เหลือ 58 คน</div>
                 </div>
             </div>
 
@@ -111,7 +111,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
                                         {c.act && (
                                             <>
                                                 <button className="btn btn-s btn-xs" onClick={() => openEditCycleModal(c)}>แก้ไข</button>
-                                                <button className="btn btn-t btn-xs" onClick={onGoTemplate}>🎯 ไปกำหนดความคาดหวัง</button>
+                                                <button className="btn btn-t btn-xs" onClick={onGoTemplate}> ไปกำหนดความคาดหวัง</button>
                                             </>
                                         )}
                                     </div>
@@ -123,10 +123,10 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
             </div>
 
             <div className="card">
-                <div className="ch"><div className="ct">🔔 ส่งการแจ้งเตือน</div></div>
+                <div className="ch"><div className="ct"> ส่งการแจ้งเตือน</div></div>
                 <div className="cb">
                     <p className="muted fs13 mb16">แจ้งเตือนบุคลากรที่ยังไม่ส่งแบบประเมิน</p>
-                    <button className="btn btn-p btn-sm" onClick={() => alert("ส่งแจ้งเตือนไปยัง 58 คนแล้ว ✓")}>🔔 ส่งแจ้งเตือน</button>
+                    <button className="btn btn-p btn-sm" onClick={() => alert("ส่งแจ้งเตือนไปยัง 58 คนแล้ว ")}> ส่งแจ้งเตือน</button>
                 </div>
             </div>
 
@@ -135,7 +135,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
                     <div className="cycle-modal-box">
                         <div className="cycle-modal-head">
                             <div className="fw7 fs15">{modal === "new" ? "เปิดรอบประเมินใหม่" : "แก้ไขรอบประเมิน"}</div>
-                            <button onClick={() => setModal(null)} className="cycle-modal-close">✕</button>
+                            <button onClick={() => setModal(null)} className="cycle-modal-close">ปิด</button>
                         </div>
                         <div className="cycle-modal-body">
                             <div className="fg mb12">
@@ -164,7 +164,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
                             </div>
                             <div className="cycle-modal-actions">
                                 <button className="btn btn-s btn-sm" onClick={() => setModal(null)}>ยกเลิก</button>
-                                <button className="btn btn-p btn-sm" onClick={submitCycle}>{modal === "new" ? "✓ เปิดรอบ" : "💾 บันทึก"}</button>
+                                <button className="btn btn-p btn-sm" onClick={submitCycle}>{modal === "new" ? " เปิดรอบ" : " บันทึก"}</button>
                             </div>
                         </div>
                     </div>
@@ -240,7 +240,7 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">Learning Catalog 📚</div>
+                    <div className="sec-t">Learning Catalog </div>
                     <div className="sec-s">ทะเบียนกิจกรรมพัฒนา · บุคลากรเลือกกิจกรรมจาก Catalog นี้เมื่อทำ IDP</div>
                 </div>
                 <div className="flex" style={{ gap: "8px" }}>
@@ -251,8 +251,8 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                         accept=".xlsx, .xls, .csv" 
                         onChange={handleFileChange} 
                     />
-                    <button className="btn btn-s" onClick={handleDownloadTemplate}>📄 ดาวน์โหลด Template</button>
-                    <button className="btn btn-s" onClick={handleImportClick}>📥 Import Excel</button>
+                    <button className="btn btn-s" onClick={handleDownloadTemplate}> ดาวน์โหลด Template</button>
+                    <button className="btn btn-s" onClick={handleImportClick}> Import Excel</button>
                     <button className="btn btn-p" onClick={() => openModal("modal-catalog")}>+ เพิ่มกิจกรรม</button>
                 </div>
             </div>
@@ -306,7 +306,7 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                                     <td><span className={`b ${c.act ? 'bg' : 'bgr'}`}>{c.act ? 'เปิดใช้' : 'ปิด'}</span></td>
                                     <td>
                                         <div className="flex g4" style={{ flexWrap: "wrap" }}>
-                                            <button className="btn btn-s btn-xs" onClick={() => setSelectedDesc(i)}>📄 คำอธิบาย</button>
+                                            <button className="btn btn-s btn-xs" onClick={() => setSelectedDesc(i)}> คำอธิบาย</button>
                                             <button className="btn btn-s btn-xs" onClick={() => setSelectedEdit(i)}>แก้ไข</button>
                                         </div>
                                     </td>
@@ -321,13 +321,13 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                     <div className="mo-box" style={{ width: 620, maxWidth: "calc(100vw - 32px)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
                         <div className="mo-h" style={{ alignItems: "flex-start", gap: 16, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)" }}>
                             <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
-                                <span style={{ width: 42, height: 42, borderRadius: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--blue-lt)", color: "var(--blue)", fontSize: 22, flexShrink: 0 }}>📄</span>
+                                <span style={{ width: 42, height: 42, borderRadius: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--blue-lt)", color: "var(--blue)", fontSize: 22, flexShrink: 0 }}></span>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", lineHeight: 1.35 }}>{activeDesc.n}</div>
                                     <div className="muted fs12" style={{ marginTop: 3 }}>รายละเอียดกิจกรรมสำหรับใช้ประกอบการทำ IDP</div>
                                 </div>
                             </div>
-                            <button className="btn btn-s btn-sm" onClick={() => setSelectedDesc(null)}>✕</button>
+                            <button className="btn btn-s btn-sm" onClick={() => setSelectedDesc(null)}>ปิด</button>
                         </div>
                         <div className="mo-b" style={{ padding: 22 }}>
                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -365,7 +365,7 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                                 <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)" }}>แก้ไขกิจกรรม Learning Catalog</div>
                                 <div className="muted fs12" style={{ marginTop: 3 }}>ปรับข้อมูลกิจกรรมพัฒนาที่บุคลากรเลือกใช้ใน IDP</div>
                             </div>
-                            <button className="btn btn-s btn-sm" onClick={() => setSelectedEdit(null)}>✕</button>
+                            <button className="btn btn-s btn-sm" onClick={() => setSelectedEdit(null)}>ปิด</button>
                         </div>
                         <div className="mo-b" style={{ padding: 22 }}>
                             <div className="fg">
@@ -399,7 +399,7 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                             </div>
                             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", paddingTop: 14, borderTop: "1px solid var(--border)" }}>
                                 <button className="btn btn-s" onClick={() => setSelectedEdit(null)}>ยกเลิก</button>
-                                <button className="btn btn-p" onClick={() => { setSelectedEdit(null); alert("บันทึกการแก้ไขเรียบร้อยแล้ว!"); }}>💾 บันทึก</button>
+                                <button className="btn btn-p" onClick={() => { setSelectedEdit(null); alert("บันทึกการแก้ไขเรียบร้อยแล้ว!"); }}> บันทึก</button>
                             </div>
                         </div>
                     </div>
@@ -429,7 +429,7 @@ export const HRMonitor: React.FC = () => {
     return (
         <>
             <div className="mb20">
-                <div className="sec-t">ติดตามภาพรวม 📡</div>
+                <div className="sec-t">ติดตามภาพรวม </div>
                 <div className="sec-s">คณะวิศวกรรมศาสตร์ · รอบประเมิน 2568</div>
             </div>
 
@@ -836,7 +836,7 @@ export const HRTemplate: React.FC<{
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">กำหนดความคาดหวังการประเมิน 🎯</div>
+                    <div className="sec-t">กำหนดความคาดหวังการประเมิน </div>
                     <div className="sec-s">ตั้งค่า Expected Level ของแต่ละประเภทบุคลากรในแต่ละรอบการประเมิน</div>
                 </div>
             </div>
@@ -880,7 +880,7 @@ export const HRTemplate: React.FC<{
                     ดูความคาดหวังทั้งหมด <span className={`b ${cycleSummary.length ? "bt" : "bgr"}`}>{cycleSummary.length} ชุด</span>
                 </button>
                 {isClosedCycle ? (
-                    <div className="expect-locked">🔒 รอบนี้ปิดแล้ว ไม่สามารถแก้ไขได้</div>
+                    <div className="expect-locked"> รอบนี้ปิดแล้ว ไม่สามารถแก้ไขได้</div>
                 ) : (
                     <button className="btn btn-p btn-sm ml-auto" onClick={openImportModal}>นำเข้าความคาดหวัง</button>
                 )}
@@ -989,7 +989,7 @@ export const HRTemplate: React.FC<{
                             <div className="cs">{isAdminWorkline ? "ระดับตำแหน่ง" : "ระดับ"}: {currentScopeLevel || "ยังไม่ได้เลือกระดับ"}</div>
                         </div>
                         <div className="ml-auto flex g8">
-                            <span className={`b ${isSaved ? "bg" : "by"}`}>{isSaved ? "✓ บันทึกแล้ว" : "ยังไม่บันทึก"}</span>
+                            <span className={`b ${isSaved ? "bg" : "by"}`}>{isSaved ? " บันทึกแล้ว" : "ยังไม่บันทึก"}</span>
                         </div>
                     </div>
                     <div style={{ overflowX: "auto" }}>
@@ -1499,7 +1499,7 @@ export const HRPositionCompetencies: React.FC<{
                     <div className="assigned-list">
                         {scopeBindings.length === 0 && (
                             <div className="assigned-empty">
-                                <div className="assigned-empty-icon">🔗</div>
+                                <div className="assigned-empty-icon"></div>
                                 <div className="fw8">ยังไม่ได้กำหนดสมรรถนะให้ตำแหน่งนี้</div>
                                 <div className="muted fs12">ค้นหาจากพจนานุกรมด้านขวา หรือกดเพิ่ม CC ทั้งหมดเพื่อเริ่มต้น</div>
                             </div>

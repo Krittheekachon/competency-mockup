@@ -179,19 +179,18 @@ export const ExcelImportModal: React.FC<{ title: string, templateName: string, t
             <div className="fw8 fs18" style={{ color: "var(--navy)" }}>{title}</div>
             <div className="fs12 muted mt4">อัปโหลดไฟล์ Excel เพื่อนำเข้าข้อมูลเข้าสู่ระบบโดยตรง</div>
           </div>
-          <button className="btn-close" onClick={onClose}>✕</button>
+          <button className="btn-close" onClick={onClose}>ปิด</button>
         </div>
         <div className="mo-b" style={{ padding: "28px" }}>
           <div className="flex ic jb mb24 p16" style={{ background: "#f8fafc", borderRadius: "var(--r)", border: "1px solid #e2e8f0" }}>
             <div className="flex ic g12">
-              <div className="flex ic jc" style={{ width: "40px", height: "40px", background: "#fff", borderRadius: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", fontSize: "20px" }}>📄</div>
               <div>
                 <div className="fw8 fs14" style={{ color: "var(--text2)" }}>ไฟล์แม่แบบ (Template)</div>
                 <div className="fs11 muted">ดาวน์โหลดเพื่อเตรียมข้อมูลให้ถูกต้อง</div>
               </div>
             </div>
             <button className="btn btn-s btn-sm flex ic g8" style={{ padding: "8px 16px", borderRadius: "10px", fontWeight: 700, border: "1.5px solid var(--blue)", color: "var(--blue)" }} onClick={downloadTemplate}>
-              <span style={{ fontSize: "16px" }}>📥</span> ดาวน์โหลดตาราง
+              ดาวน์โหลดตาราง
             </button>
           </div>
 
@@ -209,7 +208,7 @@ export const ExcelImportModal: React.FC<{ title: string, templateName: string, t
             />
             <div className="upload-dropzone" onClick={() => fileInputRef.current?.click()}>
               <div className="flex col ic jc" style={{ padding: "60px 40px" }}>
-                <div className="upload-icon-pulse mb20">{selectedFile ? "✅" : "📊"}</div>
+                
                 <div className="fw8 fs16 mb8" style={{ color: "var(--navy)" }}>
                   {selectedFile ? selectedFile.name : "ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อค้นหา"}
                 </div>
