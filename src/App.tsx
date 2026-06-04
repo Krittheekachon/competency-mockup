@@ -24,8 +24,7 @@ import Profile from './components/Profile';
 import { HRCycle, HRCatalog, HRMonitor, HRTemplate, HRPositionCompetencies } from './components/HRPages';
 import { EmployeeAssess, EmployeeGap, EmployeeIDP, EmployeeIDPDetail, EmployeeProgress } from './components/EmployeePages';
 import { SupervisorAssess, TeamGap, TeamIDP } from './components/SupervisorPages';
-import { DeanGap, DeanIDP, DeanAssessmentApproval, DeanIDPApproval, DeptMonitor } from './components/DeanPages';
-import { DepartmentAssessmentApproval, DepartmentGap, DepartmentIDPApproval, DepartmentIDPTracking } from './components/DepartmentHeadPages';
+import { ManagerGap, ManagerIDP, DeptMonitor } from './components/ManagerPages';
 
 const formatPhone = (val: string) => {
   if (!val) return val;
@@ -156,22 +155,22 @@ const EVALUATOR1_ROLES_BY_ROLE: Record<string, string[]> = {
   employee: ["supervisor"],
   hr: ["supervisor"],
   admin: ["supervisor"],
-  supervisor: ["department_head"],
-  department_head: ["dean"]
+  supervisor: ["manager_dept"],
+  manager_dept: ["manager"]
 };
 
 const EVALUATOR2_ROLES_BY_ROLE: Record<string, string[]> = {
-  employee: ["department_head"],
-  hr: ["department_head"],
-  admin: ["department_head"],
-  supervisor: ["dean"]
+  employee: ["manager_dept"],
+  hr: ["manager_dept"],
+  admin: ["manager_dept"],
+  supervisor: ["manager"]
 };
 
 const ADMIN_LEVELS = ["บุคลากร (อายุงานไม่เกิน 1 ปี)", "บุคลากร", "ผู้ช่วยคณบดี", "รองคณบดี", "คณบดี"];
 
 const normalizeEvaluatorChain = (users: any[]) => {
-  const dean = users.find(user => user.r === "dean")?.n || "";
-  const managerDeptNames = users.filter(user => user.r === "department_head").map(user => user.n);
+  const dean = users.find(user => user.r === "manager")?.n || "";
+  const managerDeptNames = users.filter(user => user.r === "manager_dept").map(user => user.n);
   const supervisorNames = users.filter(user => user.r === "supervisor").map(user => user.n);
   const firstManagerDept = managerDeptNames[0] || dean;
 
@@ -193,7 +192,7 @@ const normalizeEvaluatorChain = (users: any[]) => {
     if (user.sup && managerDeptNames.includes(user.sup)) return user.sup;
     const userDept = user.d || "";
     const sameDeptManager = users.find(candidate =>
-      candidate.r === "department_head" &&
+      candidate.r === "manager_dept" &&
       (candidate.d === userDept || userDept.startsWith(`${candidate.d} > `))
     );
     if (sameDeptManager) return sameDeptManager.n;
@@ -201,8 +200,8 @@ const normalizeEvaluatorChain = (users: any[]) => {
   };
 
   return users.map(user => {
-    if (user.r === "dean") return { ...user, sup: "", evaluator2: "" };
-    if (user.r === "department_head") return { ...user, sup: dean, evaluator2: "" };
+    if (user.r === "manager") return { ...user, sup: "", evaluator2: "" };
+    if (user.r === "manager_dept") return { ...user, sup: dean, evaluator2: "" };
     if (user.r === "supervisor") return { ...user, sup: findManagerDeptFor(user), evaluator2: dean };
     return { ...user, sup: findSupervisorFor(user), evaluator2: findManagerDeptFor(user) };
   });
@@ -245,7 +244,9 @@ export default function App() {
     ""
   );
   const [selectedManagerDeptSso, setSelectedManagerDeptSso] = useState(
-    INITIAL_USERS.find(user => user.r === "department_head")?.sso || ""
+    INITIAL_USERS.find(user => user.n === "ธนพล ไชยรักษ์")?.sso ||
+    INITIAL_USERS.find(user => user.r === "manager_dept")?.sso ||
+    ""
   );
 
   const [workline, setWorkline] = useState("");
@@ -394,14 +395,14 @@ export default function App() {
     if (workline === "สายงานบริหาร") return dept1;
     return [dept1, dept2, dept3].filter(Boolean).join(" > ");
   };
-  const deanName = users.find(user => user.r === "dean")?.n || "";
+  const deanName = users.find(user => user.r === "manager")?.n || "";
   const findDeptManagerName = () => {
-    if (workline === "สายวิชาการ") return users.find(user => user.r === "department_head" && user.d === "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้")?.n || "ปาริชาติ วงศ์ดี";
+    if (workline === "สายวิชาการ") return users.find(user => user.r === "manager_dept" && user.d === "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้")?.n || "ปาริชาติ วงศ์ดี";
     if (workline === "สายงานบริหาร") return deanName;
     const fullDept = getFullDeptPath();
     const fromPath = orgSups[dept1] || "";
     const fromUsers = users.find(user =>
-      user.r === "department_head" &&
+      user.r === "manager_dept" &&
       (user.d === dept1 || fullDept.startsWith(`${user.d} > `))
     )?.n;
     return fromUsers || fromPath || deanName;
@@ -419,9 +420,9 @@ export default function App() {
     return fromUsers || fromPath || "";
   };
   const getEvaluatorLabels = (role = roleId) => {
-    if (role === "department_head") return { first: "คณบดี", second: "หัวหน้าฝ่าย" };
-    if (role === "supervisor") return { first: "หัวหน้าฝ่าย (หัวหน้าฝ่าย)", second: "คณบดี" };
-    return { first: "หัวหน้างาน", second: "หัวหน้าฝ่าย (หัวหน้าฝ่าย)" };
+    if (role === "manager_dept") return { first: "คณบดี", second: "ผู้บังคับบัญชา" };
+    if (role === "supervisor") return { first: "หัวหน้าฝ่าย (ผู้บังคับบัญชา)", second: "คณบดี" };
+    return { first: "หัวหน้างาน", second: "หัวหน้าฝ่าย (ผู้บังคับบัญชา)" };
   };
   const getSupervisorOptions = () => {
     const supervisorRoles = EVALUATOR1_ROLES_BY_ROLE[roleId] || [];
@@ -452,12 +453,12 @@ export default function App() {
   };
   const showEvaluator2Field = !!EVALUATOR2_ROLES_BY_ROLE[roleId];
   const evaluatorLabels = getEvaluatorLabels();
-  const requiresSupervisorSelection = ["supervisor", "department_head"].includes(roleId);
+  const requiresSupervisorSelection = ["supervisor", "manager_dept"].includes(roleId);
 
   useEffect(() => {
     if (modalType !== "modal-user") return;
 
-    if (roleId === "dean") {
+    if (roleId === "manager") {
       setSupervisor("");
       setSupervisorSearch("");
       setEvaluator2("");
@@ -471,7 +472,7 @@ export default function App() {
     let nextSupervisor = "";
     let nextEvaluator2 = "";
 
-    if (roleId === "department_head") {
+    if (roleId === "manager_dept") {
       nextSupervisor = dean;
     } else if (roleId === "supervisor") {
       nextSupervisor = deptManager;
@@ -504,14 +505,14 @@ export default function App() {
       return;
     }
     if (
-      (activePage === "dept-assessment-approval" || activePage === "sup-assess") &&
+      (activePage === "dh-assess" || activePage === "sup-assess") &&
       assessHasUnsavedChanges &&
       !window.confirm("ยังไม่ได้บันทึกผลการประเมิน หากออกจากระบบข้อมูลล่าสุดจะไม่ถูกบันทึก")
     ) {
       return;
     }
     if (
-      (activePage === "dept-idp-tracking" || activePage === "sup-idp") &&
+      (activePage === "dh-idp" || activePage === "sup-idp") &&
       teamIDPHasUnsavedChanges &&
       !window.confirm("ยังไม่ได้บันทึกผล IDP หากออกจากระบบข้อมูลล่าสุดจะไม่ถูกบันทึก")
     ) {
@@ -627,7 +628,7 @@ export default function App() {
     setUserUniqueErrors(uniqueErrors);
     if (Object.values(uniqueErrors).some(Boolean)) return;
 
-    const needsSupervisor = ["supervisor", "department_head"].includes(submittedRoleId);
+    const needsSupervisor = ["supervisor", "manager_dept"].includes(submittedRoleId);
     if (needsSupervisor && !supervisor) {
       alert(`กรุณาเลือก${getEvaluatorLabels(submittedRoleId).first}จากผลการค้นหา`);
       return;
@@ -659,7 +660,7 @@ export default function App() {
       p: position,
       l: level,
       w: workline,
-      sup: submittedRoleId === "dean" ? "" : supervisor,
+      sup: submittedRoleId === "manager" ? "" : supervisor,
       evaluator2: showEvaluator2Field ? evaluator2 : "",
       r: submittedRoleId,
       act: isActive
@@ -692,14 +693,14 @@ export default function App() {
         return false;
       }
       if (
-        (activePage === "dept-assessment-approval" || activePage === "sup-assess") &&
+        (activePage === "dh-assess" || activePage === "sup-assess") &&
         assessHasUnsavedChanges &&
         !window.confirm("ยังไม่ได้บันทึกผลการประเมิน หากออกจากหน้านี้ข้อมูลล่าสุดจะไม่ถูกบันทึก")
       ) {
         return false;
       }
       if (
-        (activePage === "dept-idp-tracking" || activePage === "sup-idp") &&
+        (activePage === "dh-idp" || activePage === "sup-idp") &&
         teamIDPHasUnsavedChanges &&
         !window.confirm("ยังไม่ได้บันทึกผล IDP หากออกจากหน้านี้ข้อมูลล่าสุดจะไม่ถูกบันทึก")
       ) {
@@ -719,7 +720,7 @@ export default function App() {
 
   const supervisorViewUsers = users.filter(user => user.r === "supervisor");
   const selectedSupervisor = supervisorViewUsers.find(user => user.sso === selectedSupervisorSso) || supervisorViewUsers[0];
-  const managerDeptViewUsers = users.filter(user => user.r === "department_head");
+  const managerDeptViewUsers = users.filter(user => user.r === "manager_dept");
   const selectedManagerDept = managerDeptViewUsers.find(user => user.sso === selectedManagerDeptSso) || managerDeptViewUsers[0];
 
   useEffect(() => {
@@ -736,7 +737,7 @@ export default function App() {
 
   const getCurrentProfileUser = () => {
     if (currentRole === "supervisor" && selectedSupervisor) return selectedSupervisor;
-    if (currentRole === "department_head" && selectedManagerDept) return selectedManagerDept;
+    if (currentRole === "manager_dept" && selectedManagerDept) return selectedManagerDept;
     return (
       users.find(user => user.r === currentRole) ||
       users.find(user => user.n === ROLES_CONFIG[currentRole].name.replace("คุณ", "")) ||
@@ -814,23 +815,27 @@ export default function App() {
           />
         );
       case "hr-comp-overview":
-        return <DeanGap users={users} />;
+        return <ManagerGap users={users} supportOrg={supportOrg} />;
       case "hr-idp-overview":
-        return <DeanIDP users={users} />;
+        return <ManagerIDP users={users} supportOrg={supportOrg} />;
       case "emp-assess": {
-        const staff = profileUser || users.find(u => u.r === 'employee') || users[0];
+        const staff = users.find(u => u.sso === "64020") || users.find(u => u.r === 'staff');
         return <EmployeeAssess user={staff} setUsers={setUsers} />;
       }
       case "emp-gap":
-        return <EmployeeGap setPage={setActivePage} user={profileUser} />;
+        return <EmployeeGap setPage={setActivePage} />;
       case "emp-idp":
-        return <EmployeeIDP learningMethods={learningMethods} user={profileUser} />;
+        return <EmployeeIDP learningMethods={learningMethods} />;
       case "emp-idp-detail":
         return <EmployeeIDPDetail />;
       case "emp-progress":
         return <EmployeeProgress />;
+      case "dh-assess":
       case "sup-assess": {
-        let boss = selectedSupervisor || users.find(u => u.r === 'supervisor');
+        let boss;
+        if (currentRole === 'manager') boss = users.find(u => u.p === 'คณบดี') || users.find(u => u.r === 'manager');
+        else if (currentRole === 'manager_dept') boss = selectedManagerDept || users.find(u => u.r === 'manager_dept');
+        else boss = selectedSupervisor || users.find(u => u.r === 'supervisor');
         if (!boss) boss = users[0];
         return (
           <SupervisorAssess
@@ -838,6 +843,11 @@ export default function App() {
             users={users}
             setUsers={setUsers}
             currentUser={boss}
+            supervisorUsers={currentRole === "supervisor" ? supervisorViewUsers : currentRole === "manager_dept" ? managerDeptViewUsers : undefined}
+            onSupervisorChange={currentRole === "manager_dept" ? setSelectedManagerDeptSso : setSelectedSupervisorSso}
+            drafts={supervisorAssessDrafts}
+            setDrafts={setSupervisorAssessDrafts}
+            onDirtyChange={setAssessHasUnsavedChanges}
           />
         );
       }
@@ -845,32 +855,41 @@ export default function App() {
         return (
           <TeamGap
             users={users}
+            currentUser={currentRole === "supervisor" ? selectedSupervisor : currentRole === "manager_dept" ? selectedManagerDept : undefined}
+            supervisorUsers={currentRole === "supervisor" ? supervisorViewUsers : currentRole === "manager_dept" ? managerDeptViewUsers : undefined}
+            onSupervisorChange={currentRole === "manager_dept" ? setSelectedManagerDeptSso : setSelectedSupervisorSso}
+          />
+        );
+      case "dh-idp":
+        return (
+          <TeamIDP
+            users={users}
+            detailed
             currentUser={selectedSupervisor}
+            supervisorUsers={supervisorViewUsers}
+            onSupervisorChange={setSelectedSupervisorSso}
+            drafts={supervisorIDPDrafts}
+            setDrafts={setSupervisorIDPDrafts}
+            onDirtyChange={setTeamIDPHasUnsavedChanges}
           />
         );
       case "sup-idp":
         return (
           <TeamIDP
             users={users}
-            currentUser={selectedSupervisor}
+            detailed
+            currentUser={selectedManagerDept}
+            supervisorUsers={managerDeptViewUsers}
+            onSupervisorChange={setSelectedManagerDeptSso}
+            drafts={supervisorIDPDrafts}
+            setDrafts={setSupervisorIDPDrafts}
+            onDirtyChange={setTeamIDPHasUnsavedChanges}
           />
         );
-      case "dept-assessment-approval":
-        return <DepartmentAssessmentApproval users={users} setUsers={setUsers} currentUser={selectedManagerDept} />;
-      case "dept-gap":
-        return <DepartmentGap users={users} currentUser={selectedManagerDept} />;
-      case "dept-idp-approval":
-        return <DepartmentIDPApproval users={users} currentUser={selectedManagerDept} />;
-      case "dept-idp-tracking":
-        return <DepartmentIDPTracking users={users} currentUser={selectedManagerDept} />;
-      case "dean-gap":
-        return <DeanGap users={users} />;
-      case "dean-idp":
-        return <DeanIDP users={users} />;
-      case "dean-assessment-approval":
-        return <DeanAssessmentApproval users={users} />;
-      case "dean-idp-approval":
-        return <DeanIDPApproval users={users} />;
+      case "mgr-gap":
+        return <ManagerGap users={users} supportOrg={supportOrg} />;
+      case "mgr-idp":
+        return <ManagerIDP users={users} supportOrg={supportOrg} />;
       case "dept-monitor":
         return <DeptMonitor users={users} />;
       default:
@@ -1130,7 +1149,7 @@ export default function App() {
                     </div>
                   )}
                 </div>
-                {workline === "สายสนับสนุน" && dept1 && roleId !== "department_head" && (
+                {workline === "สายสนับสนุน" && dept1 && roleId !== "manager_dept" && (
                   <div className="g2" style={{ marginTop: '-4px' }}>
                     <div className="fg mb8 anim-fade-in">
                       <label className="lbl">งาน <span style={{ color: "var(--red)" }}>*</span></label>
@@ -1189,17 +1208,32 @@ export default function App() {
                 <div className="divider" />
                 <div className="g2">
                   <div className="fg">
+                    <label className="lbl">สถานะการเชื่อมสายบังคับบัญชา</label>
+                    {roleId === "manager" || supervisor ? (
+                      <div className="fs12 fw7" style={{ padding: "10px 12px", borderRadius: "8px", background: "#dcfce7", color: "#15803d" }}>
+                        Linked {roleId === "manager" ? "คณบดีเป็นจุดเริ่มต้นของสายอนุมัติ" : `หัวหน้างาน: ${supervisor}`}
+                      </div>
+                    ) : (
+                      <div className="fs12 fw7" style={{ padding: "10px 12px", borderRadius: "8px", background: "#fee2e2", color: "#b91c1c" }}>
+                        ไม่พบชื่อหัวหน้าในระบบ IDP กรุณากำหนดหัวหน้าในโครงสร้างองค์กร
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="divider" />
+                <div className="g2">
+                  <div className="fg">
                     <label className="lbl">บทบาทในระบบ <span style={{ color: "var(--red)" }}>*</span></label>
                     <select className="sel" name="role_id" value={roleId} onChange={e => { setRoleId(e.target.value); setSupervisor(""); setSupervisorSearch(""); setEvaluator2(""); setEvaluator2Search(""); setEvaluatorPairError(""); }} required>
                       <option value="employee">บุคลากร</option>
                       <option value="supervisor">หัวหน้างาน</option>
-                      <option value="department_head">หัวหน้าฝ่าย</option>
-                      <option value="dean">ผู้บริหาร</option>
+                      <option value="manager_dept">ผู้บังคับบัญชา</option>
+                      <option value="manager">ผู้บริหารคณะ</option>
                       <option value="hr">งานทรัพยากรบุคคล</option>
                       <option value="admin">ผู้ดูแลระบบ</option>
                     </select>
                   </div>
-                  {roleId !== "dean" && (
+                  {roleId !== "manager" && (
                     <div className="fg anim-fade-in">
                       <label className="lbl">{evaluatorLabels.first} <span style={{ color: "var(--red)" }}>*</span></label>
                       <input
@@ -1235,10 +1269,10 @@ export default function App() {
                       )}
                     </div>
                   )}
-                  {roleId === "dean" && (
+                  {roleId === "manager" && (
                     <div className="fg">
                       <label className="lbl">สายบังคับบัญชา</label>
-                      <input className="inp" value="คณบดีไม่มีหัวหน้าและไม่มีหัวหน้าฝ่าย" readOnly />
+                      <input className="inp" value="คณบดีไม่มีหัวหน้าและไม่มีผู้บังคับบัญชา" readOnly />
                     </div>
                   )}
                 </div>
@@ -1320,7 +1354,7 @@ export default function App() {
                else autoSup = orgSups[fullDept] || "";
                
                const autoSupUser = users.find(u => u.n === autoSup);
-               const autoEvaluator2 = autoSupUser?.r === "supervisor" ? autoSupUser.sup : autoSupUser?.r === "department_head" ? autoSupUser.n : "";
+               const autoEvaluator2 = autoSupUser?.r === "supervisor" ? autoSupUser.sup : autoSupUser?.r === "manager_dept" ? autoSupUser.n : "";
 
                const nextUsers = users.map(u => u.sso === modalData.sso ? {
                  ...u,

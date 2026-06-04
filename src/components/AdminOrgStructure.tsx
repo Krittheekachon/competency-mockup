@@ -78,8 +78,8 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
     parent: "",
     grandparent: ""
   });
-  const dean = users.find(user => user.r === "dean")?.n || "";
-  const deptManagers = users.filter(user => user.r === "department_head");
+  const dean = users.find(user => user.r === "manager")?.n || "";
+  const deptManagers = users.filter(user => user.r === "manager_dept");
   const supervisors = users.filter(user => user.r === "supervisor");
 
   const setOrgHead = (path: string, value: string) => {
