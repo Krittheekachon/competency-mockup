@@ -53,17 +53,17 @@ fs.readdir(inputDir, (err, files) => {
 
                 const outputFileName = path.basename(file, '.json') + '.html';
                 fs.writeFileSync(path.join(outputDir, outputFileName), htmlContent);
-                console.log(`✅ แปลงสำเร็จ: ${outputFileName}`);
+                console.log(`แปลงสำเร็จ: ${outputFileName}`);
                 fileCount++;
             } catch (e) {
-                console.log(`❌ ข้ามไฟล์ ${file} เนื่องจากไม่ใช่ JSON รูปแบบปกติ หรือไฟล์เสีย`);
+                console.log(`ข้ามไฟล์ ${file} เนื่องจากไม่ใช่ JSON รูปแบบปกติ หรือไฟล์เสีย`);
             }
         }
     });
 
     if(fileCount === 0) {
-        console.log("⚠️ ไม่พบไฟล์ .json สำหรับนำมาแปลงในโฟลเดอร์นี้เลยครับ (ลองเช็คดูว่าเอาไฟล์มาวางคู่กับ convert.js หรือยังนะ)");
+        console.log("ไม่พบไฟล์ .json สำหรับนำมาแปลงในโฟลเดอร์นี้เลยครับ (ลองเช็คดูว่าเอาไฟล์มาวางคู่กับ convert.js หรือยังนะ)");
     } else {
-        console.log(`\n🎉 เรียบร้อย! รวมทั้งหมด ${fileCount} ไฟล์ ไปดูผลงานในโฟลเดอร์ 'html-ready' ได้เลยครับ!`);
+        console.log(`\nเรียบร้อย! รวมทั้งหมด ${fileCount} ไฟล์ ไปดูผลงานในโฟลเดอร์ 'html-ready' ได้เลยครับ!`);
     }
 });

@@ -1,4 +1,5 @@
 import React from 'react';
+import { ExcelImportModal } from './SharedUI';
 
 export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate }) => {
     const [modal, setModal] = React.useState<"new" | "edit" | null>(null);
@@ -35,10 +36,10 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
     const validateCycleDates = (next = form) => {
         const nextErrors = { se: "", sup: "" };
         if (next.ss && next.se && next.se <= next.ss) {
-            nextErrors.se = "⚠ วันปิดรอบต้องอยู่หลังวันเปิดรอบ";
+            nextErrors.se = " วันปิดรอบต้องอยู่หลังวันเปิดรอบ";
         }
         if (next.ss && next.sup && next.sup < next.ss) {
-            nextErrors.sup = "⚠ เวลาสิ้นสุดหัวหน้างานต้องไม่ต่ำกว่าวันเปิดรอบประเมินตนเอง";
+            nextErrors.sup = " เวลาสิ้นสุดหัวหน้างานต้องไม่ต่ำกว่าวันเปิดรอบประเมินตนเอง";
         }
         setErrors(nextErrors);
         return !nextErrors.se && !nextErrors.sup;
@@ -56,7 +57,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
             return;
         }
         if (!validateCycleDates()) return;
-        alert(modal === "new" ? `เปิดรอบประเมิน "${form.n}" แล้ว ✓` : "บันทึกการแก้ไขแล้ว ✓");
+        alert(modal === "new" ? `เปิดรอบประเมิน "${form.n}" แล้ว ` : "บันทึกการแก้ไขแล้ว ");
         setModal(null);
     };
 
@@ -64,7 +65,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">รอบการประเมิน 🗓️</div>
+                    <div className="sec-t">รอบการประเมิน </div>
                     <div className="sec-s">เปิด-ปิดรอบ กำหนดช่วงเวลา ตรวจสอบสถานะ</div>
                 </div>
                 <button className="btn btn-p" onClick={openNewCycleModal}>+ เปิดรอบใหม่</button>
@@ -79,7 +80,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
                 <div className="sc">
                     <div className="sl">ส่งแบบประเมินแล้ว</div>
                     <div className="sv gcc">189<span style={{ fontSize: '14px', color: 'var(--text3)' }}>/247</span></div>
-                    <div className="ss rc">⚠ เหลือ 58 คน</div>
+                    <div className="ss rc"> เหลือ 58 คน</div>
                 </div>
             </div>
 
@@ -111,7 +112,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
                                         {c.act && (
                                             <>
                                                 <button className="btn btn-s btn-xs" onClick={() => openEditCycleModal(c)}>แก้ไข</button>
-                                                <button className="btn btn-t btn-xs" onClick={onGoTemplate}>🎯 ไปกำหนดความคาดหวัง</button>
+                                                <button className="btn btn-t btn-xs" onClick={onGoTemplate}> ไปกำหนดความคาดหวัง</button>
                                             </>
                                         )}
                                     </div>
@@ -123,10 +124,10 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
             </div>
 
             <div className="card">
-                <div className="ch"><div className="ct">🔔 ส่งการแจ้งเตือน</div></div>
+                <div className="ch"><div className="ct"> ส่งการแจ้งเตือน</div></div>
                 <div className="cb">
                     <p className="muted fs13 mb16">แจ้งเตือนบุคลากรที่ยังไม่ส่งแบบประเมิน</p>
-                    <button className="btn btn-p btn-sm" onClick={() => alert("ส่งแจ้งเตือนไปยัง 58 คนแล้ว ✓")}>🔔 ส่งแจ้งเตือน</button>
+                    <button className="btn btn-p btn-sm" onClick={() => alert("ส่งแจ้งเตือนไปยัง 58 คนแล้ว ")}> ส่งแจ้งเตือน</button>
                 </div>
             </div>
 
@@ -135,7 +136,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
                     <div className="cycle-modal-box">
                         <div className="cycle-modal-head">
                             <div className="fw7 fs15">{modal === "new" ? "เปิดรอบประเมินใหม่" : "แก้ไขรอบประเมิน"}</div>
-                            <button onClick={() => setModal(null)} className="cycle-modal-close">✕</button>
+                            <button onClick={() => setModal(null)} className="cycle-modal-close">ปิด</button>
                         </div>
                         <div className="cycle-modal-body">
                             <div className="fg mb12">
@@ -164,7 +165,7 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
                             </div>
                             <div className="cycle-modal-actions">
                                 <button className="btn btn-s btn-sm" onClick={() => setModal(null)}>ยกเลิก</button>
-                                <button className="btn btn-p btn-sm" onClick={submitCycle}>{modal === "new" ? "✓ เปิดรอบ" : "💾 บันทึก"}</button>
+                                <button className="btn btn-p btn-sm" onClick={submitCycle}>{modal === "new" ? " เปิดรอบ" : " บันทึก"}</button>
                             </div>
                         </div>
                     </div>
@@ -184,8 +185,11 @@ export const HRCycle: React.FC<{ onGoTemplate?: () => void }> = ({ onGoTemplate 
     );
 };
 
-export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ openModal }) => {
-    const catalog = [
+export const HRCatalog: React.FC<{
+    competencies: any[];
+    learningMethods: { key: string; label: string; desc?: string }[];
+}> = ({ competencies, learningMethods }) => {
+    const [catalog, setCatalog] = React.useState(() => [
         { n: "OJT / มอบหมายโครงการพิเศษ", t: "experiential", tc: "bo", prov: "หัวหน้างาน", cost: 0, act: true, desc: "มอบหมายงานหรือโครงการจริงให้บุคลากรฝึกปฏิบัติ พร้อมติดตามผลจากหัวหน้างาน" },
         { n: "Job Rotation", t: "experiential", tc: "bo", prov: "ฝ่ายงาน", cost: 0, act: true, desc: "หมุนเวียนงานเพื่อเพิ่มประสบการณ์ข้ามภารกิจและเข้าใจกระบวนการทำงานของหน่วยงาน" },
         { n: "Mentoring Program", t: "social", tc: "bg", prov: "ภายใน", cost: 0, act: true, desc: "จับคู่ผู้มีประสบการณ์กับผู้เรียนรู้ เพื่อแลกเปลี่ยนแนวทางการทำงานและให้คำแนะนำต่อเนื่อง" },
@@ -194,10 +198,16 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
         { n: "อบรม AI & Data Analytics", t: "formal", tc: "bb", prov: "ศูนย์คอมพิวเตอร์", cost: 4500, act: true, desc: "หลักสูตรพัฒนาทักษะการใช้ AI และการวิเคราะห์ข้อมูลเพื่อสนับสนุนการทำงาน" },
         { n: "Workshop การสื่อสาร", t: "formal", tc: "bb", prov: "ภายนอก", cost: 1500, act: true, desc: "เวิร์กชอปฝึกทักษะการสื่อสาร การนำเสนอ และการประสานงานอย่างมีประสิทธิภาพ" },
         { n: "e-Learning ภาษาอังกฤษ", t: "formal", tc: "bb", prov: "KKU Online", cost: 0, act: false, desc: "บทเรียนออนไลน์สำหรับพัฒนาทักษะภาษาอังกฤษในการทำงานและการสื่อสารพื้นฐาน" }
-    ];
+    ].map((course, index) => ({
+        ...course,
+        id: `catalog-${index + 1}`,
+        hours: [12, 16, 8, 6, 4, 12, 6, 10][index] || 6,
+        compCodes: index % 2 === 0 ? ["CC-001"] : ["FC2-061"]
+    })));
 
     const [selectedDesc, setSelectedDesc] = React.useState<number | null>(null);
     const [selectedEdit, setSelectedEdit] = React.useState<number | null>(null);
+    const [catalogForm, setCatalogForm] = React.useState<any | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const handleDownloadTemplate = () => {
@@ -227,52 +237,81 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
         }
     };
 
-    const getMethodLabel = (type: string) => type === 'experiential' ? 'Experiential' : type === 'social' ? 'Social' : 'Formal';
+    const methodOptions = learningMethods.length ? learningMethods : [
+        { key: "experiential", label: "Experiential Learning" },
+        { key: "social", label: "Social Learning" },
+        { key: "formal", label: "Formal Training" }
+    ];
+    const getMethodLabel = (type: string) => methodOptions.find(method => method.key === type)?.label || type;
     const getMethodTone = (type: string) => type === 'experiential'
         ? { bg: "var(--orange-bg)", color: "var(--orange)", border: "#fed7aa" }
         : type === 'social'
             ? { bg: "var(--green-bg)", color: "var(--green)", border: "#bbf7d0" }
             : { bg: "var(--blue-lt)", color: "var(--blue)", border: "var(--blue-md)" };
     const activeDesc = selectedDesc === null ? null : catalog[selectedDesc];
-    const activeEdit = selectedEdit === null ? null : catalog[selectedEdit];
+    const openCatalogForm = (index: number | null) => {
+        setSelectedEdit(index);
+        setCatalogForm(index === null ? {
+            n: "", t: methodOptions[0]?.key || "", prov: "", cost: 0, hours: 0,
+            compCodes: [], desc: "", act: true
+        } : { ...catalog[index], compCodes: [...catalog[index].compCodes] });
+    };
+    const updateCatalogForm = (field: string, value: any) => {
+        setCatalogForm((current: any) => ({ ...current, [field]: value }));
+    };
+    const toggleCatalogCompetency = (code: string) => {
+        setCatalogForm((current: any) => ({
+            ...current,
+            compCodes: current.compCodes.includes(code)
+                ? current.compCodes.filter((item: string) => item !== code)
+                : [...current.compCodes, code]
+        }));
+    };
+    const saveCatalog = () => {
+        if (!catalogForm.n.trim() || !catalogForm.t || !catalogForm.prov.trim()) {
+            alert("กรุณากรอกชื่อกิจกรรม ประเภทกิจกรรม และผู้จัดให้ครบ");
+            return;
+        }
+        if (selectedEdit === null) {
+            setCatalog(current => [...current, { ...catalogForm, id: `catalog-${Date.now()}`, tc: "bb" }]);
+        } else {
+            setCatalog(current => current.map((item, index) => index === selectedEdit ? { ...item, ...catalogForm } : item));
+        }
+        setCatalogForm(null);
+        setSelectedEdit(null);
+    };
 
     return (
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">Learning Catalog 📚</div>
+                    <div className="sec-t">Learning Catalog </div>
                     <div className="sec-s">ทะเบียนกิจกรรมพัฒนา · บุคลากรเลือกกิจกรรมจาก Catalog นี้เมื่อทำ IDP</div>
                 </div>
                 <div className="flex" style={{ gap: "8px" }}>
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        style={{ display: 'none' }} 
-                        accept=".xlsx, .xls, .csv" 
-                        onChange={handleFileChange} 
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        accept=".xlsx, .xls, .csv"
+                        onChange={handleFileChange}
                     />
-                    <button className="btn btn-s" onClick={handleDownloadTemplate}>📄 ดาวน์โหลด Template</button>
-                    <button className="btn btn-s" onClick={handleImportClick}>📥 Import Excel</button>
-                    <button className="btn btn-p" onClick={() => openModal("modal-catalog")}>+ เพิ่มกิจกรรม</button>
+                    <button className="btn btn-s" onClick={handleDownloadTemplate}> ดาวน์โหลด Template</button>
+                    <button className="btn btn-s" onClick={handleImportClick}> Import Excel</button>
+                    <button className="btn btn-p" onClick={() => openCatalogForm(null)}>+ เพิ่มกิจกรรม</button>
                 </div>
             </div>
 
             <div className="g3 mb14">
-                <div className="sc">
-                    <div className="sl">Experiential Learning</div>
-                    <div className="sv" style={{ color: "var(--orange)" }}>14</div>
-                    <div className="ss muted">กิจกรรม</div>
-                </div>
-                <div className="sc">
-                    <div className="sl">Social Learning</div>
-                    <div className="sv gcc">10</div>
-                    <div className="ss muted">กิจกรรม</div>
-                </div>
-                <div className="sc">
-                    <div className="sl">Formal Training</div>
-                    <div className="sv bc">18</div>
-                    <div className="ss muted">หลักสูตร</div>
-                </div>
+                {methodOptions.map((method, index) => (
+                    <div className="sc" key={method.key}>
+                        <div className="sl">{method.label}</div>
+                        <div className={`sv ${index === 1 ? "gcc" : index === 2 ? "bc" : ""}`} style={index === 0 ? { color: "var(--orange)" } : undefined}>
+                            {catalog.filter(item => item.t === method.key && item.act).length}
+                        </div>
+                        <div className="ss muted">กิจกรรมที่เปิดใช้งาน</div>
+                    </div>
+                ))}
             </div>
 
             <div className="card">
@@ -288,6 +327,7 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                                 <th>ประเภท </th>
                                 <th>ผู้จัด </th>
                                 <th>ค่าใช้จ่าย </th>
+                                <th>ชั่วโมง </th>
                                 <th>สถานะ</th>
                                 <th></th>
                             </tr>
@@ -303,11 +343,12 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                                     </td>
                                     <td className="muted fs12">{c.prov}</td>
                                     <td className="muted fs12">{c.cost === 0 ? 'ฟรี' : c.cost.toLocaleString() + ' ฿'}</td>
+                                    <td className="muted fs12">{c.hours} ชม.</td>
                                     <td><span className={`b ${c.act ? 'bg' : 'bgr'}`}>{c.act ? 'เปิดใช้' : 'ปิด'}</span></td>
                                     <td>
                                         <div className="flex g4" style={{ flexWrap: "wrap" }}>
-                                            <button className="btn btn-s btn-xs" onClick={() => setSelectedDesc(i)}>📄 คำอธิบาย</button>
-                                            <button className="btn btn-s btn-xs" onClick={() => setSelectedEdit(i)}>แก้ไข</button>
+                                            <button className="btn btn-s btn-xs" onClick={() => setSelectedDesc(i)}> คำอธิบาย</button>
+                                            <button className="btn btn-s btn-xs" onClick={() => openCatalogForm(i)}>แก้ไข</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -321,13 +362,13 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                     <div className="mo-box" style={{ width: 620, maxWidth: "calc(100vw - 32px)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
                         <div className="mo-h" style={{ alignItems: "flex-start", gap: 16, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)" }}>
                             <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
-                                <span style={{ width: 42, height: 42, borderRadius: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--blue-lt)", color: "var(--blue)", fontSize: 22, flexShrink: 0 }}>📄</span>
+                                <span style={{ width: 42, height: 42, borderRadius: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--blue-lt)", color: "var(--blue)", fontSize: 22, flexShrink: 0 }}></span>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", lineHeight: 1.35 }}>{activeDesc.n}</div>
                                     <div className="muted fs12" style={{ marginTop: 3 }}>รายละเอียดกิจกรรมสำหรับใช้ประกอบการทำ IDP</div>
                                 </div>
                             </div>
-                            <button className="btn btn-s btn-sm" onClick={() => setSelectedDesc(null)}>✕</button>
+                            <button className="btn btn-s btn-sm" onClick={() => setSelectedDesc(null)}>ปิด</button>
                         </div>
                         <div className="mo-b" style={{ padding: 22 }}>
                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -349,6 +390,14 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                                     <div className="muted fs11 fw7" style={{ marginBottom: 6 }}>ค่าใช้จ่าย</div>
                                     <div className="fw8 fs13" style={{ color: activeDesc.cost === 0 ? "var(--green)" : "var(--text2)" }}>{activeDesc.cost === 0 ? 'ฟรี' : activeDesc.cost.toLocaleString() + ' ฿'}</div>
                                 </div>
+                                <div style={{ padding: "13px 14px", border: "1px solid var(--border)", borderRadius: 9, background: "#fff" }}>
+                                    <div className="muted fs11 fw7" style={{ marginBottom: 6 }}>จำนวนชั่วโมงการเรียนรู้</div>
+                                    <div className="fw8 fs13" style={{ color: "var(--text2)" }}>{activeDesc.hours} ชั่วโมง</div>
+                                </div>
+                                <div style={{ padding: "13px 14px", border: "1px solid var(--border)", borderRadius: 9, background: "#fff" }}>
+                                    <div className="muted fs11 fw7" style={{ marginBottom: 6 }}>สมรรถนะที่เกี่ยวข้อง</div>
+                                    <div className="fw8 fs13" style={{ color: "var(--text2)" }}>{activeDesc.compCodes.join(", ") || "-"}</div>
+                                </div>
                             </div>
                             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
                                 <button className="btn btn-p" onClick={() => setSelectedDesc(null)}>ปิด</button>
@@ -357,49 +406,63 @@ export const HRCatalog: React.FC<{ openModal: (type: string) => void }> = ({ ope
                     </div>
                 </div>
             )}
-            {activeEdit && (
-                <div className="mo" onClick={() => setSelectedEdit(null)}>
-                    <div className="mo-box" style={{ width: 560, maxWidth: "calc(100vw - 32px)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+            {catalogForm && (
+                <div className="mo" onClick={() => { setCatalogForm(null); setSelectedEdit(null); }}>
+                    <div className="mo-box" style={{ width: 620, maxWidth: "calc(100vw - 32px)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
                         <div className="mo-h" style={{ background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)" }}>
                             <div>
-                                <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)" }}>แก้ไขกิจกรรม Learning Catalog</div>
+                                <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)" }}>{selectedEdit === null ? "เพิ่มกิจกรรม Learning Catalog" : "แก้ไขกิจกรรม Learning Catalog"}</div>
                                 <div className="muted fs12" style={{ marginTop: 3 }}>ปรับข้อมูลกิจกรรมพัฒนาที่บุคลากรเลือกใช้ใน IDP</div>
                             </div>
-                            <button className="btn btn-s btn-sm" onClick={() => setSelectedEdit(null)}>✕</button>
+                            <button className="btn btn-s btn-sm" onClick={() => { setCatalogForm(null); setSelectedEdit(null); }}>ปิด</button>
                         </div>
                         <div className="mo-b" style={{ padding: 22 }}>
                             <div className="fg">
                                 <label className="lbl">ชื่อกิจกรรม / หลักสูตร</label>
-                                <input className="inp" defaultValue={activeEdit.n} />
+                                <input className="inp" value={catalogForm.n} onChange={e => updateCatalogForm("n", e.target.value)} />
                             </div>
                             <div className="fg">
                                 <label className="lbl">ประเภทกิจกรรม</label>
-                                <select className="sel" defaultValue={activeEdit.t}>
-                                    <option value="experiential">Experiential Learning</option>
-                                    <option value="social">Social Learning</option>
-                                    <option value="formal">Formal Training</option>
+                                <select className="sel" value={catalogForm.t} onChange={e => updateCatalogForm("t", e.target.value)}>
+                                    {methodOptions.map(method => <option key={method.key} value={method.key}>{method.label}</option>)}
                                 </select>
                             </div>
                             <div className="fg">
                                 <label className="lbl">ผู้จัด / ผู้ให้บริการ</label>
-                                <input className="inp" defaultValue={activeEdit.prov} />
+                                <input className="inp" value={catalogForm.prov} onChange={e => updateCatalogForm("prov", e.target.value)} />
                             </div>
                             <div className="fg">
                                 <label className="lbl">ค่าใช้จ่าย (บาท)</label>
-                                <input className="inp" type="number" min="0" defaultValue={activeEdit.cost} />
+                                <input className="inp" type="number" min="0" value={catalogForm.cost} onChange={e => updateCatalogForm("cost", Number(e.target.value))} />
+                            </div>
+                            <div className="fg">
+                                <label className="lbl">จำนวนชั่วโมงการเรียนรู้</label>
+                                <input className="inp" type="number" min="0" value={catalogForm.hours} onChange={e => updateCatalogForm("hours", Number(e.target.value))} />
+                            </div>
+                            <div className="fg">
+                                <label className="lbl">สมรรถนะที่เกี่ยวข้อง</label>
+                                <div style={{ display: "grid", gap: 6, maxHeight: 150, overflowY: "auto", padding: 10, border: "1px solid var(--border)", borderRadius: 8 }}>
+                                    {competencies.map(comp => (
+                                        <label key={comp.cd} className="flex ic g8 fs12">
+                                            <input type="checkbox" checked={catalogForm.compCodes.includes(comp.cd)} onChange={() => toggleCatalogCompetency(comp.cd)} />
+                                            <span className="fw7">{comp.cd}</span>
+                                            <span>{comp.n}</span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
                             <div className="fg">
                                 <label className="lbl">คำอธิบายหลักสูตร</label>
-                                <textarea className="ta" style={{ fontSize: 12, minHeight: 82, marginTop: 4 }} defaultValue={activeEdit.desc} />
+                                <textarea className="ta" style={{ fontSize: 12, minHeight: 82, marginTop: 4 }} value={catalogForm.desc} onChange={e => updateCatalogForm("desc", e.target.value)} />
                             </div>
                             <div className="fg" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <label className="lbl" style={{ margin: 0 }}>สถานะ</label>
-                                <input type="checkbox" defaultChecked={activeEdit.act} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                                <input type="checkbox" checked={catalogForm.act} onChange={e => updateCatalogForm("act", e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
                                 <span className="fs12 muted">เปิดใช้งาน</span>
                             </div>
                             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", paddingTop: 14, borderTop: "1px solid var(--border)" }}>
-                                <button className="btn btn-s" onClick={() => setSelectedEdit(null)}>ยกเลิก</button>
-                                <button className="btn btn-p" onClick={() => { setSelectedEdit(null); alert("บันทึกการแก้ไขเรียบร้อยแล้ว!"); }}>💾 บันทึก</button>
+                                <button className="btn btn-s" onClick={() => { setCatalogForm(null); setSelectedEdit(null); }}>ยกเลิก</button>
+                                <button className="btn btn-p" onClick={saveCatalog}> บันทึก</button>
                             </div>
                         </div>
                     </div>
@@ -429,7 +492,7 @@ export const HRMonitor: React.FC = () => {
     return (
         <>
             <div className="mb20">
-                <div className="sec-t">ติดตามภาพรวม 📡</div>
+                <div className="sec-t">ติดตามภาพรวม </div>
                 <div className="sec-s">คณะวิศวกรรมศาสตร์ · รอบประเมิน 2568</div>
             </div>
 
@@ -836,7 +899,7 @@ export const HRTemplate: React.FC<{
         <>
             <div className="flex ic jb mb20">
                 <div>
-                    <div className="sec-t">กำหนดความคาดหวังการประเมิน 🎯</div>
+                    <div className="sec-t">กำหนดความคาดหวังการประเมิน </div>
                     <div className="sec-s">ตั้งค่า Expected Level ของแต่ละประเภทบุคลากรในแต่ละรอบการประเมิน</div>
                 </div>
             </div>
@@ -880,7 +943,7 @@ export const HRTemplate: React.FC<{
                     ดูความคาดหวังทั้งหมด <span className={`b ${cycleSummary.length ? "bt" : "bgr"}`}>{cycleSummary.length} ชุด</span>
                 </button>
                 {isClosedCycle ? (
-                    <div className="expect-locked">🔒 รอบนี้ปิดแล้ว ไม่สามารถแก้ไขได้</div>
+                    <div className="expect-locked"> รอบนี้ปิดแล้ว ไม่สามารถแก้ไขได้</div>
                 ) : (
                     <button className="btn btn-p btn-sm ml-auto" onClick={openImportModal}>นำเข้าความคาดหวัง</button>
                 )}
@@ -989,7 +1052,7 @@ export const HRTemplate: React.FC<{
                             <div className="cs">{isAdminWorkline ? "ระดับตำแหน่ง" : "ระดับ"}: {currentScopeLevel || "ยังไม่ได้เลือกระดับ"}</div>
                         </div>
                         <div className="ml-auto flex g8">
-                            <span className={`b ${isSaved ? "bg" : "by"}`}>{isSaved ? "✓ บันทึกแล้ว" : "ยังไม่บันทึก"}</span>
+                            <span className={`b ${isSaved ? "bg" : "by"}`}>{isSaved ? " บันทึกแล้ว" : "ยังไม่บันทึก"}</span>
                         </div>
                     </div>
                     <div style={{ overflowX: "auto" }}>
@@ -1266,6 +1329,13 @@ type PositionBinding = {
     source: "default" | "round";
 };
 
+type PositionStandardVersion = {
+    version: number;
+    name: string;
+    savedAt: string;
+    compCodes: string[];
+};
+
 export const HRPositionCompetencies: React.FC<{
     competencies: any[];
     worklines: string[];
@@ -1289,7 +1359,19 @@ export const HRPositionCompetencies: React.FC<{
     const [query, setQuery] = React.useState("");
     const [typeFilter, setTypeFilter] = React.useState("ทั้งหมด");
     const [status, setStatus] = React.useState<string | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
     const [bindings, setBindings] = React.useState<PositionBinding[]>([]);
+    const [standardVersions, setStandardVersions] = React.useState<Record<string, PositionStandardVersion[]>>({});
+    const [unlockedScopes, setUnlockedScopes] = React.useState<Record<string, boolean>>({});
+    const [showImport, setShowImport] = React.useState(false);
+    const [detailComp, setDetailComp] = React.useState<any | null>(null);
+    const [showStandardHistory, setShowStandardHistory] = React.useState(false);
+    const [standardName, setStandardName] = React.useState("");
+    const [standardNameOptions, setStandardNameOptions] = React.useState<string[]>([]);
+    const [showStandardNameOptions, setShowStandardNameOptions] = React.useState(false);
+    const [dictionaryPage, setDictionaryPage] = React.useState(1);
+    const [positionProgressFilter, setPositionProgressFilter] = React.useState<"all" | "configured" | "unconfigured">("all");
+    const pageSize = 5;
 
     const getCompType = (comp: any) => {
         if (comp.t === "FC" && comp.cd?.startsWith("FC1-")) return "FC1";
@@ -1300,22 +1382,47 @@ export const HRPositionCompetencies: React.FC<{
     const getCompTag = (comp: any) => `tag-${String(getCompType(comp)).toLowerCase()}`;
     const findComp = (code: string) => competencies.find(c => c.cd === code);
 
-    const getPositionOptions = () => {
-        if (selectedWorkline === "สายวิชาการ") return academicPositions;
-        if (selectedWorkline === "สายงานบริหาร") return adminPositions;
-        return supportPositionGroups[selectedFamily] || [];
+    const getScopeFamilyFor = (workline: string, family = selectedFamily) => {
+        if (workline === "สายวิชาการ") return "สายวิชาการ";
+        if (workline === "สายงานบริหาร") return "คณะวิศวกรรมศาสตร์";
+        return family;
+    };
+
+    const getPositionOptions = (filter = positionProgressFilter) => {
+        const rawOptions = selectedWorkline === "สายวิชาการ"
+            ? academicPositions
+            : selectedWorkline === "สายงานบริหาร"
+                ? adminPositions
+                : supportPositionGroups[selectedFamily] || [];
+        if (filter === "all") return rawOptions;
+        const scopeFamily = getScopeFamilyFor(selectedWorkline);
+        return rawOptions.filter(position => {
+            const isConfigured = Boolean(standardVersions[`${selectedWorkline}|${scopeFamily}|${position}`]?.length);
+            return filter === "configured" ? isConfigured : !isConfigured;
+        });
     };
 
     const getScopeFamily = () => {
-        if (selectedWorkline === "สายวิชาการ") return "สายวิชาการ";
-        if (selectedWorkline === "สายงานบริหาร") return "คณะวิศวกรรมศาสตร์";
-        return selectedFamily;
+        return getScopeFamilyFor(selectedWorkline);
     };
 
     const scopeBindings = bindings.filter(b =>
         b.workline === selectedWorkline &&
         b.jobFamily === getScopeFamily() &&
         b.position === selectedPosition
+    );
+    const currentScopeKey = `${selectedWorkline}|${getScopeFamily()}|${selectedPosition}`;
+    const currentStandardVersions = standardVersions[currentScopeKey] || [];
+    const latestStandardVersion = currentStandardVersions[currentStandardVersions.length - 1];
+    const isUnlockedForNewVersion = Boolean(unlockedScopes[currentScopeKey]);
+    const isLocked = Boolean(latestStandardVersion) && !isUnlockedForNewVersion;
+    const nextVersion = latestStandardVersion ? latestStandardVersion.version + 1 : 1;
+    const allStandardNameOptions = Array.from(new Set([
+        ...standardNameOptions,
+        ...(Object.values(standardVersions) as PositionStandardVersion[][]).flatMap(versions => versions.map(version => version.name))
+    ].filter(Boolean)));
+    const filteredStandardNameOptions = allStandardNameOptions.filter(name =>
+        !standardName.trim() || name.toLowerCase().includes(standardName.trim().toLowerCase())
     );
 
     const boundCodes = new Set(scopeBindings.map(b => b.compCode));
@@ -1327,7 +1434,8 @@ export const HRPositionCompetencies: React.FC<{
         )
     ];
     const totalPositionCount = allPositionScopes.length;
-    const boundPositionCount = new Set(bindings.map(binding => `${binding.workline}|${binding.jobFamily}|${binding.position}`)).size;
+    const boundPositionCount = (Object.values(standardVersions) as PositionStandardVersion[][]).filter(versions => versions.length > 0).length;
+    const currentPositionOptions = getPositionOptions();
     const typeCounts = scopeBindings.reduce((acc: Record<string, number>, binding) => {
         const comp = findComp(binding.compCode);
         const type = comp ? getCompType(comp) : "อื่น ๆ";
@@ -1342,6 +1450,9 @@ export const HRPositionCompetencies: React.FC<{
 
     const setWorklineScope = (value: string) => {
         setSelectedWorkline(value);
+        setDictionaryPage(1);
+        setPositionProgressFilter("all");
+        setError(null);
         if (value === "สายวิชาการ") {
             setSelectedFamily("สายวิชาการ");
             setSelectedPosition(academicPositions[0] || "");
@@ -1358,17 +1469,37 @@ export const HRPositionCompetencies: React.FC<{
     const setFamilyScope = (value: string) => {
         setSelectedFamily(value);
         setSelectedPosition((supportPositionGroups[value] || [])[0] || "");
+        setDictionaryPage(1);
+        setPositionProgressFilter("all");
+        setError(null);
+    };
+
+    const applyPositionProgressFilter = (filter: "configured" | "unconfigured") => {
+        const nextFilter = positionProgressFilter === filter ? "all" : filter;
+        setPositionProgressFilter(nextFilter);
+        setDictionaryPage(1);
+        setError(null);
+        const nextOptions = getPositionOptions(nextFilter);
+        if (nextOptions.length > 0) setSelectedPosition(nextOptions[0]);
     };
 
     const removeBinding = (id: string) => {
+        if (isLocked) return;
         setBindings(current => current.filter(binding => binding.id !== id));
     };
 
     const addBinding = (compCode: string) => {
+        if (isLocked) return;
+        const comp = findComp(compCode);
+        if (selectedWorkline !== "สายงานบริหาร" && comp && getCompType(comp) === "MC") {
+            setError("ตำแหน่งทั่วไปไม่สามารถใช้งานสมรรถนะทางการบริหาร (MC) ได้");
+            return;
+        }
         if (boundCodes.has(compCode)) {
             setStatus("สมรรถนะนี้ถูกผูกกับตำแหน่งนี้แล้ว");
             return;
         }
+        setError(null);
         setBindings(current => [
             ...current,
             {
@@ -1385,6 +1516,7 @@ export const HRPositionCompetencies: React.FC<{
     };
 
     const addAllCoreCompetencies = () => {
+        if (isLocked) return;
         const missingCoreCompetencies = coreCompetencies.filter(comp => !boundCodes.has(comp.cd));
         if (missingCoreCompetencies.length === 0) {
             setStatus("CC ทั้งหมดถูกผูกกับตำแหน่งนี้แล้ว");
@@ -1402,7 +1534,7 @@ export const HRPositionCompetencies: React.FC<{
                 source: "default" as const
             }))
         ]);
-        setStatus(`เพิ่ม CC ทั้งหมดที่ยังขาด ${missingCoreCompetencies.length} รายการแล้ว`);
+        setStatus(`เพิ่มสมรรถนะหลักทั้งหมดที่ยังขาด ${missingCoreCompetencies.length} รายการแล้ว`);
     };
 
     const filteredCompetencies = competencies.filter(comp => {
@@ -1412,6 +1544,62 @@ export const HRPositionCompetencies: React.FC<{
         const matchesType = typeFilter === "ทั้งหมด" || compType === typeFilter;
         return matchesQuery && matchesType;
     });
+    const dictionaryPageCount = Math.max(1, Math.ceil(filteredCompetencies.length / pageSize));
+    const paginatedCompetencies = filteredCompetencies.slice((dictionaryPage - 1) * pageSize, dictionaryPage * pageSize);
+
+    const savePositionStandard = () => {
+        const hasManagerialCompetency = scopeBindings.some(binding => {
+            const comp = findComp(binding.compCode);
+            return comp && getCompType(comp) === "MC";
+        });
+        if (selectedWorkline === "สายงานบริหาร" && !hasManagerialCompetency) {
+            setError("ตำแหน่งสายบริหารจำเป็นต้องมีสมรรถนะทางการบริหาร (MC)");
+            return;
+        }
+        if (selectedWorkline !== "สายงานบริหาร" && hasManagerialCompetency) {
+            setError("ตำแหน่งทั่วไปไม่สามารถใช้งานสมรรถนะทางการบริหาร (MC) ได้");
+            return;
+        }
+        if (scopeBindings.length === 0) {
+            setError("กรุณาเพิ่มสมรรถนะอย่างน้อย 1 รายการก่อนบันทึกเกณฑ์มาตรฐาน");
+            return;
+        }
+        const nextStandardName = standardName.trim();
+        if (!nextStandardName) {
+            setError("กรุณาระบุชื่อเกณฑ์ เช่น ใช้สำหรับรอบประเมิน 2568 หรือ เกณฑ์หลังปรับนโยบาย");
+            return;
+        }
+        const version = nextVersion;
+        setStandardVersions(current => ({
+            ...current,
+            [currentScopeKey]: [
+                ...(current[currentScopeKey] || []),
+                {
+                    version,
+                    name: nextStandardName,
+                    savedAt: new Date().toISOString(),
+                    compCodes: scopeBindings.map(binding => binding.compCode)
+                }
+            ]
+        }));
+        setUnlockedScopes(current => ({ ...current, [currentScopeKey]: false }));
+        setPositionProgressFilter("all");
+        setStandardNameOptions(current => current.some(name => name.toLowerCase() === nextStandardName.toLowerCase()) ? current : [...current, nextStandardName]);
+        setStandardName("");
+        setShowStandardNameOptions(false);
+        setError(null);
+        setStatus(`บันทึกและล็อกเกณฑ์มาตรฐาน "${nextStandardName}" ของ ${selectedPosition} แล้ว`);
+    };
+
+    const unlockForNewVersion = () => {
+        if (!latestStandardVersion) return;
+        if (!window.confirm(`เปิดสิทธิ์แก้ไขเกณฑ์ของ ${selectedPosition} เพื่อบันทึกชื่อเกณฑ์ชุดใหม่หรือไม่?\n\nข้อมูลเกณฑ์ "${latestStandardVersion.name}" จะยังคงถูกเก็บไว้และไม่ถูกแก้ไขย้อนหลัง`)) return;
+        setUnlockedScopes(current => ({ ...current, [currentScopeKey]: true }));
+        setStandardName("");
+        setShowStandardNameOptions(false);
+        setError(null);
+        setStatus("เปิดสิทธิ์แก้ไขเกณฑ์ด่วนแล้ว กรุณาระบุชื่อเกณฑ์ก่อนบันทึกชุดใหม่");
+    };
 
     return (
         <>
@@ -1422,14 +1610,24 @@ export const HRPositionCompetencies: React.FC<{
                     <div className="sec-s position-sub">เลือกตำแหน่ง แล้วกำหนดชุดสมรรถนะที่ต้องใช้ประเมิน ก่อนนำไปตั้งระดับความคาดหวังในรอบประเมิน</div>
                 </div>
                 <div className="position-hero-metrics">
-                    <div>
+                    <button
+                        type="button"
+                        className={`position-metric-card ${positionProgressFilter === "configured" ? "active" : ""}`}
+                        onClick={() => applyPositionProgressFilter("configured")}
+                        title="กรองตำแหน่งที่กำหนดเกณฑ์แล้ว"
+                    >
                         <span>{boundPositionCount}</span>
                         <small>ตำแหน่งที่กำหนดแล้ว</small>
-                    </div>
-                    <div>
+                    </button>
+                    <button
+                        type="button"
+                        className={`position-metric-card ${positionProgressFilter === "unconfigured" ? "active" : ""}`}
+                        onClick={() => applyPositionProgressFilter("unconfigured")}
+                        title="กรองตำแหน่งที่ยังไม่กำหนด"
+                    >
                         <span>{totalPositionCount - boundPositionCount}</span>
                         <small>ยังไม่กำหนด</small>
-                    </div>
+                    </button>
                 </div>
             </div>
 
@@ -1437,6 +1635,12 @@ export const HRPositionCompetencies: React.FC<{
                 <div className="status-msg anim-fade-in" style={{ marginBottom: "14px", padding: "10px 14px", borderRadius: "var(--r)", background: "var(--green-bg)", border: "1px solid var(--green-md)", color: "var(--green)", fontWeight: 700, display: "flex", justifyContent: "space-between", gap: "12px" }}>
                     <span>{status}</span>
                     <button className="btn-link" style={{ color: "var(--green)" }} onClick={() => setStatus(null)}>ปิด</button>
+                </div>
+            )}
+            {error && (
+                <div className="status-msg anim-fade-in" style={{ marginBottom: "14px", padding: "10px 14px", borderRadius: "var(--r)", background: "var(--red-bg)", border: "1px solid var(--red-md)", color: "var(--red)", fontWeight: 700, display: "flex", justifyContent: "space-between", gap: "12px" }}>
+                    <span>{error}</span>
+                    <button className="btn-link" style={{ color: "var(--red)" }} onClick={() => setError(null)}>ปิด</button>
                 </div>
             )}
 
@@ -1462,9 +1666,15 @@ export const HRPositionCompetencies: React.FC<{
                     )}
                     <div className="fg mb0">
                         <label className="lbl">ตำแหน่ง</label>
-                        <select className="sel" value={selectedPosition} onChange={e => setSelectedPosition(e.target.value)}>
-                            {getPositionOptions().map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                        <select className="sel" value={selectedPosition} onChange={e => { setSelectedPosition(e.target.value); setDictionaryPage(1); setError(null); }}>
+                            {currentPositionOptions.map(pos => <option key={pos} value={pos}>{pos}</option>)}
                         </select>
+                        {positionProgressFilter !== "all" && (
+                            <button type="button" className="btn-link position-filter-clear" onClick={() => setPositionProgressFilter("all")}>
+                                ล้างตัวกรอง: {positionProgressFilter === "configured" ? "กำหนดแล้ว" : "ยังไม่กำหนด"}
+                            </button>
+                        )}
+                        {currentPositionOptions.length === 0 && <div className="muted fs11 mt4">ไม่มีตำแหน่งในตัวกรองนี้</div>}
                     </div>
                 </div>
             </div>
@@ -1481,9 +1691,26 @@ export const HRPositionCompetencies: React.FC<{
                     <div className="position-card-sub">{Object.entries(typeCounts).map(([type, count]) => `${type} ${count}`).join(" · ") || "ยังไม่มีรายการ"}</div>
                 </div>
                 <div className="position-card">
-                    <div className="position-card-label">CC พื้นฐาน</div>
+                    <div className="position-card-label">สมรรถนะหลัก</div>
                     <div className={`position-card-title ${boundCoreCount === coreCompetencies.length ? "ok" : "warn"}`}>{boundCoreCount}/{coreCompetencies.length}</div>
-                    <div className="position-card-sub">{boundCoreCount === coreCompetencies.length ? "ครบทุกตำแหน่งต้องมี" : "ยังขาด CC พื้นฐาน"}</div>
+                    <div className="position-card-sub">{boundCoreCount === coreCompetencies.length ? "ครบทุกตำแหน่งต้องมี" : "ยังขาดสมรรถนะหลัก"}</div>
+                </div>
+                <div className="position-standard-action">
+                    <div className="position-standard-label">สถานะเกณฑ์มาตรฐาน</div>
+                    {isLocked && <span className="b bg position-standard-badge">เกณฑ์ที่ใช้งานอยู่</span>}
+                    {isUnlockedForNewVersion && <span className="b by position-standard-badge">กำลังแก้ไขเกณฑ์ใหม่</span>}
+                    {!latestStandardVersion && <span className="b bgr position-standard-badge">ยังไม่บันทึก</span>}
+                    <div className="position-standard-note">
+                        {latestStandardVersion
+                            ? latestStandardVersion.name
+                            : "ระบุชื่อเกณฑ์จากแถบด้านล่างก่อนบันทึก"}
+                    </div>
+                    {isLocked && (
+                        <button className="btn btn-s btn-sm position-standard-btn secondary" onClick={unlockForNewVersion}>แก้ไขเกณฑ์</button>
+                    )}
+                    {latestStandardVersion && (
+                        <button className="btn-link position-history-link" type="button" onClick={() => setShowStandardHistory(true)}>ดูประวัติการแก้ไขเกณฑ์</button>
+                    )}
                 </div>
             </div>
 
@@ -1494,21 +1721,21 @@ export const HRPositionCompetencies: React.FC<{
                             <div className="ct">ชุดสมรรถนะประจำตำแหน่ง</div>
                             <div className="cs">รายการนี้จะถูกใช้เป็นฐานสำหรับกำหนด Expected Level</div>
                         </div>
-                        <button className="btn btn-t btn-sm" onClick={addAllCoreCompetencies}>เพิ่ม CC ทั้งหมด</button>
+                        <button className="btn btn-t btn-sm" disabled={isLocked} onClick={addAllCoreCompetencies}>เพิ่มสมรรถนะหลักทั้งหมด</button>
                     </div>
                     <div className="assigned-list">
                         {scopeBindings.length === 0 && (
                             <div className="assigned-empty">
-                                <div className="assigned-empty-icon">🔗</div>
+                                <div className="assigned-empty-icon"></div>
                                 <div className="fw8">ยังไม่ได้กำหนดสมรรถนะให้ตำแหน่งนี้</div>
-                                <div className="muted fs12">ค้นหาจากพจนานุกรมด้านขวา หรือกดเพิ่ม CC ทั้งหมดเพื่อเริ่มต้น</div>
+                                <div className="muted fs12">ค้นหาจากพจนานุกรมด้านขวา หรือกดเพิ่มสมรรถนะหลักทั้งหมดเพื่อเริ่มต้น</div>
                             </div>
                         )}
                         {scopeBindings.map(binding => {
                                     const comp = findComp(binding.compCode);
                                     if (!comp) return null;
                                     return (
-                                <div key={binding.id} className="assigned-item">
+                                <div key={binding.id} className="assigned-item" onClick={() => setDetailComp(comp)}>
                                     <div className="assigned-code">{binding.compCode}</div>
                                     <div className="assigned-main">
                                         <div className="flex ic g8 mb4">
@@ -1518,10 +1745,67 @@ export const HRPositionCompetencies: React.FC<{
                                         <div className="fw8 fs14">{comp.n}</div>
                                         <div className="muted fs12 truncate-2">{comp.det || "ยังไม่มีคำอธิบายจากพจนานุกรม"}</div>
                                     </div>
-                                    <button className="btn btn-r btn-xs" onClick={() => removeBinding(binding.id)}>ลบ</button>
+                                    <button className="btn btn-r btn-xs" disabled={isLocked} onClick={e => { e.stopPropagation(); removeBinding(binding.id); }}>ลบ</button>
                                 </div>
                                     );
                         })}
+                    </div>
+                    <div className="assigned-save-bar">
+                        <div className="assigned-save-copy">
+                            <div className="fw8 fs13">
+                                {isLocked
+                                    ? `เกณฑ์ที่ใช้งานอยู่ · ${latestStandardVersion.name}`
+                                    : latestStandardVersion
+                                        ? "กำลังจัดทำเกณฑ์ชุดใหม่"
+                                        : "พร้อมบันทึกเกณฑ์มาตรฐาน"}
+                            </div>
+                            <div className="muted fs11">
+                                {scopeBindings.length} สมรรถนะในชุดนี้ · {latestStandardVersion ? `เก็บประวัติแล้ว ${currentStandardVersions.length} รายการ` : "ยังไม่เคยบันทึก"}
+                            </div>
+                            {!isLocked && (
+                                <div className="standard-name-field">
+                                    <label className="lbl">ชื่อเกณฑ์ / ใช้สำหรับช่วงไหน</label>
+                                    <div className="standard-name-combobox">
+                                        <input
+                                            className="inp"
+                                            value={standardName}
+                                            onFocus={() => setShowStandardNameOptions(true)}
+                                            onBlur={() => window.setTimeout(() => setShowStandardNameOptions(false), 120)}
+                                            onChange={e => {
+                                                setStandardName(e.target.value);
+                                                setShowStandardNameOptions(true);
+                                            }}
+                                            placeholder="กรอกชื่อเกณฑ์ เช่น เกณฑ์รอบประเมิน 2568"
+                                        />
+                                        {showStandardNameOptions && filteredStandardNameOptions.length > 0 && (
+                                            <div className="standard-name-menu">
+                                                {filteredStandardNameOptions.map(name => (
+                                                    <button
+                                                        type="button"
+                                                        key={name}
+                                                        className="standard-name-option"
+                                                        onMouseDown={e => {
+                                                            e.preventDefault();
+                                                            setStandardName(name);
+                                                            setShowStandardNameOptions(false);
+                                                        }}
+                                                    >
+                                                        {name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {isLocked ? (
+                            <button className="btn btn-s assigned-save-btn" onClick={unlockForNewVersion}>เปิดสิทธิ์แก้ไขเกณฑ์ด่วน (Unlock & New Version)</button>
+                        ) : (
+                            <button className="btn btn-p assigned-save-btn" onClick={savePositionStandard}>
+                                {latestStandardVersion ? "บันทึกเกณฑ์ชุดใหม่" : "บันทึกเกณฑ์มาตรฐานประจำตำแหน่ง"}
+                            </button>
+                        )}
                     </div>
                 </section>
 
@@ -1529,12 +1813,13 @@ export const HRPositionCompetencies: React.FC<{
                     <div className="position-panel-head">
                         <div>
                             <div className="ct">พจนานุกรมสมรรถนะ</div>
-                            <div className="cs">เลือกจากรายการที่ Admin กำหนดไว้</div>
+                            <div className="cs">เลือกจากรายการที่ผู้ดูแลระบบกำหนดไว้</div>
                         </div>
+                        <button className="btn btn-s btn-sm" disabled={isLocked} onClick={() => setShowImport(true)}>Import Excel</button>
                     </div>
                     <div className="dictionary-tools">
-                        <input className="inp" value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหารหัส / ชื่อ / คำอธิบาย" />
-                        <select className="sel" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                        <input className="inp" value={query} onChange={e => { setQuery(e.target.value); setDictionaryPage(1); }} placeholder="ค้นหารหัส / ชื่อ / คำอธิบาย" />
+                        <select className="sel" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setDictionaryPage(1); }}>
                             <option>ทั้งหมด</option>
                             <option>CC</option>
                             <option>MC</option>
@@ -1543,10 +1828,10 @@ export const HRPositionCompetencies: React.FC<{
                         </select>
                     </div>
                     <div className="dictionary-list">
-                        {filteredCompetencies.map(comp => {
+                        {paginatedCompetencies.map(comp => {
                             const isBound = boundCodes.has(comp.cd);
                             return (
-                                <div key={comp.cd} className={`dictionary-item ${isBound ? "disabled" : ""}`}>
+                                <div key={comp.cd} className={`dictionary-item ${isBound ? "disabled" : ""}`} onClick={() => setDetailComp(comp)}>
                                     <div>
                                         <div className="flex ic g8 mb4">
                                             <span className="dictionary-code">{comp.cd}</span>
@@ -1558,7 +1843,7 @@ export const HRPositionCompetencies: React.FC<{
                                             {comp.levels?.length ? `${comp.levels.length} ระดับ` : "ไม่มีระดับ"} · {isBound ? "อยู่ในชุดนี้แล้ว" : "พร้อมเพิ่ม"}
                                         </div>
                                     </div>
-                                    <button className={`btn btn-xs ${isBound ? "btn-s" : "btn-p"}`} disabled={isBound} onClick={() => addBinding(comp.cd)}>
+                                    <button className={`btn btn-xs ${isBound ? "btn-s" : "btn-p"}`} disabled={isBound || isLocked} onClick={e => { e.stopPropagation(); addBinding(comp.cd); }}>
                                         {isBound ? "เพิ่มแล้ว" : "เพิ่ม"}
                                     </button>
                                 </div>
@@ -1566,8 +1851,87 @@ export const HRPositionCompetencies: React.FC<{
                         })}
                         {filteredCompetencies.length === 0 && <div className="muted fs12 ac py8">ไม่พบสมรรถนะที่ค้นหา</div>}
                     </div>
+                    {filteredCompetencies.length > 0 && (
+                        <div className="dictionary-pagination">
+                            <button className="btn btn-s btn-xs" disabled={dictionaryPage === 1} onClick={() => setDictionaryPage(page => page - 1)}>ก่อนหน้า</button>
+                            <span>{dictionaryPage}/{dictionaryPageCount}</span>
+                            <button className="btn btn-s btn-xs" disabled={dictionaryPage === dictionaryPageCount} onClick={() => setDictionaryPage(page => page + 1)}>ถัดไป</button>
+                        </div>
+                    )}
                 </aside>
             </div>
+
+            {showImport && <ExcelImportModal title="นำเข้าสมรรถนะประจำตำแหน่ง" templateName="Competency_Template.xlsx" onClose={() => setShowImport(false)} />}
+            {detailComp && (
+                <div className="mo" onClick={() => setDetailComp(null)}>
+                    <div className="mo-box position-detail-modal" onClick={e => e.stopPropagation()}>
+                        <div className="mo-h">
+                            <div>
+                                <div className="fw8 fs16">{detailComp.cd} - {detailComp.n}</div>
+                                <div className="muted fs12 mt4">{getCompType(detailComp)} · รายละเอียดจากพจนานุกรมสมรรถนะ</div>
+                            </div>
+                            <button className="btn btn-s btn-sm" onClick={() => setDetailComp(null)}>ปิด</button>
+                        </div>
+                        <div className="mo-b">
+                            <div className="position-detail-desc">{detailComp.det || "ยังไม่มีคำอธิบาย"}</div>
+                            <div className="position-detail-levels">
+                                {(detailComp.levels || []).map((level: any, index: number) => (
+                                    <div key={level.id || index} className="position-detail-level">
+                                        <div className="fw8">ระดับ {level.lv || index + 1}</div>
+                                        {(level.indicators || level.items || []).map((indicator: any, indicatorIndex: number) => (
+                                            <div key={indicator.id || indicatorIndex} className="position-detail-indicator">
+                                                <span>{typeof indicator === "string" ? indicator : indicator.text || indicator.n || "-"}</span>
+                                                <b>0.25</b>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                                {!detailComp.levels?.length && <div className="muted fs12">ยังไม่มีเกณฑ์ระดับและพฤติกรรมบ่งชี้</div>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showStandardHistory && (
+                <div className="mo" onClick={() => setShowStandardHistory(false)}>
+                    <div className="mo-box position-history-modal" onClick={e => e.stopPropagation()}>
+                        <div className="mo-h">
+                            <div>
+                                <div className="fw8 fs16">ประวัติการแก้ไขเกณฑ์</div>
+                                <div className="muted fs12 mt4">{selectedPosition} · {selectedWorkline} · {getScopeFamily()}</div>
+                            </div>
+                            <button className="btn btn-s btn-sm" onClick={() => setShowStandardHistory(false)}>ปิด</button>
+                        </div>
+                        <div className="mo-b">
+                            <div className="position-history-list">
+                                {[...currentStandardVersions].reverse().map((version, historyIndex) => (
+                                    <div key={`${currentScopeKey}-${version.version}`} className="position-history-item">
+                                        <div className="position-history-head">
+                                            <span className={version.version === latestStandardVersion?.version ? "b bg" : "b bgr"}>
+                                                {version.version === latestStandardVersion?.version ? "ใช้งานอยู่" : "เก็บประวัติ"}
+                                            </span>
+                                            <strong>{version.name}</strong>
+                                            <span className="muted fs11">{new Date(version.savedAt).toLocaleString("th-TH")}</span>
+                                        </div>
+                                        <div className="muted fs11 mb8">บันทึกครั้งที่ {currentStandardVersions.length - historyIndex}</div>
+                                        <div className="position-history-comps">
+                                            {version.compCodes.map(code => {
+                                                const comp = findComp(code);
+                                                return (
+                                                    <span key={`${version.version}-${code}`} className="position-history-chip">
+                                                        {code}{comp ? ` · ${comp.n}` : ""}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                                {currentStandardVersions.length === 0 && <div className="muted fs12 ac py8">ยังไม่มีประวัติการบันทึกเกณฑ์</div>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .position-hero { min-height: 138px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: end; padding: 24px 26px; border-radius: 14px; background: #102f5d; color: #fff; box-shadow: 0 16px 34px rgba(15,45,91,.18); }
@@ -1575,7 +1939,9 @@ export const HRPositionCompetencies: React.FC<{
                 .position-title { color: #fff; font-size: 26px; }
                 .position-sub { color: rgba(255,255,255,.68); max-width: 760px; line-height: 1.65; }
                 .position-hero-metrics { display: grid; grid-template-columns: repeat(2, 120px); gap: 10px; }
-                .position-hero-metrics div { padding: 14px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; background: rgba(255,255,255,.08); }
+                .position-metric-card { padding: 14px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; background: rgba(255,255,255,.08); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: .15s ease; }
+                .position-metric-card:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.38); background: rgba(255,255,255,.14); }
+                .position-metric-card.active { border-color: rgba(255,255,255,.62); background: rgba(255,255,255,.2); box-shadow: inset 0 -3px 0 rgba(255,255,255,.55); }
                 .position-hero-metrics span { display: block; font-size: 30px; font-weight: 900; line-height: 1; }
                 .position-hero-metrics small { display: block; color: rgba(255,255,255,.64); font-size: 11px; font-weight: 700; margin-top: 6px; }
                 .position-scope { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(360px, 1fr); gap: 14px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: var(--sh); }
@@ -1585,7 +1951,8 @@ export const HRPositionCompetencies: React.FC<{
                 .position-segments button.active { background: var(--navy); border-color: var(--navy); color: #fff; }
                 .position-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
                 .position-picker .fg:only-child { grid-column: 1 / -1; }
-                .position-board { display: grid; grid-template-columns: 1.35fr repeat(2, minmax(180px, .65fr)); gap: 14px; }
+                .position-filter-clear { display: inline-flex; margin-top: 6px; color: var(--blue); font-size: 11px; font-weight: 800; }
+                .position-board { display: grid; grid-template-columns: minmax(260px, 1.2fr) repeat(2, minmax(160px, .6fr)) minmax(260px, .9fr); gap: 14px; }
                 .position-card { min-height: 104px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: var(--sh); }
                 .position-card.selected { border-color: var(--blue-md); background: linear-gradient(180deg, #fff 0%, var(--blue-lt) 100%); }
                 .position-card-label { color: var(--text3); font-size: 11px; font-weight: 800; margin-bottom: 8px; }
@@ -1593,8 +1960,16 @@ export const HRPositionCompetencies: React.FC<{
                 .position-card-title.ok { color: var(--green); }
                 .position-card-title.warn { color: var(--yellow); }
                 .position-card-sub { color: var(--text3); font-size: 12px; font-weight: 600; margin-top: 7px; }
+                .position-standard-action { min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; padding: 16px; border: 1px solid #dbeafe; border-radius: 12px; background: linear-gradient(180deg, #fff 0%, #f8fbff 100%); box-shadow: var(--sh); overflow: hidden; }
+                .position-standard-label { color: var(--text3); font-size: 11px; font-weight: 900; letter-spacing: .02em; }
+                .position-standard-badge { max-width: 100%; white-space: normal; line-height: 1.35; }
+                .position-standard-note { color: var(--text3); font-size: 11px; font-weight: 700; line-height: 1.45; }
+                .position-standard-btn { width: 100%; justify-content: center; white-space: normal; text-align: center; line-height: 1.35; padding: 8px 10px; }
+                .position-standard-btn.secondary { background: #fff; }
+                .position-history-link { color: var(--blue); font-size: 11px; font-weight: 800; }
                 .position-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr); gap: 14px; align-items: start; }
                 .position-panel { border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: var(--sh); overflow: hidden; }
+                .position-panel.assigned { overflow: visible; }
                 .position-panel-head { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: #fff; }
                 .assigned-list { display: grid; gap: 10px; padding: 14px; }
                 .assigned-item { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 13px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
@@ -1603,6 +1978,16 @@ export const HRPositionCompetencies: React.FC<{
                 .assigned-source { color: var(--text3); font-size: 10px; font-weight: 800; }
                 .assigned-empty { min-height: 220px; display: grid; place-items: center; align-content: center; gap: 8px; border: 1px dashed var(--border); border-radius: 10px; background: var(--bg); text-align: center; }
                 .assigned-empty-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: #fff; box-shadow: var(--sh); font-size: 22px; }
+                .assigned-save-bar { position: sticky; bottom: 0; z-index: 4; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: end; padding: 12px 14px 14px; border-top: 1px solid var(--border); border-radius: 0 0 12px 12px; background: rgba(255,255,255,.96); backdrop-filter: blur(8px); box-shadow: 0 -10px 24px rgba(15,23,42,.08); }
+                .assigned-save-copy { min-width: 0; }
+                .assigned-save-btn { min-height: 48px; align-self: end; justify-content: center; white-space: normal; text-align: center; line-height: 1.35; padding-left: 18px; padding-right: 18px; }
+                .standard-name-field { margin-top: 8px; }
+                .standard-name-field .lbl { margin-bottom: 4px; font-size: 11px; }
+                .standard-name-field .inp { min-height: 36px; }
+                .standard-name-combobox { position: relative; display: block; }
+                .standard-name-menu { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30; max-height: 220px; overflow-y: auto; padding: 6px; border: 1px solid var(--border); border-radius: 10px; background: #fff; box-shadow: var(--sh-md); }
+                .standard-name-option { width: 100%; min-height: 34px; padding: 8px 10px; border: 0; border-radius: 8px; background: #fff; color: var(--text2); font: inherit; font-size: 12px; font-weight: 700; text-align: left; cursor: pointer; }
+                .standard-name-option:hover { background: var(--blue-lt); color: var(--blue); }
                 .dictionary { position: sticky; top: 14px; }
                 .dictionary-tools { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 10px; padding: 14px; border-bottom: 1px solid var(--border); background: var(--bg); }
                 .dictionary-list { display: grid; gap: 8px; max-height: 560px; overflow-y: auto; padding: 14px; }
@@ -1611,6 +1996,21 @@ export const HRPositionCompetencies: React.FC<{
                 .dictionary-item.disabled { opacity: .62; background: var(--bg); }
                 .dictionary-code { color: var(--text3); font-size: 11px; font-weight: 900; }
                 .dictionary-meta { color: var(--text3); font-size: 10px; font-weight: 700; margin-top: 5px; }
+                .dictionary-pagination { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); color: var(--text3); font-size: 12px; font-weight: 800; }
+                .position-detail-modal { width: min(760px, calc(100vw - 32px)); max-height: 86vh; overflow: auto; }
+                .position-detail-desc { padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text2); font-size: 13px; line-height: 1.7; }
+                .position-detail-levels { display: grid; gap: 10px; margin-top: 14px; }
+                .position-detail-level { padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+                .position-detail-indicator { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; color: var(--text2); font-size: 12px; }
+                .position-detail-indicator b { color: var(--blue); }
+                .position-history-modal { width: min(720px, calc(100vw - 32px)); max-height: 86vh; overflow: auto; }
+                .position-history-list { display: grid; gap: 12px; }
+                .position-history-item { padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+                .position-history-item:first-child { border-color: var(--green-md); background: var(--green-bg); }
+                .position-history-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+                .position-history-head strong { color: var(--text); font-size: 15px; }
+                .position-history-comps { display: flex; flex-wrap: wrap; gap: 6px; }
+                .position-history-chip { padding: 5px 8px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--text2); font-size: 11px; font-weight: 700; }
                 .truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
                 @media (max-width: 1100px) {
                     .position-layout, .position-scope, .position-board, .position-hero { grid-template-columns: 1fr; }
@@ -1618,7 +2018,7 @@ export const HRPositionCompetencies: React.FC<{
                     .position-hero-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                 }
                 @media (max-width: 700px) {
-                    .position-picker, .dictionary-tools, .assigned-item { grid-template-columns: 1fr; }
+                    .position-picker, .dictionary-tools, .assigned-item, .assigned-save-bar { grid-template-columns: 1fr; }
                     .position-hero { padding: 20px; }
                     .position-title { font-size: 22px; }
                 }
