@@ -1,1513 +1,1962 @@
-import React, { useEffect, useState } from 'react';
-import { IDP_GAPS_DATA, IDP_ACTIVITIES_DATA, INITIAL_COMPETENCIES } from '../data';
+import React, { useState } from "react";
 import {
-    buildEmployeeIDPCatalogPatch,
-    deriveEmployeeIDPProgressStatus,
-    getEmployeeIDPActivityStatus,
-    getEmployeeIDPProgressStatusMeta,
-    getEmployeeIDPProgressSummary,
-    getEmployeeIDPRejectionNotice,
-    isEmployeeIDPActivityDone,
-    type EmployeeIDPProgressStatus
-} from './employee-idp-rules';
+  DEFAULT_CHECKED_BEHAVIOR_IDS,
+  MOCK_IDP_ACTIVITIES,
+  WORKFLOW_COMPETENCIES,
+  canToggleBehavior,
+  gapResultsFor,
+  learningSummary,
+  nextUnlockedBehaviorId,
+  statusClass,
+  statusLabel
+} from "../workflow";
 
-const readEmployeeStorage = <T,>(key: string, fallback: T): T => {
-    if (typeof window === "undefined") return fallback;
-    try {
-        const raw = window.localStorage.getItem(key);
-        return raw ? JSON.parse(raw) as T : fallback;
-    } catch {
-        return fallback;
-    }
+const readLocal = <T,>(key: string, fallback: T): T => {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    return fallback;
+  }
 };
 
-const writeEmployeeStorage = (key: string, value: unknown) => {
-    if (typeof window === "undefined") return;
-    try {
-        window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-        // Keep mock flows usable even if storage is unavailable.
-    }
+const writeLocal = (key: string, value: unknown) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, JSON.stringify(value));
 };
 
-const EMPLOYEE_IDP_GAPS_KEY = "mock-employee-idp-gaps";
-const EMPLOYEE_IDP_ACTIVITIES_KEY = "mock-employee-idp-activities";
-const EMPLOYEE_IDP_FORMS_KEY = "mock-employee-idp-forms";
-const EMPLOYEE_IDP_GOALS_KEY = "mock-employee-idp-goals";
-const EMPLOYEE_PROGRESS_FORMS_KEY = "mock-employee-progress-forms";
-const EMPLOYEE_PROGRESS_STATUS_KEY = "mock-employee-progress-status";
+const getCheckedKey = (sso?: string) => `mock-assessment-checked:${sso || "default"}`;
+const getCommentKey = (sso?: string) => `mock-assessment-comments:${sso || "default"}`;
 
-const getIDPActivityApprovalStatus = getEmployeeIDPActivityStatus;
-
-// ==========================================
-// 1. COMPONENT: EmployeeAssess (ประเมินตนเอง)
-// ==========================================
-export const EmployeeAssess: React.FC<{ user: any, setUsers: any }> = ({ user, setUsers }) => {
-    const [expanded, setExpanded] = useState<string | null>(null);
-    const assessDraftKey = `mock-employee-assess:${user?.sso || "default"}`;
-    const [scores, setScores] = useState<any>(() => readEmployeeStorage(assessDraftKey, {}));
-
-    useEffect(() => {
-        writeEmployeeStorage(assessDraftKey, scores);
-    }, [assessDraftKey, scores]);
-
-    const submitEval = () => {
-        setUsers((prev: any[]) => prev.map(u => u.sso === user.sso ? { ...u, evalStatus: 'self_submitted' } : u));
-        alert("ส่งแบบประเมินให้หัวหน้าสำเร็จ!\nสถานะเปลี่ยนเป็น self_submitted");
-    };
-
-    const saveAssessDraft = () => {
-        writeEmployeeStorage(assessDraftKey, scores);
-        alert("\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e23\u0e48\u0e32\u0e07\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22");
-    };
-
-    const typeConfig: any = {
-        CC: { label: "CC — Core Competency", tag: "tag-cc", tagLabel: "CC", color: "#1E40AF" },
-        MC: { label: "MC — Managerial Competency", tag: "tag-mc", tagLabel: "MC", color: "#6D28D9" },
-        FC1: { label: "FC1 — Functional Competency", tag: "tag-fc1", tagLabel: "FC1", color: "#047857" },
-        FC2: { label: "FC2 — Functional Competency", tag: "tag-fc2", tagLabel: "FC2", color: "#065f46" }
-    };
-
-    const proficiencyLevelByName: Record<string, number> = {
-        "ปฏิบัติการ": 1,
-        "ชำนาญการ": 2,
-        "ชำนาญการพิเศษ": 3,
-        "เชี่ยวชาญ": 4,
-        "เชี่ยวชาญพิเศษ": 5
-    };
-    const userProficiencyLevel = proficiencyLevelByName[user?.l] || 1;
-    const sections = INITIAL_COMPETENCIES.reduce<Record<string, any[]>>((acc, item) => {
-        const key = typeConfig[item.t] ? item.t : "FC2";
-        acc[key] = [...(acc[key] || []), item];
-        return acc;
-    }, {});
-    const orderedSections = ["CC", "MC", "FC1", "FC2"].filter(type => sections[type]?.length);
-    const getBehaviors = (item: any) => {
-        const levels = Array.isArray(item.levels) ? item.levels : [];
-        const matchedLevel = levels.find((level: any) => Number(level.lvl) === userProficiencyLevel) || levels.find((level: any) => Number(level.lvl) === 1);
-        return matchedLevel?.indicators || [];
-    };
-
-    return (
-        <>
-            <div className="flex ic jb mb20">
-                <div>
-                    <div className="sec-t">ประเมินตนเอง </div>
-                    <div className="sec-s">รอบปี 2568 · กรอกให้ครบทุกสมรรถนะแล้วกด "ส่งให้หัวหน้า"</div>
-                </div>
-                <span className="b by">draft</span>
-            </div>
-
-            <div style={{ background: "var(--yellow-bg)", border: "1px solid #FDE68A", borderRadius: "var(--r)", padding: "10px 14px", marginBottom: "20px", fontSize: "12px", color: "var(--yellow)" }}>
-                 ระบบแสดงพฤติกรรมบ่งชี้ตามตำแหน่งและระดับความชำนาญของคุณ
-            </div>
-
-            {orderedSections.map(type => {
-                const items = sections[type] || [];
-                if (!items || items.length === 0) return null;
-                const config = typeConfig[type];
-                return (
-                    <div key={type} style={{ marginBottom: "24px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px", paddingBottom: "8px", borderBottom: "2px solid var(--border)" }}>
-                            <span style={{ background: config.color, color: "#fff", padding: "3px 10px", borderRadius: "5px", fontSize: "11px", fontWeight: 800, letterSpacing: ".05em" }}>{config.tagLabel}</span>
-                            <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>{config.label}</span>
-                            <span style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text3)" }}>{items.filter(it => scores[it.cd]).length}/{items.length} กรอกแล้ว</span>
-                        </div>
-                        {items.map((it) => {
-                            const score = scores[it.cd];
-                            return (
-                                <div key={it.cd} className="ac" style={{ marginBottom: "8px" }}>
-                                    <div className="ah" onClick={() => setExpanded(expanded === it.cd ? null : it.cd)} style={{ background: '#fff' }}>
-                                        <span className={config.tag} style={{ flexShrink: 0 }}>{config.tagLabel}</span>
-                                        <span className="fw7 fs13" style={{ flex: 1, marginLeft: "2px" }}>{it.n}</span>
-                                        <span style={{ fontSize: "12px", fontWeight: 700, color: score ? "var(--teal)" : "var(--red)" }}>
-                                            {score ? score + " / 5 " : "ยังไม่กรอก"}
-                                        </span>
-                                        <span style={{ marginLeft: "10px", color: "var(--text3)", fontSize: "12px" }}>{expanded === it.cd ? "▴" : "▾"}</span>
-                                    </div>
-                                    <div className={`ab ${expanded === it.cd ? "open" : ""}`}>
-                                        <div style={{ marginBottom: "14px" }}>
-                                            <div className="lbl mb6" style={{ fontSize: "11px" }}>พฤติกรรมบ่งชี้ </div>
-                                            {getBehaviors(it).length > 0 ? (
-                                                <ul className="blist">
-                                                    {getBehaviors(it).map((b: string, i: number) => <li key={i}>{b}</li>)}
-                                                </ul>
-                                            ) : (
-                                                <div className="muted fs12">ยังไม่มีพฤติกรรมบ่งชี้สำหรับสมรรถนะนี้</div>
-                                            )}
-                                        </div>
-                                        <div className="lbl mb8">โปรดเลือกคะแนนของคุณ <span style={{ color: "var(--red)" }}>*</span></div>
-                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", marginBottom: "14px" }}>
-                                            {[1, 2, 3, 4, 5].map(k => (
-                                                <div key={k} onClick={() => setScores({ ...scores, [it.cd]: k })} style={{ border: `2px solid ${score === k ? "var(--teal)" : "var(--border)"}`, borderRadius: "10px", padding: "16px 8px", cursor: "pointer", background: score === k ? "var(--teal-lt)" : "#fff", transition: ".15s", textAlign: "center" }}>
-                                                    <div style={{ fontSize: "26px", fontWeight: 800, color: score === k ? "var(--teal)" : "var(--navy)", lineHeight: 1 }}>{k}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="divider" />
-                                        <div className="lbl mb8" style={{ fontSize: '11px' }}>แนบหลักฐานประกอบ <span className="lbl-opt">(ถ้ามี)</span></div>
-                                        <div className="g2">
-                                            <div className="upload-area" style={{ padding: '12px' }}>
-                                                <div className="fw6 fs12">อัปโหลดไฟล์</div>
-                                                <div className="muted fs11">PDF, Word, Excel, รูปภาพ</div>
-                                            </div>
-                                            <div>
-                                                <div className="fg">
-                                                    <label className="lbl" style={{ fontWeight: 500, fontSize: '11px' }}>URL หลักฐาน</label>
-                                                    <input className="inp" style={{ fontSize: '12px' }} placeholder="https://..." />
-                                                </div>
-                                                <div className="fg mb0">
-                                                    <label className="lbl" style={{ fontWeight: 500, fontSize: '11px' }}>คำอธิบาย</label>
-                                                    <textarea className="ta" style={{ minHeight: '48px', fontSize: '12px' }} placeholder="อธิบาย" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                );
-            })}
-
-            <div className="flex g8 mt4" style={{ paddingTop: '4px' }}>
-                <button className="btn btn-t" onClick={submitEval}> ส่งให้หัวหน้า</button>
-                <button className="btn btn-s" onClick={saveAssessDraft}>{"บันทึกร่าง"}</button>
-            </div>
-        </>
-    );
-};
-
-// ==========================================
-// 2. COMPONENT: EmployeeGap (สรุปผลสมรรถนะ)
-// ==========================================
-export const EmployeeGap: React.FC<{ setPage: (p: string) => void }> = ({ setPage }) => {
-    const gaps = [
-        { cd: "CC-001", n: "การบริการที่ดี", t: "CC", ss: 3, sup: 4, exp: 3, pri: "low" },
-        { cd: "CC-002", n: "การมุ่งผลสัมฤทธิ์", t: "CC", ss: 3, sup: 3, exp: 3, pri: "low" },
-        { cd: "CC-003", n: "การทำงานเป็นทีม", t: "CC", ss: 4, sup: 2, exp: 3, pri: "medium" },
-        { cd: "FC2-061", n: "การใช้เทคโนโลยีดิจิทัล", t: "FC", ss: 2, sup: 1, exp: 3, pri: "high" },
-        { cd: "FC2-062", n: "การวิเคราะห์ข้อมูล", t: "FC", ss: 2, sup: 1, exp: 2, pri: "medium" },
-        { cd: "CC-004", n: "จริยธรรม", t: "CC", ss: 4, sup: 3, exp: 3, pri: "low" }
-    ];
-
-    const passCount = gaps.filter(g => g.sup >= g.exp).length;
-    const failCount = gaps.filter(g => g.sup < g.exp).length;
-    const needIDP = gaps.filter(g => g.sup < g.exp).sort((a, b) => (a.sup - a.exp) - (b.sup - b.exp));
-
-    return (
-        <>
-            <div className="flex ic jb mb20">
-                <div>
-                    <div className="sec-t">สรุปผลสมรรถนะ </div>
-                    <div className="sec-s">ยืนยันโดย รศ.ดร.วิไล ใจดี · 5 พ.ค. 2568 · สถานะ: approved</div>
-                </div>
-                <button className="btn btn-s"> Export PDF</button>
-            </div>
-
-            <div className="g2 mb14">
-                <div className="sc" style={{ borderLeft: '4px solid var(--teal)' }}>
-                    <div className="sl">ผ่านเกณฑ์</div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                        <div className="sv tc">{passCount}</div>
-                        <div style={{ fontSize: '13px', color: 'var(--text3)' }}>/ {gaps.length} สมรรถนะ</div>
-                    </div>
-                    <div className="ss muted">รวมจุดแข็งและที่ทำได้ตามเกณฑ์</div>
-                </div>
-                <div className="sc" style={{ borderLeft: '4px solid var(--red)' }}>
-                    <div className="sl">ไม่ผ่านเกณฑ์</div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                        <div className="sv rc">{failCount}</div>
-                        <div style={{ fontSize: '13px', color: 'var(--text3)' }}>/ {gaps.length} สมรรถนะ</div>
-                    </div>
-                    <div className="ss muted">ต้องจัดทำ IDP พัฒนาต่อ</div>
-                </div>
-            </div>
-
-            <div className="card mb14">
-                <div className="ch"><div className="ct">ผลรายสมรรถนะ</div></div>
-                <div style={{ overflowX: "auto" }}>
-                  <table className="tbl">
-                    <thead>
-                      <tr>
-                        <th>สมรรถนะ</th>
-                        <th style={{ textAlign: 'center' }}>ประเภท</th>
-                        <th style={{ textAlign: 'center' }}>ระดับคาดหวัง</th>
-                        <th style={{ textAlign: 'center' }}>ประเมินตนเอง</th>
-                        <th style={{ textAlign: 'center' }}>ผู้บังคับบัญชา</th>
-                        <th style={{ textAlign: 'center' }}>สถานะ</th>
-                        <th style={{ textAlign: 'center' }}>Priority</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {gaps.map((g, i) => {
-                        const diff = g.sup - g.exp;
-                        const statusBadge = diff >= 0 ? <span className="b bt">ผ่านเกณฑ์</span> : (g.pri === 'high' ? <span className="b br">เร่งด่วน</span> : <span className="b by">ต้องพัฒนา</span>);
-                        return (
-                          <tr key={i}>
-                            <td>
-                              <div className="fw6 fs13">{g.n}</div>
-                              <div className="muted fs11">{g.cd}</div>
-                            </td>
-                            <td style={{ textAlign: 'center' }}><span className={g.t === 'CC' ? 'tag-cc' : g.t === 'MC' ? 'tag-mc' : g.t === 'FC1' ? 'tag-fc1' : g.t === 'FC2' ? 'tag-fc2' : 'tag-fc'}>{g.t}</span></td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span style={{ display: 'inline-flex', width: '30px', height: '30px', borderRadius: '8px', background: 'var(--navy)', color: '#fff', fontSize: '14px', fontWeight: 800, alignItems: 'center', justifyContent: 'center' }}>{g.exp}</span>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span style={{ display: 'inline-flex', width: '30px', height: '30px', borderRadius: '8px', background: 'var(--blue-lt)', color: 'var(--blue)', fontSize: '14px', fontWeight: 800, alignItems: 'center', justifyContent: 'center' }}>{g.ss}</span>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span style={{ display: 'inline-flex', width: '30px', height: '30px', borderRadius: '8px', background: g.sup >= g.exp ? 'var(--green-bg)' : 'var(--red-bg)', color: g.sup >= g.exp ? 'var(--green)' : 'var(--red)', fontSize: '14px', fontWeight: 800, alignItems: 'center', justifyContent: 'center' }}>{g.sup}</span>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>{diff >= 0 ? "" : ""}</td>
-                            <td style={{ textAlign: 'center' }}>{statusBadge}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-            </div>
-
-            <div className="card">
-                <div className="ch">
-                    <div>
-                        <div className="ct"> สมรรถนะที่ต้องทำ IDP</div>
-                        <div className="cs">สมรรถนะที่ยังไม่ผ่านเกณฑ์การประเมิน</div>
-                    </div>
-                    <div style={{ marginLeft: 'auto' }}>
-                        <button className="btn btn-t btn-sm" onClick={() => setPage('emp-idp')}>สร้าง IDP →</button>
-                    </div>
-                </div>
-                <div className="cb">
-                    {needIDP.map((g, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                            <div style={{ width: "22px", height: "22px", borderRadius: "50%", background: g.pri === 'high' ? "var(--red)" : "var(--yellow)", color: "#fff", fontSize: "10px", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</div>
-                            <div style={{ flex: 1 }}>
-                                <span className="fw6 fs13">{g.n}</span>
-                                <span className="muted fs12" style={{ marginLeft: "8px" }}>{g.cd}</span>
-                            </div>
-                            <span className={`b ${g.t === 'CC' ? 'tag-cc' : g.t === 'MC' ? 'tag-mc' : g.t === 'FC1' ? 'tag-fc1' : g.t === 'FC2' ? 'tag-fc2' : 'tag-fc'}`}>{g.t}</span>
-                            <span className={`b ${g.pri === 'high' ? 'br' : 'by'}`} style={{ marginLeft: '4px' }}>{g.pri === 'high' ? 'เร่งด่วน' : 'ต้องพัฒนา'}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </>
-    );
-};
-
-// ==========================================
-// 3. COMPONENT: EmployeeIDP (แผนพัฒนา IDP)
-// ==========================================
-type LearningMethodOption = {
-    key: string;
-    label: string;
-    desc?: string;
-};
-
-const DEFAULT_LEARNING_METHOD_OPTIONS: LearningMethodOption[] = [
-    { key: "experiential", label: "Experiential Learning", desc: "การเรียนรู้ผ่านประสบการณ์จากการทำงานจริง เช่น OJT โครงการพิเศษ หรือ Job Rotation" },
-    { key: "social", label: "Social Learning", desc: "การเรียนรู้ผ่านบุคคลอื่น การปฏิสัมพันธ์ แลกเปลี่ยนความคิดเห็น ประสบการณ์ร่วมกัน หรือการมีผู้คอยให้คำแนะนำ" },
-    { key: "formal", label: "Formal Learning", desc: "การเรียนรู้อย่างเป็นทางการ มีแบบแผน หรือการเรียนในห้องเรียน" },
+const MOCK_GAP_CHECKED_BEHAVIOR_IDS = [
+  ...DEFAULT_CHECKED_BEHAVIOR_IDS,
+  "CC-001-2.3",
+  "CC-001-2.4",
+  "FC2-062-2.1",
+  "FC2-062-2.2",
+  "FC2-062-2.3",
+  "FC2-062-2.4"
 ];
 
-export const EmployeeIDP: React.FC<{ learningMethods?: LearningMethodOption[] }> = ({ learningMethods = DEFAULT_LEARNING_METHOD_OPTIONS }) => {
-    const [gaps, setGaps] = useState(() => IDP_GAPS_DATA);
-    const [openForms, setOpenForms] = useState<Set<number>>(new Set());
-    const [activitiesByGap, setActivitiesByGap] = useState(() => IDP_ACTIVITIES_DATA);
-    const [activityForm, setActivityForm] = useState<Record<number, any>>({});
-    const [goalsByGap, setGoalsByGap] = useState<Record<string, string>>({});
-    const [rejectedEditGapCode, setRejectedEditGapCode] = useState<string | null>(null);
+const fmt = (value: number) => value.toFixed(2).replace(/\.00$/, "");
 
-    useEffect(() => {
-        writeEmployeeStorage(EMPLOYEE_IDP_GAPS_KEY, gaps);
-    }, [gaps]);
+const tagLabel = (type: string) => (type.indexOf("FC") === 0 ? "FC" : type);
 
-    useEffect(() => {
-        writeEmployeeStorage(EMPLOYEE_IDP_ACTIVITIES_KEY, activitiesByGap);
-    }, [activitiesByGap]);
-
-    useEffect(() => {
-        writeEmployeeStorage(EMPLOYEE_IDP_FORMS_KEY, activityForm);
-    }, [activityForm]);
-
-    useEffect(() => {
-        writeEmployeeStorage(EMPLOYEE_IDP_GOALS_KEY, goalsByGap);
-    }, [goalsByGap]);
-
-    const toggleForm = (idx: number) => {
-        setOpenForms(prev => {
-            const next = new Set(prev);
-            next.has(idx) ? next.delete(idx) : next.add(idx);
-            return next;
-        });
-    };
-
-    const getForm = (idx: number) =>
-        activityForm[idx] || { catalog: "", method: "", title: "", startDate: "", endDate: "", duration: "", weight: "", cost: "", note: "" };
-    const setForm = (idx: number, val: any) => setActivityForm(prev => ({ ...prev, [idx]: { ...getForm(idx), ...val } }));
-    const resetForm = (idx: number) => setActivityForm(prev => ({ ...prev, [idx]: { catalog: "", method: "", title: "", startDate: "", endDate: "", weight: "", cost: "", note: "" } }));
-
-    const toDateInput = (value?: string) => (/^\d{4}-\d{2}-\d{2}$/.test(value || "") ? value : "");
-
-    const catalogOptions = [
-        { key: "formal-ai-data", method: "formal", title: "หลักสูตร AI & Data Analytics", group: "Formal", cost: 4500, desc: "เรียนรู้พื้นฐานการวิเคราะห์ข้อมูล การใช้ AI ในงาน และการสร้าง dashboard เพื่อสนับสนุนการตัดสินใจ" },
-        { key: "formal-communication", method: "formal", title: "Workshop การสื่อสาร", group: "Formal", cost: 1500, desc: "ฝึกการสื่อสารเชิงโครงสร้าง การนำเสนอประเด็นสำคัญ และการรับมือสถานการณ์สื่อสารที่ซับซ้อน" },
-        { key: "formal-english", method: "formal", title: "e-Learning ภาษาอังกฤษ", group: "Formal", cost: 0, desc: "พัฒนาทักษะภาษาอังกฤษเพื่อการทำงาน การอ่านเอกสาร และการสื่อสารในบริบทมหาวิทยาลัย" },
-        { key: "social-mentoring", method: "social", title: "Mentoring Program", group: "Social", cost: 0, desc: "นัดหมาย mentor เพื่อรับคำแนะนำ วางแผนพัฒนา และสะท้อนผลการเรียนรู้จากการทำงานจริง" },
-        { key: "social-coaching", method: "social", title: "Coaching by หัวหน้าฝ่าย", group: "Social", cost: 0, desc: "รับ coaching จากหัวหน้าฝ่ายเพื่อแก้โจทย์งานจริง ปรับพฤติกรรมการทำงาน และติดตามผลเป็นระยะ" },
-        { key: "social-peer-learning", method: "social", title: "Peer Learning / Group Activity", group: "Social", cost: 0, desc: "เรียนรู้ร่วมกับเพื่อนร่วมงานผ่านกิจกรรมกลุ่ม แลกเปลี่ยนประสบการณ์ และสรุปบทเรียนร่วมกัน" },
-        { key: "experiential-ojt", method: "experiential", title: "OJT / มอบหมายโครงการพิเศษ", group: "Experiential", cost: 0, desc: "ฝึกปฏิบัติจากงานจริงหรือโครงการพิเศษ พร้อมผลลัพธ์ที่ตรวจสอบได้และข้อสะท้อนจากผู้เกี่ยวข้อง" },
-        { key: "experiential-job-rotation", method: "experiential", title: "Job Rotation", group: "Experiential", cost: 0, desc: "หมุนเวียนเรียนรู้งานในบทบาทหรือหน่วยงานที่เกี่ยวข้อง เพื่อเพิ่มมุมมองและทักษะการประสานงาน" },
-    ];
-
-    const methodPalette = [
-        { color: "var(--orange)", bg: "#FFF7ED", ic: "EX" },
-        { color: "var(--green)", bg: "#F0FDF4", ic: "SO" },
-        { color: "var(--blue)", bg: "#EFF6FF", ic: "FO" },
-        { color: "#7C3AED", bg: "#F5F3FF", ic: "LR" },
-        { color: "#0F766E", bg: "#F0FDFA", ic: "DV" },
-    ];
-    const methods = (learningMethods.length ? learningMethods : DEFAULT_LEARNING_METHOD_OPTIONS).map((method, index) => ({
-        ...method,
-        ...methodPalette[index % methodPalette.length]
-    }));
-    const methodMap = new Map(methods.map(method => [method.key, method]));
-    const catalogMap = new Map(catalogOptions.map(item => [item.key, item]));
-    const applyCatalogSelection = (idx: number, value: string) => {
-        if (value === "custom") {
-            setForm(idx, { catalog: value, method: "", title: "" });
-            return;
-        }
-        const selectedCatalog = catalogMap.get(value);
-        if (!selectedCatalog) {
-            setForm(idx, { catalog: value, method: "", title: "", note: "" });
-            return;
-        }
-        setForm(idx, buildEmployeeIDPCatalogPatch(selectedCatalog));
-    };
-
-    const saveIDPDraft = () => {
-        writeEmployeeStorage(EMPLOYEE_IDP_GAPS_KEY, gaps);
-        writeEmployeeStorage(EMPLOYEE_IDP_ACTIVITIES_KEY, activitiesByGap);
-        writeEmployeeStorage(EMPLOYEE_IDP_FORMS_KEY, activityForm);
-        writeEmployeeStorage(EMPLOYEE_IDP_GOALS_KEY, goalsByGap);
-        alert("\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e23\u0e48\u0e32\u0e07 IDP \u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22");
-    };
-
-    const getWeightNotice = (totalWeight: number) => {
-        if (totalWeight === 100) return null;
-        if (totalWeight < 100) return { label: `ขาด ${100 - totalWeight}%`, cls: "by" };
-        return { label: `เกิน ${totalWeight - 100}%`, cls: "br" };
-    };
-
-    const submitGapPlan = (gapCode: string) => {
-        const gap = gaps.find((item: any) => item.cd === gapCode);
-        const activities = activitiesByGap[gapCode] || [];
-        const totalWeight = activities.reduce((sum: number, act: any) => sum + Number(act.weight || 0), 0);
-        if (!activities.length) {
-            alert("กรุณาเพิ่มกิจกรรมพัฒนาก่อนส่งแผน");
-            return;
-        }
-        if (totalWeight !== 100) {
-            const notice = getWeightNotice(totalWeight);
-            if (!window.confirm(`น้ำหนักกิจกรรมของ "${gap?.n || gapCode}" รวม ${totalWeight}/100%\n${notice?.label || "ยังไม่ครบ 100%"}\n\nต้องการยืนยันส่งต่อหรือไม่?`)) return;
-        }
-        if (!window.confirm(`ยืนยันส่งแผน "${gap?.n || gapCode}" ให้หัวหน้างานตรวจสอบ?\nหลังส่งแล้วจะไม่สามารถแก้ไขได้ ยกเว้นกรณีแผนไม่ผ่าน`)) return;
-        setActivitiesByGap(prev => ({
-            ...prev,
-            [gapCode]: (prev[gapCode] || []).map((act: any) => (
-                act.result === "failed" || act.result === "done" || act.result === "passed"
-                    ? act
-                    : { ...act, st: "รออนุมัติ", stC: "by" }
-            ))
-        }));
-        setGaps((prev: any[]) => prev.map(gap => gap.cd === gapCode ? { ...gap, status: "submitted" } : gap));
-        alert("\u0e2a\u0e48\u0e07\u0e41\u0e1c\u0e19 IDP \u0e43\u0e2b\u0e49\u0e2b\u0e31\u0e27\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27");
-    };
-
-    const submitAllIDP = () => {
-        const readyGaps = gaps.filter((gap: any) => gap.status === "draft" || gap.status === "rejected");
-        const missingActivities = readyGaps.filter((gap: any) => !(activitiesByGap[gap.cd] || []).length);
-        if (missingActivities.length) {
-            alert(`กรุณาเพิ่มกิจกรรมพัฒนาให้ครบก่อนส่ง\nยังไม่มีกิจกรรม: ${missingActivities.map((gap: any) => gap.n).join(", ")}`);
-            return;
-        }
-        const invalidWeightGaps = readyGaps
-            .map((gap: any) => {
-                const totalWeight = (activitiesByGap[gap.cd] || []).reduce((sum: number, act: any) => sum + Number(act.weight || 0), 0);
-                const notice = getWeightNotice(totalWeight);
-                return notice ? `${gap.n}: ${totalWeight}/100% (${notice.label})` : null;
-            })
-            .filter(Boolean);
-        if (invalidWeightGaps.length) {
-            if (!window.confirm(`น้ำหนักกิจกรรมยังไม่ครบหรือเกิน 100%\n${invalidWeightGaps.join("\n")}\n\nต้องการยืนยันส่งต่อหรือไม่?`)) return;
-        }
-        if (!window.confirm("ยืนยันส่ง IDP ทั้งหมดให้หัวหน้างานตรวจสอบ?\nหลังส่งแล้วจะไม่สามารถแก้ไขได้ ยกเว้นกรณีแผนไม่ผ่าน")) return;
-        setActivitiesByGap(prev => {
-            const readyCodes = new Set(readyGaps.map((gap: any) => gap.cd));
-            return Object.fromEntries(Object.entries(prev).map(([gapCode, acts]) => [
-                gapCode,
-                readyCodes.has(gapCode)
-                    ? (acts as any[]).map((act: any) => (
-                        act.result === "failed" || act.result === "done" || act.result === "passed"
-                            ? act
-                            : { ...act, st: "รออนุมัติ", stC: "by" }
-                    ))
-                    : acts
-            ]));
-        });
-        setGaps((prev: any[]) => prev.map(gap => gap.status === "draft" || gap.status === "rejected" ? { ...gap, status: "submitted" } : gap));
-        alert("\u0e2a\u0e48\u0e07 IDP \u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27");
-    };
-
-    const addActivity = (idx: number) => {
-        const f = getForm(idx);
-        if (!f.title.trim() || !f.method || !f.startDate || !f.endDate || !f.weight) return;
-        if (f.endDate < f.startDate) {
-            alert("วันที่สิ้นสุดต้องไม่อยู่ก่อนวันที่เริ่ม");
-            return;
-        }
-        if (+f.weight > 100 || +f.weight <= 0) {
-            alert("น้ำหนักต้องอยู่ระหว่าง 1-100");
-            return;
-        }
-        if (f.cost && +f.cost < 0) {
-            alert("ค่าใช้จ่ายต้องไม่ต่ำกว่า 0");
-            return;
-        }
-        const gap = gaps[idx];
-        const selectedMethod = methodMap.get(f.method);
-        const methodTheme = selectedMethod
-            ? { ic: selectedMethod.ic, bg: selectedMethod.bg }
-            : { ic: "LR", bg: "#EFF6FF" };
-
-        const nextActivity = {
-            ...methodTheme,
-            t: f.title.trim(),
-            m: selectedMethod?.label || f.method,
-            catalog: f.catalog && f.catalog !== "custom" ? f.catalog : undefined,
-            startDate: f.startDate,
-            due: f.endDate,
-            weight: f.weight,
-            cost: f.cost,
-            note: f.note,
-            st: "ร่าง",
-            stC: "bgr",
-            result: null,
-            logs: []
-        };
-        const editIndex = typeof f.editIndex === "number" ? f.editIndex : null;
-
-        setActivitiesByGap(prev => {
-            const current = prev[gap.cd] || [];
-            return {
-                ...prev,
-                [gap.cd]: editIndex === null
-                    ? [...current, nextActivity]
-                    : current.map((act: any, index: number) => index === editIndex ? { ...act, ...nextActivity } : act)
-            };
-        });
-
-        resetForm(idx);
-        toggleForm(idx);
-    };
-
-    const canEditGap = (status: string) => status === "draft" || status === "rejected";
-    const getActivityProgress = (activities: any[]) => {
-        const totalWeight = activities.reduce((sum, act) => sum + Number(act.weight || 0), 0);
-        const hasFailed = activities.some(act => act.result === "failed" || act.st === "ไม่ผ่าน");
-        const allPassed = activities.length > 0 && activities.every(act => act.result === "done" || act.result === "passed" || act.st === "ผ่าน" || act.st === "เสร็จสิ้น");
-        return { totalWeight, hasFailed, allPassed };
-    };
-    const getPlanStatus = (gap: any, activities: any[]) => {
-        const progress = getActivityProgress(activities);
-        if (progress.hasFailed) return { badge: "ไม่ผ่าน", cls: "br" };
-        if (progress.allPassed) return { badge: "ผ่าน", cls: "bg" };
-        if (gap.status === "submitted") return { badge: "ส่งแล้ว รอประเมิน", cls: "by" };
-        if (activities.length > 0) return { badge: "ร่าง", cls: "bgr" };
-        if (gap.status === "rejected") return { badge: "แผนไม่ผ่าน", cls: "br" };
-        return { badge: "ยังไม่ส่ง", cls: "bgr" };
-    };
-    const editActivity = (gapCode: string, actIndex: number) => {
-        const gapIndex = gaps.findIndex((gap: any) => gap.cd === gapCode);
-        const act = (activitiesByGap[gapCode] || [])[actIndex];
-        if (gapIndex < 0 || !act) return;
-
-        const method = methods.find(item => item.label === act.m)?.key || "";
-        const catalog = act.catalog || catalogOptions.find(item => item.title === act.t && item.method === method)?.key || "custom";
-        setForm(gapIndex, {
-            catalog,
-            method,
-            editIndex: actIndex,
-            title: act.t || "",
-            startDate: toDateInput(act.startDate),
-            endDate: toDateInput(act.due),
-            weight: String(act.weight || ""),
-            cost: String(act.cost || ""),
-            note: act.note || ""
-        });
-        setOpenForms(prev => {
-            const next = new Set(prev);
-            next.add(gapIndex);
-            return next;
-        });
-        setRejectedEditGapCode(null);
-    };
-    const cancelActivityForm = (idx: number) => {
-        resetForm(idx);
-        toggleForm(idx);
-    };
-
-    const rejectedEditGap = rejectedEditGapCode ? gaps.find((gap: any) => gap.cd === rejectedEditGapCode) : null;
-    const rejectedEditActivities = rejectedEditGap ? (activitiesByGap[rejectedEditGap.cd] || []) : [];
-
-    return (
-        <>
-            <div className="flex ic jb mb20">
-                <div>
-                    <div className="sec-t">แผนพัฒนา IDP</div>
-                    <div className="sec-s">ดึงข้อมูลสมรรถนะที่ต้องการพัฒนาอัตโนมัติ ปีงบประมาณ 2568 สถานะ: draft</div>
-                </div>
-                <button className="btn btn-s">Export PDF</button>
-            </div>
-
-            <div className="card mb20">
-                <div className="ch"><div className="ct">รูปแบบการเรียนรู้ที่นำไปใช้ได้</div></div>
-                <div className="cb" style={{ paddingTop: '10px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                        {methods.map(m => (
-                            <div key={m.key} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderLeft: `3px solid ${m.color}`, borderRadius: 'var(--r)', padding: '11px 14px' }}>
-                                <div className="fw7 fs12" style={{ color: m.color, marginBottom: '4px' }}>{m.label}</div>
-                                <div className="fs12 muted">{m.desc}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {gaps.map((g, idx) => {
-                const activities = activitiesByGap[g.cd] || [];
-                const status = getPlanStatus(g, activities);
-                const progress = getActivityProgress(activities);
-                const weightNotice = getWeightNotice(progress.totalWeight);
-                const editable = canEditGap(g.status);
-                const form = getForm(idx);
-                const isCatalogActivity = !!form.catalog && form.catalog !== "custom";
-                const rejectionNotice = g.status === "rejected" ? getEmployeeIDPRejectionNotice(g) : null;
-
-                return (
-                    <div key={g.cd} className="idp-gap" style={{ marginBottom: '20px', scrollMarginTop: '110px', overflow: 'hidden' }}>
-                        <div className="idp-gap-h" style={{ padding: '14px 18px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, flexWrap: 'wrap' }}>
-                                <span className={`b ${g.pri === 'high' ? 'br' : 'by'}`}>{g.pri === 'high' ? 'เร่งด่วน' : 'ต้องพัฒนา'}</span>
-                                <span className={g.t === 'CC' ? 'tag-cc' : g.t === 'MC' ? 'tag-mc' : g.t === 'FC1' ? 'tag-fc1' : g.t === 'FC2' ? 'tag-fc2' : 'tag-fc'}>{g.t}</span>
-                                <span className="fw8 fs14">{g.n}</span>
-                                <span className="muted fs12" style={{ marginLeft: '4px' }}>คาดหวัง {g.exp} ปัจจุบัน {g.actual}</span>
-                                <span className={`b ${progress.totalWeight === 100 ? "bg" : progress.totalWeight > 100 ? "br" : "bb"}`}>{progress.totalWeight}/100%</span>
-                                {weightNotice && <span className={`b ${weightNotice.cls}`}>{weightNotice.label}</span>}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span className={`b ${status.cls}`}>{status.badge}</span>
-                                {editable && <button className="btn btn-t btn-sm" onClick={() => submitGapPlan(g.cd)}>{"ส่งให้หัวหน้า"}</button>}
-                            </div>
-                        </div>
-
-                        {rejectionNotice && (
-                            <div style={{ background: '#FEF2F2', borderBottom: '1px solid #FECACA', padding: '14px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                                <div style={{ fontSize: '20px', flexShrink: 0, width: "28px", height: "28px", borderRadius: "50%", background: "var(--red-bg)", color: "var(--red)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>!</div>
-                                <div style={{ flex: 1 }}>
-                                    <div className="fw8" style={{ color: 'var(--red)', marginBottom: '4px', fontSize: "15px" }}>{rejectionNotice.title}</div>
-                                    <div className="fs13" style={{ color: '#991B1B', marginBottom: '8px', lineHeight: 1.6 }}>
-                                        <span className="fw7">{rejectionNotice.competencyName}</span>
-                                        <span className="muted" style={{ color: "#991B1B" }}> · ไม่ผ่านโดย </span>
-                                        <span className="fw7">{rejectionNotice.reviewer}</span>
-                                        {rejectionNotice.date && <span> · {rejectionNotice.date}</span>}
-                                    </div>
-                                    <div style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: '6px', padding: '10px 12px', color: 'var(--text)', fontSize: "13px", lineHeight: 1.7 }}>
-                                        {rejectionNotice.comment}
-                                    </div>
-                                </div>
-                                <button className="btn btn-r btn-sm" style={{ flexShrink: 0 }} onClick={() => setRejectedEditGapCode(g.cd)}>แก้ไขแผนสมรรถนะนี้</button>
-                            </div>
-                        )}
-
-                        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--blue-md)', background: '#fff' }}>
-                            <label className="lbl">เป้าหมายการพัฒนา <span style={{ color: 'var(--red)' }}>*</span></label>
-                            <textarea className="ta" style={{ minHeight: '52px', marginTop: '5px', background: editable ? "#fff" : "var(--bg)" }} placeholder="ระบุเป้าหมายการพัฒนา..." disabled={!editable} value={goalsByGap[g.cd] || ""} onChange={e => setGoalsByGap(prev => ({ ...prev, [g.cd]: e.target.value }))} />
-                        </div>
-
-                        <div style={{ background: '#fff' }}>
-                            {activities.map((act, aIdx) => (
-                                <div key={aIdx} style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--blue)', flexShrink: 0 }}></div>
-                                    <div style={{ flex: 1 }}>
-                                        <div className="fw6 fs13">{act.t}</div>
-                                        <div className="muted fs11">{act.m} · {act.startDate || "-"} ถึง {act.due} · น้ำหนัก {act.weight || "-"}% · ค่าใช้จ่าย {act.cost ? Number(act.cost).toLocaleString("th-TH") : "0"} บาท</div>
-                                        {act.note && <div className="muted fs11 mt4">คำอธิบายกิจกรรม: {act.note}</div>}
-                                    </div>
-                                    {(() => {
-                                        const activityStatus = getIDPActivityApprovalStatus(act, g.status);
-                                        return (
-                                            <div className="flex ic g8" style={{ flexShrink: 0 }}>
-                                                <span className={`b ${activityStatus.cls}`}>{activityStatus.label}</span>
-                                                {editable && (
-                                                    <button className="btn btn-s btn-sm" type="button" onClick={() => editActivity(g.cd, aIdx)}>
-                                                        แก้ไข
-                                                    </button>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-                            ))}
-                            {activities.length === 0 && (
-                                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text3)', fontSize: '13px', borderBottom: '1px solid var(--border)' }}>
-                                    <div style={{ fontSize: '28px', marginBottom: '8px' }}>+</div>
-                                    <div className="fw6 fs13" style={{ color: 'var(--text2)' }}>ยังไม่มีกิจกรรมพัฒนา</div>
-                                </div>
-                            )}
-                        </div>
-
-                        {editable ? (
-                        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', background: '#fff' }}>
-                            <button className="btn btn-s btn-sm" type="button" onClick={() => toggleForm(idx)}>
-                                {openForms.has(idx) ? '−' : '+'} เพิ่มกิจกรรม
-                            </button>
-                        </div>
-                        ) : (
-                        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', background: 'var(--bg)' }} className="muted fs12">
-                            ส่งแผนแล้ว ไม่สามารถแก้ไขกิจกรรมได้ ยกเว้นกรณีแผนไม่ผ่าน
-                        </div>
-                        )}
-
-                        {editable && openForms.has(idx) && (
-                            <div style={{ padding: '18px', background: '#F8FBFF', borderTop: '1px solid #DBE7F5', animation: 'slideDown .22s ease' }}>
-                                <div className="fw7 fs13 mb14">{typeof form.editIndex === "number" ? "แก้ไขกิจกรรมพัฒนา" : "เพิ่มกิจกรรมพัฒนา"}</div>
-
-                                <div className="g2 mb12">
-                                    <div className="fg" style={{ margin: 0 }}>
-                                        <label className="lbl" style={{ fontSize: '11px' }}>เลือกกิจกรรมจาก Catalog หรือกำหนดเอง </label>
-                                        <select
-                                            className="sel"
-                                            style={{ fontSize: '12px', marginTop: '4px' }}
-                                            value={form.catalog}
-                                            onChange={e => {
-                                                applyCatalogSelection(idx, e.target.value);
-                                            }}
-                                        >
-                                            <option value="">— เลือกกิจกรรมจาก Catalog —</option>
-                                            {catalogOptions.map(c => <option key={c.key} value={c.key}>[{c.group}] {c.title}</option>)}
-                                            <option value="custom">ระบุกิจกรรมเอง</option>
-                                        </select>
-                                    </div>
-                                    <div className="fg" style={{ margin: 0 }}>
-                                        <label className="lbl" style={{ fontSize: '11px' }}>ประเภทการเรียนรู้ <span style={{ color: 'var(--red)' }}>*</span></label>
-                                        <select
-                                            className="sel"
-                                            style={{ fontSize: '12px', marginTop: '4px' }}
-                                            value={form.method}
-                                            disabled={isCatalogActivity}
-                                            onChange={e => setForm(idx, { method: e.target.value })}
-                                        >
-                                            <option value="">— เลือกประเภท —</option>
-                                            {methods.map(method => (
-                                                <option key={method.key} value={method.key}>{method.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="fg mb12">
-                                    <label className="lbl" style={{ fontSize: '11px' }}>ชื่อกิจกรรม <span style={{ color: 'var(--red)' }}>*</span></label>
-                                    <input
-                                        className="inp"
-                                        style={{ fontSize: '12px', marginTop: '4px' }}
-                                        value={form.title}
-                                        readOnly={isCatalogActivity}
-                                        onChange={e => setForm(idx, { title: e.target.value })}
-                                        placeholder={isCatalogActivity ? "ระบบเติมจาก Catalog HR" : "เช่น อบรม AI & Data Analytics หรือระบุกิจกรรมของตัวเอง"}
-                                    />
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                                    <div className="fg" style={{ margin: 0 }}>
-                                        <label className="lbl" style={{ fontSize: '11px' }}>วันที่เริ่ม <span style={{ color: 'var(--red)' }}>*</span></label>
-                                        <input type="date" className="inp" style={{ fontSize: '12px', marginTop: '4px' }} value={form.startDate} onChange={e => setForm(idx, { startDate: e.target.value })} />
-                                    </div>
-                                    <div className="fg" style={{ margin: 0 }}>
-                                        <label className="lbl" style={{ fontSize: '11px' }}>วันที่สิ้นสุด <span style={{ color: 'var(--red)' }}>*</span></label>
-                                        <input
-                                            type="date"
-                                            className="inp"
-                                            style={{ fontSize: '12px', marginTop: '4px', borderColor: form.endDate && form.startDate && form.endDate < form.startDate ? 'var(--red)' : undefined }}
-                                            value={form.endDate}
-                                            min={form.startDate || undefined}
-                                            onChange={e => setForm(idx, { endDate: e.target.value })}
-                                        />
-                                        {form.endDate && form.startDate && form.endDate < form.startDate && (
-                                            <div style={{ color: 'var(--red)', fontSize: '11px', marginTop: '3px' }}>วันสิ้นสุดต้องอยู่หลังวันที่เริ่ม</div>
-                                        )}
-                                    </div>
-                                    <div className="fg" style={{ margin: 0 }}>
-                                        <label className="lbl" style={{ fontSize: '11px' }}>น้ำหนัก (%) <span style={{ color: 'var(--red)' }}>*</span></label>
-                                        <input
-                                            type="number"
-                                            className="inp"
-                                            min={1}
-                                            max={100}
-                                            style={{ fontSize: '12px', marginTop: '4px', borderColor: form.weight && (+form.weight > 100 || +form.weight <= 0) ? 'var(--red)' : undefined }}
-                                            value={form.weight}
-                                            onChange={e => setForm(idx, { weight: e.target.value })}
-                                            placeholder="เช่น 30"
-                                        />
-                                        {form.weight && (+form.weight > 100 || +form.weight <= 0) && (
-                                            <div style={{ color: 'var(--red)', fontSize: '11px', marginTop: '3px' }}>น้ำหนักต้องอยู่ระหว่าง 1-100</div>
-                                        )}
-                                    </div>
-                                    <div className="fg" style={{ margin: 0 }}>
-                                        <label className="lbl" style={{ fontSize: '11px' }}>ค่าใช้จ่าย (บาท) <span className="lbl-opt">(ถ้ามี)</span></label>
-                                        <input
-                                            type="number"
-                                            className="inp"
-                                            min={0}
-                                            style={{ fontSize: '12px', marginTop: '4px', borderColor: form.cost && +form.cost < 0 ? 'var(--red)' : undefined }}
-                                            value={form.cost}
-                                            onChange={e => setForm(idx, { cost: e.target.value })}
-                                            placeholder="เช่น 1500"
-                                        />
-                                        {form.cost && +form.cost < 0 && (
-                                            <div style={{ color: 'var(--red)', fontSize: '11px', marginTop: '3px' }}>ค่าใช้จ่ายต้องไม่ต่ำกว่า 0</div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="fg mb14">
-                                    <label className="lbl" style={{ fontSize: '11px' }}>คำอธิบายกิจกรรม <span className="lbl-opt">(ไม่บังคับ)</span></label>
-                                    <textarea className="ta" style={{ fontSize: '12px', minHeight: '52px', marginTop: '4px' }} value={form.note} onChange={e => setForm(idx, { note: e.target.value })} placeholder="อธิบายรายละเอียดกิจกรรม ผลลัพธ์ที่คาดหวัง หรือเหตุผลที่เลือกกิจกรรมนี้..." />
-                                </div>
-
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
-                                    <button className="btn btn-s btn-sm" type="button" onClick={() => cancelActivityForm(idx)}>ยกเลิก</button>
-                                    <button
-                                        className="btn btn-p btn-sm"
-                                        type="button"
-                                        onClick={() => addActivity(idx)}
-                                        disabled={!form.title.trim() || !form.method || !form.startDate || !form.endDate || !form.weight || form.endDate < form.startDate || +form.weight > 100 || +form.weight <= 0 || (!!form.cost && +form.cost < 0)}
-                                    >
-                                        {typeof form.editIndex === "number" ? "บันทึกกิจกรรม" : "เพิ่มกิจกรรม"}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-
-            <div className="flex g8 mt4" style={{ paddingTop: '4px' }}>
-                <button className="btn btn-t" onClick={submitAllIDP}>{"ส่ง IDP ทั้งหมด"}</button>
-                <button className="btn btn-s" onClick={saveIDPDraft}>{"บันทึกร่าง"}</button>
-            </div>
-
-            {rejectedEditGap && (
-                <div className="mo" style={{ zIndex: 320 }} onMouseDown={() => setRejectedEditGapCode(null)}>
-                    <div className="mo-box" style={{ width: "720px", maxWidth: "calc(100vw - 32px)", overflow: "hidden" }} onMouseDown={event => event.stopPropagation()}>
-                        <div className="mo-h">
-                            <div>
-                                <div className="fw8 fs15">แก้ไขกิจกรรมในสมรรถนะนี้</div>
-                                <div className="muted fs12 mt4">{rejectedEditGap.n} · สมรรถนะนี้ไม่ผ่าน</div>
-                            </div>
-                            <button className="btn btn-s btn-sm" onClick={() => setRejectedEditGapCode(null)}>ปิด</button>
-                        </div>
-                        <div className="mo-b" style={{ padding: "14px 18px" }}>
-                            {rejectedEditActivities.length ? (
-                                <div style={{ display: "grid", gap: "10px" }}>
-                                    {rejectedEditActivities.map((act: any, actIndex: number) => {
-                                        const activityStatus = getIDPActivityApprovalStatus(act, rejectedEditGap.status);
-                                        return (
-                                            <div key={`${act.t}-${actIndex}`} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", padding: "12px", display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
-                                                <div>
-                                                    <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
-                                                        <div className="fw7 fs13">{act.t}</div>
-                                                        <span className={`b ${activityStatus.cls}`}>{activityStatus.label}</span>
-                                                    </div>
-                                                    <div className="muted fs11 mt6">{act.m} · {act.startDate || "-"} ถึง {act.due || "-"} · น้ำหนัก {act.weight || "-"}% · ค่าใช้จ่าย {act.cost ? Number(act.cost).toLocaleString("th-TH") : "0"} บาท</div>
-                                                    {act.note && <div className="muted fs11 mt4">คำอธิบายกิจกรรม: {act.note}</div>}
-                                                </div>
-                                                <button className="btn btn-p btn-sm" onClick={() => editActivity(rejectedEditGap.cd, actIndex)}>
-                                                    แก้ไข
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div style={{ padding: "26px 12px", textAlign: "center" }}>
-                                    <div className="fw7 fs13 mb6">ยังไม่มีกิจกรรมในแผนนี้</div>
-                                    <div className="muted fs12">ปิดหน้าต่างนี้แล้วเพิ่มกิจกรรมใหม่ในแผนได้เลย</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    );
+const groupBehaviorsByLevel = (behaviors: any[]) => {
+  const levels: number[] = [];
+  const grouped: Record<number, any[]> = {};
+  behaviors.forEach(behavior => {
+    if (!grouped[behavior.level]) grouped[behavior.level] = [];
+    grouped[behavior.level].push(behavior);
+    if (levels.indexOf(behavior.level) === -1) levels.push(behavior.level);
+  });
+  levels.sort((a, b) => a - b);
+  return levels.map(level => ({ level, behaviors: grouped[level] }));
 };
 
-// ==========================================
-// 4. COMPONENT: EmployeeProgress (อัปเดตความก้าวหน้า)
-// ==========================================
-export const EmployeeProgress: React.FC = () => {
-    const [activitiesByGap, setActivitiesByGap] = useState(() => IDP_ACTIVITIES_DATA);
-    const [progressForms, setProgressForms] = useState<Record<string, { note: string; evidenceUrl: string; evidenceDesc: string; fileName: string }>>(() => readEmployeeStorage(EMPLOYEE_PROGRESS_FORMS_KEY, {}));
-    const [progressStatusByGap, setProgressStatusByGap] = useState<Record<string, EmployeeIDPProgressStatus>>(() =>
-        readEmployeeStorage(
-            EMPLOYEE_PROGRESS_STATUS_KEY,
-            IDP_GAPS_DATA.reduce((acc, gap) => ({ ...acc, [gap.cd]: deriveEmployeeIDPProgressStatus(gap) }), {})
-        )
-    );
+const isAssessmentApproved = (user?: any) => user?.evalStatus === "approved" || user?.evalStatus === "dean_approved";
 
-    useEffect(() => {
-        writeEmployeeStorage(EMPLOYEE_IDP_ACTIVITIES_KEY, activitiesByGap);
-    }, [activitiesByGap]);
+const assessmentStatusText = (status?: string) => {
+  if (status === "self_submitted") return "ส่งแล้ว รอหัวหน้างานตรวจ";
+  if (status === "pending_department_head") return "หัวหน้างานตรวจแล้ว รอหัวหน้าฝ่ายอนุมัติ";
+  if (status === "approved" || status === "dean_approved") return "อนุมัติแล้ว ดูผล Gap ได้";
+  if (status === "rejected") return "ถูกส่งกลับให้แก้ไข";
+  return "ร่าง";
+};
 
-    useEffect(() => {
-        writeEmployeeStorage(EMPLOYEE_PROGRESS_FORMS_KEY, progressForms);
-    }, [progressForms]);
+const AssessmentProgress = ({ checkedIds }: { checkedIds: string[] }) => {
+  const touchedCompetencies = WORKFLOW_COMPETENCIES.filter(comp => comp.indicators.some(item => checkedIds.includes(item.id))).length;
 
-    useEffect(() => {
-        writeEmployeeStorage(EMPLOYEE_PROGRESS_STATUS_KEY, progressStatusByGap);
-    }, [progressStatusByGap]);
+  return (
+    <div className="card mb20">
+      <div className="cb">
+        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+          <div className="sc">
+            <div className="sl">สมรรถนะที่ต้องประเมิน</div>
+            <div className="sv">{WORKFLOW_COMPETENCIES.length}</div>
+            <div className="ss muted">รายการ</div>
+          </div>
+          <div className="sc">
+            <div className="sl">ประเมินตนเองแล้ว</div>
+            <div className="sv">{touchedCompetencies}</div>
+            <div className="ss muted">จาก {WORKFLOW_COMPETENCIES.length} สมรรถนะ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-    const list = IDP_GAPS_DATA.map(g => ({ g, acts: activitiesByGap[g.cd] || [] }));
+const SummaryCards = ({ checkedIds }: { checkedIds: string[] }) => {
+  const gaps = gapResultsFor(checkedIds);
+  const negative = gaps.filter(item => item.gap < 0);
+  const avgGap = gaps.reduce((sum, item) => sum + item.gap, 0) / gaps.length;
 
-    const getFormKey = (gapCode: string, actIdx: number) => `${gapCode}-${actIdx}`;
-    const getForm = (gapCode: string, actIdx: number) =>
-        progressForms[getFormKey(gapCode, actIdx)] || { note: '', evidenceUrl: '', evidenceDesc: '', fileName: '' };
-    const setForm = (gapCode: string, actIdx: number, patch: Partial<{ note: string; evidenceUrl: string; evidenceDesc: string; fileName: string }>) => {
-        const key = getFormKey(gapCode, actIdx);
-        setProgressForms(prev => ({ ...prev, [key]: { ...getForm(gapCode, actIdx), ...patch } }));
-    };
-    const clearForm = (gapCode: string, actIdx: number) => {
-        const key = getFormKey(gapCode, actIdx);
-        setProgressForms(prev => ({ ...prev, [key]: { note: '', evidenceUrl: '', evidenceDesc: '', fileName: '' } }));
-    };
-    const buildLogMessage = (form: { note: string; evidenceUrl: string; evidenceDesc: string; fileName: string }, mode: 'draft' | 'saved' | 'complete') => {
-        const parts = [form.note.trim()];
-        if (form.fileName) parts.push(`แนบไฟล์: ${form.fileName}`);
-        if (form.evidenceUrl.trim()) parts.push(`URL: ${form.evidenceUrl.trim()}`);
-        if (form.evidenceDesc.trim()) parts.push(`คำอธิบาย: ${form.evidenceDesc.trim()}`);
-        const summary = parts.filter(Boolean).join(' | ');
-        if (mode === 'draft') return summary ? `บันทึกร่าง: ${summary}` : 'บันทึกร่างความก้าวหน้า';
-        if (mode === 'complete') return summary ? `ทำกิจกรรมเสร็จสิ้น: ${summary}` : 'ทำกิจกรรมเสร็จสิ้น';
-        return summary || 'อัปเดตความก้าวหน้า';
-    };
-    const saveProgress = (gapCode: string, actIdx: number, mode: 'draft' | 'saved' | 'complete') => {
-        const form = getForm(gapCode, actIdx);
-        if (!form.note.trim() && !form.fileName && !form.evidenceUrl.trim() && !form.evidenceDesc.trim()) {
-            alert('กรุณากรอกบันทึกหรือแนบหลักฐานอย่างน้อย 1 รายการ');
-            return;
+  return (
+    <div className="g4 mb20">
+      <div className="sc"><div className="sl">สมรรถนะทั้งหมด</div><div className="sv">{gaps.length}</div><div className="ss muted">ตามตำแหน่ง</div></div>
+      <div className="sc"><div className="sl">Gap ติดลบ</div><div className="sv" style={{ color: "var(--red)" }}>{negative.length}</div><div className="ss muted">ต้องเข้า IDP</div></div>
+      <div className="sc"><div className="sl">ค่าเฉลี่ย Gap</div><div className="sv">{fmt(avgGap)}</div><div className="ss muted">Actual - Expected</div></div>
+      <div className="sc"><div className="sl">พฤติกรรมที่เลือก</div><div className="sv">{checkedIds.length}</div><div className="ss muted">ข้อละ 0.25 คะแนน</div></div>
+    </div>
+  );
+};
+
+export const EmployeeAssess: React.FC<{ user: any; setUsers: any }> = ({ user, setUsers }) => {
+  const [checkedIds, setCheckedIds] = useState<string[]>(() => readLocal(getCheckedKey(user?.sso), DEFAULT_CHECKED_BEHAVIOR_IDS));
+  const [comments, setComments] = useState<Record<string, string>>(() => readLocal(getCommentKey(user?.sso), {
+    "FC2-061": "ยังต้องฝึกใช้ระบบออนไลน์และเครื่องมือ AI ให้คล่องขึ้น",
+    "CC-003": "อยากพัฒนาการประสานงานในทีมให้ต่อเนื่องกว่าเดิม"
+  }));
+  const [selectedCompetencyCode, setSelectedCompetencyCode] = useState<string | null>(null);
+  const [submittedThisSession, setSubmittedThisSession] = useState(false);
+  const selectedCompetency = selectedCompetencyCode
+    ? WORKFLOW_COMPETENCIES.filter(comp => comp.code === selectedCompetencyCode)[0]
+    : null;
+  const selectedLevels: number[] = [];
+  if (selectedCompetency) {
+    selectedCompetency.indicators.forEach(indicator => {
+      if (selectedLevels.indexOf(indicator.level) === -1) selectedLevels.push(indicator.level);
+    });
+    selectedLevels.sort((a, b) => a - b);
+  }
+  const isAssessmentComplete = WORKFLOW_COMPETENCIES.every(comp =>
+    comp.indicators.some(indicator => checkedIds.includes(indicator.id))
+  );
+
+  const toggleBehavior = (id: string) => {
+    let competency = WORKFLOW_COMPETENCIES[0];
+    let selectedOrder = 0;
+    for (let index = 0; index < WORKFLOW_COMPETENCIES.length; index += 1) {
+      const comp = WORKFLOW_COMPETENCIES[index];
+      for (let indicatorIndex = 0; indicatorIndex < comp.indicators.length; indicatorIndex += 1) {
+        const indicator = comp.indicators[indicatorIndex];
+        if (indicator.id === id) {
+          competency = comp;
+          selectedOrder = indicator.order;
+          break;
         }
+      }
+      if (selectedOrder) break;
+    }
+    if (!competency || !canToggleBehavior(competency, id, checkedIds)) return;
+    setCheckedIds(prev => {
+      if (!prev.includes(id)) return [...prev, id];
+      const cascadingIds = competency.indicators
+        .filter(indicator => indicator.order >= selectedOrder)
+        .map(indicator => indicator.id);
+      return prev.filter(item => cascadingIds.indexOf(item) === -1);
+    });
+  };
 
-        const today = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
-        setActivitiesByGap(prev => ({
-            ...prev,
-            [gapCode]: (prev[gapCode] || []).map((act, index) => {
-                if (index !== actIdx) return act;
-                return {
-                    ...act,
-                    ...(mode === 'draft'
-                        ? { st: 'ร่าง', stC: 'bgr' }
-                        : mode === 'complete'
-                            ? { st: 'เสร็จสิ้นกิจกรรม', stC: 'bg', result: 'done', progressDone: true }
-                            : isEmployeeIDPActivityDone(act)
-                                ? { st: act.st, stC: act.stC }
-                                : { st: 'กำลังดำเนินการ', stC: 'bt' }),
-                    logs: [
-                        {
-                            d: today,
-                            n: buildLogMessage(form, mode),
-                            by: 'สมชาย มีสุข',
-                            type: mode === 'draft' ? 'draft' : mode === 'complete' ? 'complete' : 'log'
-                        },
-                        ...(act.logs || [])
-                    ]
-                };
-            })
-        }));
-        setProgressStatusByGap(prev => ({
-            ...prev,
-            [gapCode]: prev[gapCode] === 'done' || prev[gapCode] === 'submitted' ? prev[gapCode] : 'developing'
-        }));
-        clearForm(gapCode, actIdx);
-        alert(mode === 'draft' ? 'บันทึกร่างเรียบร้อย' : mode === 'complete' ? 'บันทึกว่ากิจกรรมเสร็จสิ้นแล้ว' : 'บันทึกความก้าวหน้าเรียบร้อย');
+  const saveDraft = (showAlert = true) => {
+    writeLocal(getCheckedKey(user?.sso), checkedIds);
+    writeLocal(getCommentKey(user?.sso), comments);
+    if (showAlert) alert("บันทึกร่างการประเมินตนเองแล้ว");
+  };
+
+  const submit = () => {
+    if (!isAssessmentComplete) return;
+    saveDraft(false);
+    setSubmittedThisSession(true);
+    alert("ส่งแบบประเมินตนเองให้หัวหน้างานแล้ว");
+  };
+
+  return (
+    <>
+      <div className="flex ic jb mb20">
+        <div>
+          <div className="sec-t">ประเมินตนเอง</div>
+          <div className="sec-s">เลือกพฤติกรรมที่ทำได้จริงตามลำดับสะสม หน้านี้ยังไม่เปิดเผยคะแนน Gap หรือผลวิเคราะห์</div>
+        </div>
+        <span className={`b ${submittedThisSession ? "by" : "bgr"}`}>{submittedThisSession ? "ส่งแล้ว รอหัวหน้างานตรวจ" : "รอส่ง"}</span>
+      </div>
+
+      <AssessmentProgress checkedIds={checkedIds} />
+
+      <div className="card">
+        <div className="ch">
+          <div>
+            <div className="fw8">หัวข้อสมรรถนะที่ต้องประเมิน</div>
+            <div className="muted fs12 mt4">กดเข้าไปประเมินทีละสมรรถนะ</div>
+          </div>
+        </div>
+        <div className="cb" style={{ display: "grid", gap: 8 }}>
+          {WORKFLOW_COMPETENCIES.map(comp => {
+            const checkedCount = comp.indicators.filter(item => checkedIds.includes(item.id)).length;
+            const isStarted = checkedCount > 0;
+
+            return (
+              <button
+                key={comp.code}
+                type="button"
+                className="w100"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  textAlign: "left",
+                  cursor: "pointer",
+                  padding: "14px 16px",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  background: "#fff"
+                }}
+                onClick={() => setSelectedCompetencyCode(comp.code)}
+              >
+                <div className="flex ic g8" style={{ minWidth: 0 }}>
+                  <span className={comp.tagClass}>{tagLabel(comp.type)}</span>
+                  <div className="flex ic g8">
+                    <div className="fw8" style={{ whiteSpace: "normal" }}>{comp.code} · {comp.name}</div>
+                  </div>
+                </div>
+                <span className={`b ${isStarted ? "bg" : "bgr"}`} style={{ flexShrink: 0 }}>{isStarted ? "ประเมินแล้ว" : "ยังไม่ประเมิน"}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            padding: "14px 18px",
+            borderTop: "1px solid var(--border)",
+            background: "var(--bg)",
+            flexWrap: "wrap"
+          }}
+        >
+          {submittedThisSession ? (
+            <span className="b by" style={{ padding: "10px 16px", fontSize: 13 }}>ส่งแล้ว รอหัวหน้างานตรวจ</span>
+          ) : (
+            <>
+              {!isAssessmentComplete && <div className="muted fs12" style={{ marginRight: "auto" }}>โปรดประเมินให้เสร็จทุกข้อก่อน</div>}
+              <button className="btn btn-t" onClick={submit} disabled={!isAssessmentComplete} style={{ opacity: isAssessmentComplete ? 1 : 0.45, cursor: isAssessmentComplete ? "pointer" : "not-allowed" }}>ส่งให้หัวหน้างาน</button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {selectedCompetency && (
+        <div className="mo" style={{ alignItems: "flex-start", paddingTop: 42 }} onClick={() => setSelectedCompetencyCode(null)}>
+          <div
+            className="mo-box"
+            style={{
+              width: "min(820px, 96vw)",
+              maxWidth: 820,
+              height: "calc(100vh - 84px)",
+              maxHeight: "calc(100vh - 84px)",
+              borderRadius: 10,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column"
+            }}
+            onClick={event => event.stopPropagation()}
+          >
+            <div
+              className="mo-h"
+              style={{
+                alignItems: "flex-start",
+                gap: 18,
+                padding: "22px 26px",
+                background: "linear-gradient(180deg,#ffffff 0%,#f8fafc 100%)"
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div className="flex ic g8 mb6">
+                  <span className={selectedCompetency.tagClass} style={{ fontSize: 11, padding: "4px 8px" }}>{tagLabel(selectedCompetency.type)}</span>
+                  <span className="muted fs12 fw7">{selectedCompetency.code}</span>
+                </div>
+                <div className="fw8" style={{ fontSize: 22, lineHeight: 1.25 }}>{selectedCompetency.name}</div>
+                <div className="muted fs12 mt6">เลือกพฤติกรรมที่ทำได้จริงตามลำดับสะสม ระบบยังไม่แสดงคะแนนหรือ Gap ในขั้นนี้</div>
+              </div>
+              <button className="btn btn-s btn-sm" style={{ padding: "8px 12px" }} onClick={() => setSelectedCompetencyCode(null)}>ปิด</button>
+            </div>
+            <div className="mo-b" style={{ padding: 0, background: "var(--bg)", overflowY: "auto", flex: 1 }}>
+              <div style={{ padding: "18px 26px 22px", display: "grid", gap: 12 }}>
+                {selectedLevels.map(level => {
+                  const levelItems = selectedCompetency.indicators.filter(indicator => indicator.level === level);
+                  const selectedInLevel = levelItems.filter(indicator => checkedIds.includes(indicator.id)).length;
+                  return (
+                    <section
+                      key={level}
+                      style={{
+                        background: "#fff",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        overflow: "hidden"
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          padding: "12px 16px",
+                          borderBottom: "1px solid var(--border)",
+                          background: selectedInLevel > 0 ? "var(--teal-lt)" : "#fff"
+                        }}
+                      >
+                        <div>
+                          <div className="fw8">ระดับ {level}</div>
+                          <div className="muted fs12 mt2">เลือกแล้ว {selectedInLevel}/{levelItems.length} พฤติกรรม</div>
+                        </div>
+                        <span className={`b ${selectedInLevel === levelItems.length ? "bg" : selectedInLevel > 0 ? "bt" : "bgr"}`}>
+                          {selectedInLevel === levelItems.length ? "ครบระดับ" : selectedInLevel > 0 ? "กำลังประเมิน" : "ยังไม่เริ่ม"}
+                        </span>
+                      </div>
+                      <div style={{ display: "grid" }}>
+                        {levelItems.map(indicator => {
+                          const checked = checkedIds.includes(indicator.id);
+                          const unlockedId = nextUnlockedBehaviorId(selectedCompetency, checkedIds);
+                          const canToggle = canToggleBehavior(selectedCompetency, indicator.id, checkedIds);
+                          const isNext = unlockedId === indicator.id && !checked;
+                          return (
+                            <label
+                              key={indicator.id}
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "22px 1fr auto",
+                                alignItems: "start",
+                                gap: 10,
+                                padding: "13px 16px",
+                                borderTop: "1px solid var(--border)",
+                                opacity: canToggle || checked ? 1 : 0.42,
+                                cursor: canToggle || checked ? "pointer" : "not-allowed"
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={!canToggle && !checked}
+                                onChange={() => toggleBehavior(indicator.id)}
+                                style={{ marginTop: 3, width: 16, height: 16, accentColor: "var(--teal)" }}
+                              />
+                              <div>
+                                <div className="fw7 fs12">ข้อ {indicator.level}.{indicator.order % 4 || 4}</div>
+                                <div className="fs13 mt4" style={{ color: checked ? "var(--text)" : "var(--text2)", lineHeight: 1.55 }}>{indicator.text}</div>
+                              </div>
+                              {isNext && <span className="b bb" style={{ fontSize: 10 }}>ลำดับถัดไป</span>}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
+                <div style={{ background: "#fff", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
+                  <label className="lbl">ความคิดเห็นต่อสมรรถนะนี้</label>
+                  <textarea
+                    className="ta"
+                    style={{ minHeight: 92 }}
+                    value={comments[selectedCompetency.code] || ""}
+                    onChange={event => setComments({ ...comments, [selectedCompetency.code]: event.target.value })}
+                    placeholder="บันทึกเหตุผลหรือบริบทประกอบการประเมินตนเอง"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              style={{
+                position: "sticky",
+                bottom: 0,
+                padding: "14px 26px",
+                borderTop: "1px solid var(--border)",
+                background: "#fff",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12
+              }}
+            >
+              <div className="muted fs12">ข้อมูลจะอยู่ในแบบร่างจนกดบันทึกหรือส่งให้หัวหน้างาน</div>
+              <button className="btn btn-t" onClick={() => setSelectedCompetencyCode(null)}>บันทึกและปิด</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+const PendingApprovalState = ({ title, description }: { title: string; description: string }) => (
+  <div className="card">
+    <div className="cb text-center" style={{ padding: "52px 24px" }}>
+      <div style={{ width: 72, height: 72, borderRadius: 20, background: "var(--blue-lt)", color: "var(--blue)", display: "grid", placeItems: "center", margin: "0 auto 18px", fontSize: 30 }}>⏳</div>
+      <div className="fw8 fs18 mb8">{title}</div>
+      <div className="muted fs13" style={{ maxWidth: 560, margin: "0 auto" }}>{description}</div>
+      <div className="mini-row mt20" style={{ maxWidth: 560, marginLeft: "auto", marginRight: "auto", textAlign: "left" }}>
+        <div>
+          <div className="fw8">สถานะปัจจุบัน</div>
+          <div className="muted fs12">ส่งแบบประเมินแล้ว ให้รอผู้บังคับบัญชาตรวจและอนุมัติก่อน ระบบจึงจะแสดงผล Gap</div>
+        </div>
+        <span className="b by">รออนุมัติ</span>
+      </div>
+    </div>
+  </div>
+);
+
+export const EmployeeGap: React.FC<{ setPage: (page: string) => void; user?: any }> = ({ setPage, user }) => {
+  const checkedIds = isAssessmentApproved(user)
+    ? readLocal(getCheckedKey(user?.sso || "20002"), MOCK_GAP_CHECKED_BEHAVIOR_IDS)
+    : MOCK_GAP_CHECKED_BEHAVIOR_IDS;
+  const gaps = gapResultsFor(checkedIds);
+  const negative = gaps.filter(item => item.gap < 0);
+  const passed = gaps.filter(item => item.gap >= 0);
+  const sortedNegative = [...negative].sort((a, b) => a.gap - b.gap);
+
+  return (
+    <>
+      <div className="flex ic jb mb20">
+        <div>
+          <div className="sec-t">ผลการประเมิน</div>
+          <div className="sec-s">ตัวอย่างรูปแบบผลหลังผู้บังคับบัญชาอนุมัติ: Actual Score - Expected Score</div>
+        </div>
+        <button className="btn btn-p btn-sm" onClick={() => setPage("emp-idp")}>ไปจัดทำ IDP</button>
+      </div>
+
+      {!isAssessmentApproved(user) && (
+        <div className="card mb16" style={{ borderColor: "var(--blue-md)", background: "var(--blue-lt)" }}>
+          <div className="cb flex ic jb" style={{ gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div className="fw8 bc">Mock preview</div>
+              <div className="muted fs12 mt4">หน้านี้เปิดให้ดูรูปแบบข้อมูลก่อน ในระบบจริง user จะเห็นหลังผลประเมินได้รับอนุมัติแล้ว</div>
+            </div>
+            <span className="b bb">ตัวอย่างข้อมูล</span>
+          </div>
+        </div>
+      )}
+
+      <div className="grid mb20" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+        <div className="sc"><div className="sl">สมรรถนะทั้งหมด</div><div className="sv">{gaps.length}</div><div className="ss muted">รายการที่ประเมิน</div></div>
+        <div className="sc"><div className="sl">ผ่านเกณฑ์</div><div className="sv" style={{ color: "var(--green)" }}>{passed.length}</div><div className="ss muted">Gap ≥ 0</div></div>
+        <div className="sc"><div className="sl">ไม่ผ่านเกณฑ์</div><div className="sv" style={{ color: "var(--red)" }}>{negative.length}</div><div className="ss muted">Gap ติดลบ</div></div>
+      </div>
+
+      <div className="card mb16" style={{ borderColor: "var(--green-md)", overflow: "hidden" }}>
+        <div className="ch" style={{ background: "var(--green-bg)", borderBottomColor: "var(--green-md)" }}>
+          <div>
+            <div className="fw8">สมรรถนะที่ผ่านเกณฑ์</div>
+            <div className="muted fs12 mt4">รายการที่คะแนนจริงเท่ากับหรือสูงกว่าคะแนนคาดหวัง</div>
+          </div>
+          <span className="b bg">{passed.length} รายการ</span>
+        </div>
+        <div className="cb" style={{ display: "grid", gap: 10, background: "#fff" }}>
+          {passed.map(item => (
+            <div
+              key={item.competency.code}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box",
+                padding: "14px 16px",
+                border: "1px solid var(--green-md)",
+                borderRadius: 8,
+                background: "#fff",
+                flexWrap: "wrap"
+              }}
+            >
+              <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+                <div className="flex ic g8" style={{ minWidth: 0 }}>
+                  <span className={item.competency.tagClass}>{tagLabel(item.competency.type)}</span>
+                  <b style={{ minWidth: 0, whiteSpace: "normal" }}>{item.competency.code} · {item.competency.name}</b>
+                </div>
+                <div className="muted fs12 mt4">คะแนนคาดหวัง {fmt(item.expectedScore)} · คะแนนที่ได้ {fmt(item.actualScore)}</div>
+              </div>
+              <span className="b bg" style={{ flexShrink: 0 }}>Gap +{fmt(item.gap)}</span>
+            </div>
+          ))}
+          {passed.length === 0 && <div className="muted fs13">ยังไม่มีสมรรถนะที่ผ่านเกณฑ์ในข้อมูลตัวอย่างนี้</div>}
+        </div>
+      </div>
+
+      <div className="card mb16" style={{ borderColor: "#fecaca", overflow: "hidden" }}>
+        <div className="ch" style={{ background: "var(--red-bg)", borderBottomColor: "#fecaca" }}>
+          <div>
+            <div className="fw8">สมรรถนะที่ไม่ผ่านเกณฑ์</div>
+            <div className="muted fs12 mt4">เรียงจาก Gap ติดลบมากไปน้อย เพื่อส่งต่อไปสร้าง IDP</div>
+          </div>
+          <span className="b br">{negative.length} รายการ</span>
+        </div>
+        <div className="cb" style={{ display: "grid", gap: 10, background: "#fff" }}>
+          {sortedNegative.map(item => (
+            <div key={item.competency.code} style={{ border: "1px solid #fecaca", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+              <div className="flex ic jb" style={{ padding: "14px 16px", gap: 12, borderBottom: "1px solid #fee2e2", flexWrap: "wrap", background: "#fffafa" }}>
+                <div className="flex ic g8">
+                  <span className={item.competency.tagClass}>{tagLabel(item.competency.type)}</span>
+                  <div>
+                    <div className="fw8">{item.competency.code} · {item.competency.name}</div>
+                    <div className="muted fs12 mt4">Expected {fmt(item.expectedScore)} · Actual {fmt(item.actualScore)}</div>
+                  </div>
+                </div>
+                <span className="b br">Gap {fmt(item.gap)}</span>
+              </div>
+              <div style={{ padding: "12px 16px" }}>
+                <div className="lbl">พฤติกรรมที่ยังขาดทั้งหมด ({item.missingBehaviors.length} ข้อ)</div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {groupBehaviorsByLevel(item.missingBehaviors).map(group => (
+                    <div key={group.level} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "8px 12px",
+                          background: "var(--bg)",
+                          borderBottom: "1px solid var(--border)"
+                        }}
+                      >
+                        <div className="fw8 fs12">ระดับ {group.level}</div>
+                        <span className="b bgr" style={{ fontSize: 10 }}>{group.behaviors.length} ข้อ</span>
+                      </div>
+                      <div style={{ display: "grid" }}>
+                        {group.behaviors.map(behavior => (
+                          <div
+                            key={behavior.id}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "72px 1fr",
+                              gap: 10,
+                              padding: "10px 12px",
+                              borderTop: "1px solid var(--border)",
+                              alignItems: "start"
+                            }}
+                          >
+                            <span className="b bt" style={{ justifyContent: "center", fontSize: 10 }}>ข้อ {behavior.level}.{behavior.order % 4 || 4}</span>
+                            <div className="fs13" style={{ color: "var(--text2)", lineHeight: 1.55 }}>{behavior.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="ch">
+          <div>
+            <div className="fw8">ตารางผลการประเมินทั้งหมด</div>
+            <div className="muted fs12 mt4">ใช้ดูรายละเอียดคะแนนคาดหวัง คะแนนจริง และสถานะการพัฒนา</div>
+          </div>
+        </div>
+        <div className="cb">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>สมรรถนะ</th>
+                <th>Expected</th>
+                <th>Actual</th>
+                <th>Gap</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gaps.map(item => (
+                <tr key={item.competency.code}>
+                  <td>
+                    <div className="flex ic g8"><span className={item.competency.tagClass}>{tagLabel(item.competency.type)}</span><b>{item.competency.code}</b></div>
+                    <div className="muted fs12 mt4">{item.competency.name}</div>
+                  </td>
+                  <td>{fmt(item.expectedScore)}</td>
+                  <td>{fmt(item.actualScore)}</td>
+                  <td><span className={`b ${item.gap < 0 ? "br" : "bg"}`}>{fmt(item.gap)}</span></td>
+                  <td>{item.gap < 0 ? <span className="b br">เข้า IDP</span> : <span className="b bg">ผ่านเกณฑ์</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export const EmployeeIDP: React.FC<{ learningMethods: any[]; user?: any }> = ({ learningMethods, user }) => {
+  const checkedIds = isAssessmentApproved(user)
+    ? readLocal(getCheckedKey(user?.sso || "20002"), MOCK_GAP_CHECKED_BEHAVIOR_IDS)
+    : MOCK_GAP_CHECKED_BEHAVIOR_IDS;
+  const negativeGaps = gapResultsFor(checkedIds).filter(item => item.gap < 0);
+  const behaviorTargetCount = negativeGaps.reduce((sum, gap) => sum + gap.missingBehaviors.length, 0);
+  const defaultLearningType = learningMethods[0]?.label || "Experiential Learning";
+  const learningCatalog = [
+    { id: "catalog-ojt", name: "OJT / มอบหมายโครงการพิเศษ", typeKey: "experiential", detail: "มอบหมายงานหรือโครงการจริงให้ฝึกปฏิบัติ พร้อมติดตามผลจากหัวหน้างาน", kpi: "ส่งมอบผลงานจริงและได้รับ feedback จากหัวหน้างาน" },
+    { id: "catalog-rotation", name: "Job Rotation", typeKey: "experiential", detail: "หมุนเวียนงานเพื่อเพิ่มประสบการณ์ข้ามภารกิจและเข้าใจกระบวนการทำงานของหน่วยงาน", kpi: "สรุปบทเรียนจากงานที่หมุนเวียนและนำไปปรับใช้กับงานประจำ" },
+    { id: "catalog-coaching", name: "Coaching by Supervisor", typeKey: "social", detail: "หัวหน้างานให้คำแนะนำเฉพาะจุดจากงานจริง พร้อมสะท้อนผลเพื่อพัฒนาพฤติกรรมการทำงาน", kpi: "มีบันทึก coaching และตัวอย่างการปรับพฤติกรรมจากงานจริง" },
+    { id: "catalog-mentoring", name: "Mentoring Program", typeKey: "social", detail: "จับคู่ผู้มีประสบการณ์กับผู้เรียนรู้ เพื่อแลกเปลี่ยนแนวทางการทำงานและให้คำแนะนำต่อเนื่อง", kpi: "มี reflection log และแนวทางปฏิบัติที่นำไปใช้ได้จริง" },
+    { id: "catalog-ai-data", name: "อบรม AI & Data Analytics", typeKey: "formal", detail: "หลักสูตรพัฒนาทักษะการใช้ AI และการวิเคราะห์ข้อมูลเพื่อสนับสนุนการทำงาน", kpi: "ผ่านการอบรมและมีชิ้นงานหรือรายงานผลการนำไปใช้" },
+    { id: "catalog-communication", name: "Workshop การสื่อสาร", typeKey: "formal", detail: "เวิร์กชอปฝึกทักษะการสื่อสาร การนำเสนอ และการประสานงานอย่างมีประสิทธิภาพ", kpi: "ผ่าน workshop และนำเทคนิคไปใช้กับสถานการณ์ทำงานจริง" }
+  ];
+  const catalogLearningLabel = (typeKey: string) => {
+    const found = learningMethods.filter(method => method.key === typeKey)[0];
+    if (found) return found.label;
+    if (typeKey === "social") return "Social Learning";
+    if (typeKey === "formal") return "Formal Learning";
+    return defaultLearningType;
+  };
+  const defaultForms = negativeGaps.reduce<Record<string, any>>((acc, gap) => {
+    acc[gap.competency.code] = {
+      behaviorResult: "",
+      activities: []
     };
+    return acc;
+  }, {});
+  const [forms, setForms] = useState<Record<string, any>>(() => {
+    const stored = readLocal<Record<string, any>>(`mock-idp-forms-v2:${user?.sso || "20002"}`, {});
+    return negativeGaps.reduce<Record<string, any>>((acc, gap) => {
+      const existing = stored[gap.competency.code];
+      acc[gap.competency.code] = existing?.activities ? existing : defaultForms[gap.competency.code];
+      return acc;
+    }, {});
+  });
+  const [selectedCompetencyCode, setSelectedCompetencyCode] = useState<string | null>(null);
+  const [selectedMode, setSelectedMode] = useState<"detail" | "edit">("detail");
+  const [showDonutBreakdown, setShowDonutBreakdown] = useState(false);
+  const selectedGap = selectedCompetencyCode ? negativeGaps.filter(gap => gap.competency.code === selectedCompetencyCode)[0] : null;
 
-    const submitGapProgress = (gapCode: string, acts: any[]) => {
-        const currentStatus = progressStatusByGap[gapCode] || 'developing';
-        const summary = getEmployeeIDPProgressSummary(acts, currentStatus);
-        if (!summary.canSubmit) return;
-        const today = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
-        setProgressStatusByGap(prev => ({ ...prev, [gapCode]: 'submitted' }));
-        setActivitiesByGap(prev => ({
-            ...prev,
-            [gapCode]: (prev[gapCode] || []).map(act => ({
-                ...act,
-                logs: [
-                    { d: today, n: 'ส่งสมรรถนะนี้ให้หัวหน้าตรวจสอบ', by: 'สมชาย มีสุข', type: 'submit' },
-                    ...(act.logs || [])
-                ]
-            }))
-        }));
-        alert('ส่งให้หัวหน้าตรวจสอบเรียบร้อย');
+  const getActivities = (competencyCode: string) => forms[competencyCode]?.activities || [];
+  const allActivities: any[] = [];
+  negativeGaps.forEach(gap => {
+    getActivities(gap.competency.code).forEach((activity: any) => allActivities.push(activity));
+  });
+  const summary = learningSummary(allActivities);
+  const summaryTotal = summary.reduce((sum, item) => sum + item.value, 0);
+  let firstStop = 0;
+  let secondStop = 0;
+  let summaryTitle = "ยังไม่มีน้ำหนักกิจกรรม";
+  if (summaryTotal > 0) {
+    firstStop = Number((((summary[0]?.value || 0) / summaryTotal) * 100).toFixed(2));
+    secondStop = Number((firstStop + (((summary[1]?.value || 0) / summaryTotal) * 100)).toFixed(2));
+    summaryTitle = summary.map(item => `${item.label} ${item.value}%`).join(" · ");
+  }
+  const chartFor = (activities: any[]) => {
+    const rows = learningSummary(activities);
+    const total = rows.reduce((sum, item) => sum + item.value, 0);
+    let first = 0;
+    let second = 0;
+    if (total > 0) {
+      first = Number((((rows[0]?.value || 0) / total) * 100).toFixed(2));
+      second = Number((first + (((rows[1]?.value || 0) / total) * 100)).toFixed(2));
+    }
+    return {
+      rows,
+      first,
+      second,
+      title: total > 0 ? rows.map(item => `${item.label} ${item.value}%`).join(" · ") : "ยังไม่มีกิจกรรม"
     };
+  };
 
+  const activityWeightTotal = (competencyCode: string) =>
+    getActivities(competencyCode).reduce((sum: number, activity: any) => sum + Number(activity.learningWeight || 0), 0);
+
+  const isActivityComplete = (activity: any) =>
+    activity.method &&
+    activity.learningType &&
+    Number(activity.learningWeight) > 0 &&
+    activity.activityDetail &&
+    activity.kpi &&
+    activity.startDate &&
+    activity.endDate;
+
+  const isCompetencyPlanComplete = (competencyCode: string) => {
+    const form = forms[competencyCode] || {};
+    const activities = getActivities(competencyCode);
+    return form.behaviorResult &&
+      activities.length > 0 &&
+      activities.every((activity: any) => isActivityComplete(activity)) &&
+      activityWeightTotal(competencyCode) === 100;
+  };
+
+  const planStatus = (competencyCode: string) => {
+    const form = forms[competencyCode] || {};
+    const activities = getActivities(competencyCode);
+    if (isCompetencyPlanComplete(competencyCode)) return { label: "พร้อมส่ง", className: "bg" };
+    if (!form.behaviorResult && activities.length === 0) return { label: "ยังไม่เริ่ม", className: "bgr" };
+    return { label: "กำลังจัดทำ", className: "by" };
+  };
+
+  const updateForm = (competencyCode: string, field: string, value: string) => {
+    setForms(prev => ({ ...prev, [competencyCode]: { ...prev[competencyCode], [field]: value } }));
+  };
+
+  const updateActivity = (competencyCode: string, activityId: string, field: string, value: string | number) => {
+    setForms(prev => ({
+      ...prev,
+      [competencyCode]: {
+        ...prev[competencyCode],
+        activities: getActivities(competencyCode).map((activity: any) =>
+          activity.id === activityId ? { ...activity, [field]: value } : activity
+        )
+      }
+    }));
+  };
+
+  const blankActivity = (competencyCode: string) => ({
+    id: `${competencyCode}-act-${Date.now()}`,
+    inputMode: "manual",
+    catalogId: "",
+    method: "",
+    learningType: defaultLearningType,
+    learningWeight: 0,
+    activityDetail: "",
+    kpi: "",
+    startDate: "",
+    endDate: ""
+  });
+
+  const addActivity = (competencyCode: string) => {
+    setForms(prev => ({
+      ...prev,
+      [competencyCode]: {
+        ...prev[competencyCode],
+        activities: [...getActivities(competencyCode), blankActivity(competencyCode)]
+      }
+    }));
+    setSelectedMode("edit");
+    setSelectedCompetencyCode(competencyCode);
+  };
+
+  const openEditActivities = (competencyCode: string) => {
+    setSelectedMode("edit");
+    setSelectedCompetencyCode(competencyCode);
+  };
+
+  const removeActivity = (competencyCode: string, activityId: string) => {
+    const activities = getActivities(competencyCode);
+    setForms(prev => ({
+      ...prev,
+      [competencyCode]: {
+        ...prev[competencyCode],
+        activities: activities.filter((activity: any) => activity.id !== activityId)
+      }
+    }));
+  };
+
+  const applyCatalog = (competencyCode: string, activityId: string, catalogId: string) => {
+    const item = learningCatalog.filter(entry => entry.id === catalogId)[0];
+    setForms(prev => ({
+      ...prev,
+      [competencyCode]: {
+        ...prev[competencyCode],
+        activities: getActivities(competencyCode).map((activity: any) => {
+          if (activity.id !== activityId) return activity;
+          if (!item) return { ...activity, catalogId };
+          return {
+            ...activity,
+            catalogId,
+            method: item.name,
+            learningType: catalogLearningLabel(item.typeKey),
+            activityDetail: item.detail,
+            kpi: item.kpi
+          };
+        })
+      }
+    }));
+  };
+
+  const submitPlan = (gap: any) => {
+    if (!isCompetencyPlanComplete(gap.competency.code)) {
+      alert("กรอกข้อมูลของสมรรถนะนี้ให้ครบ และให้น้ำหนักรวมครบ 100% ก่อนส่งอนุมัติ");
+      return;
+    }
+    writeLocal(`mock-idp-forms-v2:${user?.sso || "20002"}`, forms);
+    alert(`ส่งแผน IDP ของ ${gap.competency.code} · ${gap.competency.name} ให้หัวหน้าอนุมัติแล้ว`);
+  };
+
+  const renderMissingBehaviors = (gap: any) => (
+    <div style={{ display: "grid", gap: 10 }}>
+      {groupBehaviorsByLevel(gap.missingBehaviors).map(group => (
+        <div key={group.level} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+          <div style={{ padding: "10px 12px", background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
+            <span className="fw8 fs13">ระดับ {group.level}</span>
+            <span className="muted fs12" style={{ marginLeft: 8 }}>{group.behaviors.length} ข้อที่ยังเป็น Gap</span>
+          </div>
+          <div style={{ display: "grid" }}>
+            {group.behaviors.map((behavior: any) => (
+              <div
+                key={behavior.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "82px 1fr",
+                  gap: 10,
+                  padding: "10px 12px",
+                  borderTop: "1px solid var(--border)",
+                  alignItems: "start"
+                }}
+              >
+                <span className="b bt" style={{ justifyContent: "center", fontSize: 10 }}>ข้อ {behavior.level}.{behavior.order % 4 || 4}</span>
+                <div className="fs13" style={{ color: "var(--text2)", lineHeight: 1.55 }}>{behavior.text}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (!negativeGaps.length) {
     return (
-        <>
-            <div className="mb20">
-                <div className="sec-t">อัปเดตความก้าวหน้า</div>
-                <div className="sec-s">บันทึกผลการพัฒนา แนบหลักฐาน และอัปเดตสถานะกิจกรรม IDP</div>
+      <div className="card">
+        <div className="cb">
+          <div className="sec-t mb6">แผนพัฒนา IDP</div>
+          <div className="sec-s">ไม่มีสมรรถนะที่ Gap ติดลบในข้อมูลตัวอย่างนี้ จึงยังไม่ต้องจัดทำแผนพัฒนา</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex ic jb mb20">
+        <div>
+          <div className="sec-t">แผนพัฒนา IDP</div>
+          <div className="sec-s">ระบบดึงสมรรถนะที่ไม่ผ่านเกณฑ์มาให้ จากนั้นเพิ่มกิจกรรมพัฒนาให้น้ำหนักรวมครบ 100%</div>
+        </div>
+      </div>
+
+      {!isAssessmentApproved(user) && (
+        <div className="card mb16" style={{ borderColor: "var(--blue-md)", background: "var(--blue-lt)" }}>
+          <div className="cb flex ic jb" style={{ gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div className="fw8 bc">Mock preview</div>
+              <div className="muted fs12 mt4">หน้านี้เปิดให้ดูรูปแบบข้อมูลก่อน ในระบบจริง IDP จะสร้างหลังผลประเมินได้รับอนุมัติแล้ว</div>
+            </div>
+            <span className="b bb">ตัวอย่างข้อมูล</span>
+          </div>
+        </div>
+      )}
+
+      <div className="card mb16">
+        <div className="ch"><div className="fw8">ข้อมูลส่วนบุคคล</div><span className="b bgr">Auto-filled</span></div>
+        <div className="cb grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
+          <div><div className="sl">ชื่อ-นามสกุล</div><div className="fw8">{user ? `${user.t || ""}${user.n}` : "นายสมชาย มีสุข"}</div></div>
+          <div><div className="sl">รหัสพนักงาน</div><div className="fw8">{user?.sso || "20002"}</div></div>
+          <div><div className="sl">ตำแหน่ง</div><div className="fw8">{user?.p || "นักวิชาการศึกษา"}</div></div>
+          <div><div className="sl">สังกัด</div><div className="fw8">{user?.d || "สนับสนุนการศึกษาและวิชาการ"}</div></div>
+        </div>
+      </div>
+
+      <div className="grid mb20" style={{ gridTemplateColumns: "minmax(220px, 1fr)", gap: 10 }}>
+        <div className="sc"><div className="sl">สมรรถนะที่ต้องทำ IDP</div><div className="sv">{negativeGaps.length}</div><div className="ss muted">1 สมรรถนะ = 1 แผน</div></div>
+      </div>
+
+      <div className="card mb16">
+        <div className="ch">
+          <div>
+            <div className="fw8">หัวข้อสมรรถนะที่ต้องทำ IDP</div>
+            <div className="muted fs12 mt4">กดเข้าไปดูรายละเอียดหรือเพิ่มกิจกรรมในสมรรถนะนั้น</div>
+          </div>
+        </div>
+        <div className="cb" style={{ display: "grid", gap: 8 }}>
+          {negativeGaps.map(gap => {
+            const activities = getActivities(gap.competency.code);
+            const weightTotal = activityWeightTotal(gap.competency.code);
+            const status = planStatus(gap.competency.code);
+
+            return (
+              <div
+                key={gap.competency.code}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0,1fr) auto",
+                  gap: 12,
+                  alignItems: "center",
+                  padding: "14px 16px",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  background: "#fff"
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                    <span className={gap.competency.tagClass}>{tagLabel(gap.competency.type)}</span>
+                    <div className="fw8">{gap.competency.code} · {gap.competency.name}</div>
+                    <span className={`b ${status.className}`}>สถานะแผน: {status.label}</span>
+                  </div>
+                  <div className="muted fs12 mt6">Gap {fmt(gap.gap)} · พฤติกรรมที่ยังขาด {gap.missingBehaviors.length} ข้อ · กิจกรรม {activities.length} รายการ · น้ำหนักรวม {weightTotal}%</div>
+                </div>
+                <div className="flex g8" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <button className="btn btn-s btn-sm" onClick={() => { setSelectedMode("detail"); setSelectedCompetencyCode(gap.competency.code); }}>ดูรายละเอียด</button>
+                  <button className="btn btn-t btn-sm" onClick={() => openEditActivities(gap.competency.code)}>จัดการแผน IDP</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {selectedGap && (
+        <div className="mo" style={{ alignItems: "flex-start", paddingTop: 32 }} onClick={() => { setShowDonutBreakdown(false); setSelectedCompetencyCode(null); }}>
+          <div
+            className="mo-box"
+            style={{
+              width: "min(980px, 96vw)",
+              height: "calc(100vh - 64px)",
+              maxHeight: "calc(100vh - 64px)",
+              borderRadius: 10,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column"
+            }}
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="mo-h" style={{ alignItems: "flex-start", gap: 14, flexShrink: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                  <span className={selectedGap.competency.tagClass}>{tagLabel(selectedGap.competency.type)}</span>
+                  <div className="fw8" style={{ fontSize: 18 }}>{selectedGap.competency.code} · {selectedGap.competency.name}</div>
+                </div>
+                <div className="muted fs12 mt4">คะแนนคาดหวัง {fmt(selectedGap.expectedScore)} · คะแนนที่ได้ {fmt(selectedGap.actualScore)} · Gap {fmt(selectedGap.gap)}</div>
+              </div>
+              <button className="btn btn-s btn-sm" onClick={() => { setShowDonutBreakdown(false); setSelectedCompetencyCode(null); }}>ปิด</button>
             </div>
 
-            {list.map(({ g, acts }) => {
-                const status = progressStatusByGap[g.cd] || deriveEmployeeIDPProgressStatus(g);
-                const statusMeta = getEmployeeIDPProgressStatusMeta(status);
-                const summary = getEmployeeIDPProgressSummary(acts, status);
-                const notice = status === 'rejected' ? getEmployeeIDPRejectionNotice(g) : null;
-                const canEdit = status !== 'submitted' && status !== 'done';
-                const hasActivities = summary.totalCount > 0;
+            <div style={{ overflowY: "auto", padding: 18, display: "grid", gap: 16 }}>
+              <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10 }}>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "var(--bg)" }}>
+                  <div className="sl">Expected Score</div>
+                  <div className="fw8">{fmt(selectedGap.expectedScore)}</div>
+                </div>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "var(--bg)" }}>
+                  <div className="sl">Actual Score</div>
+                  <div className="fw8">{fmt(selectedGap.actualScore)}</div>
+                </div>
+                <div style={{ border: "1px solid #fecaca", borderRadius: 8, padding: 12, background: "var(--red-bg)" }}>
+                  <div className="sl">Gap</div>
+                  <div className="fw8" style={{ color: "var(--red)" }}>{fmt(selectedGap.gap)}</div>
+                </div>
+              </div>
+
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", padding: 12 }}>
+                <div className="fw8 fs13">ข้อเสนอแนะจากผู้ประเมิน</div>
+                <div className="muted fs12 mt4">ควรเลือกกิจกรรมที่ช่วยปิดช่องว่างพฤติกรรมทั้งหมดของสมรรถนะนี้ และกำหนด KPI ที่ตรวจสอบผลได้จริง</div>
+              </div>
+
+              <div>
+                <div className="flex ic jb mb8" style={{ gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <div className="fw8">พฤติกรรมที่ยังเป็น Gap</div>
+                    <div className="muted fs12 mt4">ข้อมูลส่วนนี้ระบบดึงมาให้อัตโนมัติและไม่ให้ลบออก</div>
+                  </div>
+                  <span className="b bgr">Locked · {selectedGap.missingBehaviors.length} ข้อ</span>
+                </div>
+                {renderMissingBehaviors(selectedGap)}
+              </div>
+
+              {selectedMode === "detail" && (() => {
+                const activities = getActivities(selectedGap.competency.code);
+                const chart = chartFor(activities);
+                const currentComplete = isCompetencyPlanComplete(selectedGap.competency.code);
                 return (
-                    <div key={g.cd} style={{ marginBottom: '24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '12px 14px', background: status === 'rejected' ? '#FEF2F2' : status === 'done' ? 'var(--green-bg)' : 'var(--blue-lt)', border: `1px solid ${status === 'rejected' ? '#FECACA' : status === 'done' ? 'var(--green-md)' : 'var(--blue-md)'}`, borderLeft: `4px solid ${status === 'rejected' ? 'var(--red)' : status === 'done' ? 'var(--green)' : 'var(--blue)'}`, borderRadius: 'var(--r-lg)', flexWrap: 'wrap' }}>
-                            <span className={g.t === 'CC' ? 'tag-cc' : g.t === 'MC' ? 'tag-mc' : g.t === 'FC1' ? 'tag-fc1' : g.t === 'FC2' ? 'tag-fc2' : 'tag-fc'}>{g.t}</span>
-                            <span className="fw8 fs14" style={{ color: status === 'rejected' ? 'var(--red)' : 'inherit' }}>{g.n}</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-                                <span className="b bgr">{hasActivities ? `${summary.doneCount}/${summary.totalCount} กิจกรรมเสร็จแล้ว` : 'ยังไม่มีกิจกรรม'}</span>
-                                <span className={`b ${statusMeta.cls}`}>{statusMeta.label}</span>
-                            </div>
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, display: "grid", gap: 14 }}>
+                    <div
+                      className="idp-send-panel"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0,1fr) 260px",
+                        gap: 16,
+                        alignItems: "stretch",
+                        border: `1px solid ${currentComplete ? "var(--green-md)" : "#fde68a"}`,
+                        borderRadius: 10,
+                        padding: 16,
+                        background: currentComplete ? "var(--green-bg)" : "var(--yellow-bg)"
+                      }}
+                    >
+                      <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
+                        <div className="flex ic jb" style={{ gap: 10, flexWrap: "wrap" }}>
+                          <div>
+                            <div className="fw8">ข้อมูลสำหรับส่งให้หัวหน้า</div>
+                            <div className="muted fs12 mt4">ตรวจสอบข้อมูลของสมรรถนะนี้ก่อนส่งอนุมัติ</div>
+                          </div>
+                          <span className={`b ${currentComplete ? "bg" : "by"}`}>{currentComplete ? "พร้อมส่ง" : "ยังไม่ครบ"}</span>
                         </div>
 
-                        {notice && (
-                            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r)', padding: '12px 14px', marginBottom: '12px' }}>
-                                <div className="fw8 fs13" style={{ color: 'var(--red)', marginBottom: '4px' }}>{notice.title}: {notice.competencyName}</div>
-                                <div className="fs12" style={{ color: '#991B1B', marginBottom: '8px' }}>ส่งกลับโดย {notice.reviewer}{notice.date ? ` · ${notice.date}` : ''}</div>
-                                <div className="fs12" style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: '6px', padding: '8px 10px', color: 'var(--text2)' }}>{notice.comment}</div>
-                            </div>
-                        )}
-
-                        {!hasActivities && (
-                            <div className="card mb10" style={{ borderStyle: 'dashed', background: '#fff' }}>
-                                <div className="cb flex ic jb g12" style={{ flexWrap: 'wrap' }}>
-                                    <div>
-                                        <div className="fw8 fs14">ยังไม่มีกิจกรรมสำหรับสมรรถนะนี้</div>
-                                        <div className="muted fs12 mt4">ต้องเพิ่มกิจกรรมในหน้าแผน IDP ก่อน จึงจะอัปเดตความก้าวหน้าและส่งหัวหน้าตรวจสอบได้</div>
-                                    </div>
-                                    <span className="b bt">ต้องเพิ่มกิจกรรม</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {acts.map((act, aIdx) => {
-                            const form = getForm(g.cd, aIdx);
-                            const activityStatus = getIDPActivityApprovalStatus(act);
-                            const done = isEmployeeIDPActivityDone(act);
-                            const displayStatus = done
-                                ? { label: 'เสร็จสิ้นกิจกรรม', cls: 'bg' }
-                                : status === 'rejected'
-                                    ? { label: 'ต้องแก้ไข', cls: 'bt' }
-                                    : activityStatus;
-                            return (
-                                <div key={aIdx} className="card mb10">
-                                    <div className="ch">
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: act.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>{act.ic}</div>
-                                        <div style={{ flex: 1, marginLeft: '10px' }}>
-                                            <div className="fw7 fs13">{act.t}</div>
-                                            <div className="muted fs12 mt4">{act.m} · ครบ {act.due}</div>
-                                        </div>
-                                        <span className={`b ${displayStatus.cls}`}>{displayStatus.label}</span>
-                                    </div>
-
-                                    <div className="cb" style={{ paddingTop: '10px' }}>
-                                        {canEdit && !done && (
-                                            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '12px', marginBottom: '12px' }}>
-                                                <div className="fw7 fs12 mb8">บันทึกความก้าวหน้าใหม่</div>
-                                                <div className="fg mb8">
-                                                    <label className="lbl" style={{ fontWeight: 500, fontSize: '11px' }}>บันทึก</label>
-                                                    <textarea
-                                                        className="ta"
-                                                        style={{ minHeight: '52px', fontSize: '12px' }}
-                                                        placeholder="สรุปสิ่งที่ทำ ผลที่ได้รับ..."
-                                                        value={form.note}
-                                                        onChange={e => setForm(g.cd, aIdx, { note: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div className="g2 mb8">
-                                                    <div>
-                                                        <div className="lbl mb8" style={{ fontSize: '11px' }}>แนบหลักฐาน <span className="lbl-opt">(ถ้ามี)</span></div>
-                                                        <label className="upload-area" style={{ width: '100%', padding: '12px', background: '#fff', cursor: 'pointer', display: 'block' }}>
-                                                            <input
-                                                                type="file"
-                                                                style={{ display: 'none' }}
-                                                                onChange={e => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (file) setForm(g.cd, aIdx, { fileName: file.name });
-                                                                    e.currentTarget.value = '';
-                                                                }}
-                                                            />
-                                                                        <div className="fw6 fs12">{form.fileName || 'คลิกเพื่อแนบไฟล์'}</div>
-                                                            <div className="muted fs11">PDF, Word, รูปภาพ</div>
-                                                        </label>
-                                                    </div>
-                                                    <div>
-                                                        <div className="fg">
-                                                            <label className="lbl" style={{ fontWeight: 500, fontSize: '11px' }}>URL หลักฐาน</label>
-                                                            <input
-                                                                className="inp"
-                                                                style={{ fontSize: '12px' }}
-                                                                placeholder="https://..."
-                                                                value={form.evidenceUrl}
-                                                                onChange={e => setForm(g.cd, aIdx, { evidenceUrl: e.target.value })}
-                                                            />
-                                                        </div>
-                                                        <div className="fg mb0">
-                                                            <label className="lbl" style={{ fontWeight: 500, fontSize: '11px' }}>คำอธิบาย</label>
-                                                            <textarea
-                                                                className="ta"
-                                                                style={{ minHeight: '48px', fontSize: '12px' }}
-                                                                placeholder="อธิบายหลักฐานหรือรายละเอียดเพิ่มเติม..."
-                                                                value={form.evidenceDesc}
-                                                                onChange={e => setForm(g.cd, aIdx, { evidenceDesc: e.target.value })}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-                                                    <button className="btn btn-s btn-sm" type="button" onClick={() => saveProgress(g.cd, aIdx, 'draft')}>บันทึกร่าง</button>
-                                                    <button className="btn btn-t btn-sm" type="button" onClick={() => saveProgress(g.cd, aIdx, 'saved')}>บันทึกความก้าวหน้า</button>
-                                                    <button className="btn btn-g btn-sm" type="button" onClick={() => saveProgress(g.cd, aIdx, 'complete')}>กิจกรรมเสร็จสิ้น</button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className="fw7 fs12 mb8 muted">ประวัติการอัปเดต</div>
-                                        {act.logs.map((L, lIdx) => (
-                                            <div key={lIdx} className="flex ic g8" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', background: L.type === 'reject' ? '#FEF2F2' : 'transparent' }}>
-                                                <div style={{ width: '60px', fontSize: '11px', color: 'var(--text3)', flexShrink: 0 }}>{L.d}</div>
-                                                <div style={{ flex: 1, fontSize: '12px' }}>{L.n}</div>
-                                                <span className="muted fs11">by {L.by}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        <div className="card" style={{ borderStyle: 'dashed', background: '#fff' }}>
-                            <div className="cb flex ic jb g12" style={{ flexWrap: 'wrap' }}>
-                                <div>
-                                    <div className="fw8 fs13">ส่งสมรรถนะนี้ให้หัวหน้าตรวจสอบ</div>
-                                    <div className={`fs12 ${summary.canSubmit ? 'gcc' : 'muted'}`} style={{ marginTop: '3px' }}>
-                                        {status === 'submitted'
-                                            ? 'ส่งแล้ว รอหัวหน้าตรวจสอบ'
-                                            : status === 'done'
-                                                ? 'หัวหน้าตรวจผ่านแล้ว'
-                                                : !hasActivities
-                                                    ? 'ต้องเพิ่มกิจกรรมในแผน IDP ก่อน จึงจะส่งหัวหน้าตรวจสอบได้'
-                                                : summary.canSubmit
-                                                    ? 'กิจกรรมครบแล้ว สามารถส่งให้หัวหน้าตรวจสอบได้'
-                                                    : `ต้องทำกิจกรรมให้ครบก่อน ตอนนี้เสร็จแล้ว ${summary.doneCount}/${summary.totalCount} กิจกรรม`}
-                                    </div>
-                                </div>
-                                <button
-                                    className="btn btn-p"
-                                    disabled={!summary.canSubmit || status === 'submitted' || status === 'done'}
-                                    style={{
-                                        opacity: summary.canSubmit && status !== 'submitted' && status !== 'done' ? 1 : 0.42,
-                                        cursor: summary.canSubmit && status !== 'submitted' && status !== 'done' ? 'pointer' : 'not-allowed'
-                                    }}
-                                    onClick={() => submitGapProgress(g.cd, acts)}
-                                >
-                                    ส่งให้หัวหน้าตรวจสอบ
-                                </button>
-                            </div>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "#fff" }}>
+                          <div className="sl">เป้าหมายในการพัฒนา</div>
+                          <div className="fw8 fs13" style={{ color: forms[selectedGap.competency.code]?.behaviorResult ? "var(--text)" : "var(--text3)", lineHeight: 1.55 }}>
+                            {forms[selectedGap.competency.code]?.behaviorResult || "ยังไม่ได้กรอกเป้าหมาย"}
+                          </div>
                         </div>
+
+                        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 8 }}>
+                          <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 10, background: "#fff" }}><div className="sl">ผู้จัดทำแผน</div><div className="fw8 fs13">{user ? `${user.t || ""}${user.n}` : "นายสมชาย มีสุข"}</div></div>
+                          <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 10, background: "#fff" }}><div className="sl">กิจกรรม</div><div className="fw8 fs13">{activities.length} รายการ</div></div>
+                          <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 10, background: "#fff" }}><div className="sl">น้ำหนักรวม</div><div className="fw8 fs13">{activityWeightTotal(selectedGap.competency.code)}%</div></div>
+                        </div>
+                      </div>
+
+                      <div style={{ border: "1px solid var(--border)", borderRadius: 10, background: "#fff", padding: 14, display: "grid", justifyItems: "center", alignContent: "center", gap: 10 }}>
+                        <button
+                          type="button"
+                          className="donut"
+                          onClick={() => setShowDonutBreakdown(true)}
+                          style={{
+                            width: 132,
+                            height: 132,
+                            border: "none",
+                            cursor: "pointer",
+                            background: `conic-gradient(#0EA5A0 0 ${chart.first}%, #2563EB ${chart.first}% ${chart.second}%, #D97706 ${chart.second}% 100%)`
+                          }}
+                          title={chart.title}
+                        >
+                          <span className="donut-center">{activityWeightTotal(selectedGap.competency.code)}%</span>
+                        </button>
+                        <div className="fw8 fs13">สัดส่วนการเรียนรู้</div>
+                        <div style={{ display: "grid", gap: 6, width: "100%" }}>
+                          {chart.rows.length ? chart.rows.map((item, index) => (
+                            <div key={item.label} style={{ display: "grid", gridTemplateColumns: "10px minmax(0,1fr) auto", alignItems: "center", gap: 7 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: "50%", background: index === 0 ? "#0EA5A0" : index === 1 ? "#2563EB" : "#D97706" }} />
+                              <span className="muted fs12" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+                              <span className="fw8 fs12">{item.value}%</span>
+                            </div>
+                          )) : (
+                            <div className="muted fs12" style={{ textAlign: "center" }}>ยังไม่มีกิจกรรม</div>
+                          )}
+                        </div>
+                      </div>
                     </div>
+
+                    <div>
+                      <div className="fw8 mb8">กิจกรรมที่เลือกไปทำ</div>
+                      {activities.length === 0 ? (
+                        <div style={{ border: "1px dashed var(--border)", borderRadius: 8, padding: 16, background: "var(--bg)", textAlign: "center" }}>
+                          <div className="fw8">ยังไม่มีกิจกรรม</div>
+                          <div className="muted fs12 mt4">กลับไปกดเพิ่มกิจกรรมในหน้ารายการสมรรถนะ</div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {activities.map((activity: any, index: number) => (
+                            <div key={activity.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "#fff" }}>
+                              <div className="flex ic jb" style={{ gap: 10, flexWrap: "wrap" }}>
+                                <div className="fw8 fs13">กิจกรรมที่ {index + 1}: {activity.method || "ยังไม่ได้กรอกชื่อกิจกรรม"}</div>
+                                <span className="b bt">{Number(activity.learningWeight || 0)}%</span>
+                              </div>
+                              <div className="muted fs12 mt6">{activity.learningType || "ยังไม่เลือกประเภทการเรียนรู้"}</div>
+                              <div className="fs13 mt8" style={{ color: "var(--text2)", lineHeight: 1.55 }}>{activity.activityDetail || "ยังไม่ได้กรอกรายละเอียดกิจกรรม"}</div>
+                              <div className="muted fs12 mt6">KPI: {activity.kpi || "ยังไม่ได้กรอก"}</div>
+                              <div className="muted fs12 mt4">ช่วงเวลา: {activity.startDate || "-"} ถึง {activity.endDate || "-"}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 );
-            })}
-        </>
+              })()}
+
+              {selectedMode === "edit" && (
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+                <div className="fg">
+                  <label className="lbl">เป้าหมายในการพัฒนา (Behavior Result)</label>
+                  <textarea
+                    className="ta"
+                    placeholder="กรอกเป้าหมายที่ต้องการเห็นหลังพัฒนาสมรรถนะนี้"
+                    value={forms[selectedGap.competency.code]?.behaviorResult || ""}
+                    onChange={event => updateForm(selectedGap.competency.code, "behaviorResult", event.target.value)}
+                  />
+                </div>
+
+                <div className="flex ic jb mb10" style={{ gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <div className="fw8">กิจกรรมการพัฒนา</div>
+                    <div className="muted fs12 mt4">เพิ่มกิจกรรมได้หลายรายการ แต่น้ำหนักรวมของสมรรถนะนี้ต้องครบ 100%</div>
+                  </div>
+                  <span className={`b ${activityWeightTotal(selectedGap.competency.code) === 100 ? "bg" : "by"}`}>น้ำหนักรวม {activityWeightTotal(selectedGap.competency.code)}%</span>
+                </div>
+
+                {getActivities(selectedGap.competency.code).length === 0 && (
+                  <div style={{ border: "1px dashed var(--border)", borderRadius: 8, padding: 16, background: "var(--bg)", textAlign: "center" }}>
+                    <div className="fw8">ยังไม่มีกิจกรรม</div>
+                    <div className="muted fs12 mt4">กดเพิ่มกิจกรรมเพื่อกรอกเอง หรือเลือกจาก Learning Catalog</div>
+                  </div>
+                )}
+
+                <div style={{ display: "grid", gap: 10 }}>
+                  {getActivities(selectedGap.competency.code).map((activity: any, index: number) => (
+                    <div key={activity.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+                      <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)", background: "var(--bg)", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        <div className="fw8 fs13">กิจกรรมที่ {index + 1}</div>
+                        <button className="btn btn-r btn-xs" onClick={() => removeActivity(selectedGap.competency.code, activity.id)}>ลบกิจกรรม</button>
+                      </div>
+                      <div style={{ padding: 12 }}>
+                        <div className="g2">
+                          <div className="fg">
+                            <label className="lbl">วิธีเพิ่มกิจกรรม</label>
+                            <select
+                              className="sel"
+                              value={activity.inputMode || "manual"}
+                              onChange={event => {
+                                updateActivity(selectedGap.competency.code, activity.id, "inputMode", event.target.value);
+                                if (event.target.value === "manual") updateActivity(selectedGap.competency.code, activity.id, "catalogId", "");
+                              }}
+                            >
+                              <option value="manual">กรอกเอง</option>
+                              <option value="catalog">นำเข้าจาก Learning Catalog</option>
+                            </select>
+                          </div>
+                          {activity.inputMode === "catalog" && (
+                            <div className="fg">
+                              <label className="lbl">เลือกกิจกรรมจาก Learning Catalog</label>
+                              <select
+                                className="sel"
+                                value={activity.catalogId || ""}
+                                onChange={event => applyCatalog(selectedGap.competency.code, activity.id, event.target.value)}
+                              >
+                                <option value="">เลือกกิจกรรม</option>
+                                {learningCatalog.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                              </select>
+                            </div>
+                          )}
+                          <div className="fg"><label className="lbl">เครื่องมือ/วิธีการพัฒนา</label><input className="inp" value={activity.method || ""} onChange={event => updateActivity(selectedGap.competency.code, activity.id, "method", event.target.value)} /></div>
+                          <div className="fg"><label className="lbl">ประเภทการเรียนรู้</label><select className="sel" value={activity.learningType || ""} onChange={event => updateActivity(selectedGap.competency.code, activity.id, "learningType", event.target.value)}>{learningMethods.map(method => <option key={method.key || method.label} value={method.label}>{method.label}</option>)}</select></div>
+                          <div className="fg"><label className="lbl">น้ำหนัก (%)</label><input className="inp" type="number" min="0" max="100" value={activity.learningWeight || 0} onChange={event => updateActivity(selectedGap.competency.code, activity.id, "learningWeight", Number(event.target.value))} /></div>
+                          <div className="fg"><label className="lbl">KPI / Success Criteria</label><input className="inp" value={activity.kpi || ""} onChange={event => updateActivity(selectedGap.competency.code, activity.id, "kpi", event.target.value)} /></div>
+                          <div className="fg"><label className="lbl">วันที่เริ่มต้น</label><input className="inp" type="date" value={activity.startDate || ""} onChange={event => updateActivity(selectedGap.competency.code, activity.id, "startDate", event.target.value)} /></div>
+                          <div className="fg"><label className="lbl">วันที่สิ้นสุด</label><input className="inp" type="date" value={activity.endDate || ""} onChange={event => updateActivity(selectedGap.competency.code, activity.id, "endDate", event.target.value)} /></div>
+                        </div>
+                        <div className="fg mb0"><label className="lbl">รายละเอียดกิจกรรมที่ต้องทำ</label><textarea className="ta" value={activity.activityDetail || ""} onChange={event => updateActivity(selectedGap.competency.code, activity.id, "activityDetail", event.target.value)} /></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="btn btn-s btn-sm mt12" onClick={() => addActivity(selectedGap.competency.code)}>+ เพิ่มกิจกรรมพัฒนา</button>
+              </div>
+              )}
+            </div>
+
+            {selectedMode === "edit" ? (
+              <div style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", background: "var(--bg)", display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", flexShrink: 0 }}>
+                <div className="muted fs12">หน้านี้ใช้เพิ่ม ลด และแก้ไขกิจกรรมเท่านั้น</div>
+                <div className="flex g8" style={{ flexWrap: "wrap" }}>
+                  <button className="btn btn-s" onClick={() => { writeLocal(`mock-idp-forms-v2:${user?.sso || "20002"}`, forms); setShowDonutBreakdown(false); setSelectedCompetencyCode(null); }}>ปิด</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", background: "var(--bg)", display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", flexShrink: 0 }}>
+                <div className="muted fs12">{isCompetencyPlanComplete(selectedGap.competency.code) ? "แผนของสมรรถนะนี้พร้อมส่งให้หัวหน้าอนุมัติ" : "ต้องกรอกข้อมูลของสมรรถนะนี้ให้ครบ และให้น้ำหนักรวมครบ 100% ก่อนส่ง"}</div>
+                <div className="flex g8" style={{ flexWrap: "wrap" }}>
+                  <button className="btn btn-s" onClick={() => { setShowDonutBreakdown(false); setSelectedCompetencyCode(null); }}>ปิด</button>
+                  <button
+                    className="btn btn-t"
+                    onClick={() => submitPlan(selectedGap)}
+                    disabled={!isCompetencyPlanComplete(selectedGap.competency.code)}
+                    style={{
+                      opacity: isCompetencyPlanComplete(selectedGap.competency.code) ? 1 : 0.45,
+                      cursor: isCompetencyPlanComplete(selectedGap.competency.code) ? "pointer" : "not-allowed"
+                    }}
+                  >
+                    ส่งให้หัวหน้าอนุมัติ
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showDonutBreakdown && selectedGap && (() => {
+        const activities = getActivities(selectedGap.competency.code);
+        const chart = chartFor(activities);
+        return (
+          <div className="mo" style={{ zIndex: 260 }} onClick={() => setShowDonutBreakdown(false)}>
+            <div className="mo-box" style={{ width: 560, maxWidth: "calc(100vw - 32px)", overflow: "hidden" }} onClick={event => event.stopPropagation()}>
+              <div className="mo-h">
+                <div>
+                  <div className="fw8">รายละเอียดสัดส่วนการพัฒนา</div>
+                  <div className="muted fs12 mt4">{selectedGap.competency.code} · {selectedGap.competency.name}</div>
+                </div>
+                <button className="btn btn-s btn-sm" onClick={() => setShowDonutBreakdown(false)}>ปิด</button>
+              </div>
+              <div className="mo-b" style={{ display: "grid", gap: 14 }}>
+                <div className="flex ic" style={{ justifyContent: "center" }}>
+                  <div
+                    className="donut"
+                    style={{
+                      width: 156,
+                      height: 156,
+                      background: `conic-gradient(#0EA5A0 0 ${chart.first}%, #2563EB ${chart.first}% ${chart.second}%, #D97706 ${chart.second}% 100%)`
+                    }}
+                    title={chart.title}
+                  >
+                    <span className="donut-center">{activityWeightTotal(selectedGap.competency.code)}%</span>
+                  </div>
+                </div>
+                {chart.rows.length ? chart.rows.map((item, index) => (
+                  <div key={item.label} style={{ display: "grid", gridTemplateColumns: "18px 1fr auto", gap: 10, alignItems: "center", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)" }}>
+                    <span style={{ width: 12, height: 12, borderRadius: "50%", background: index === 0 ? "#0EA5A0" : index === 1 ? "#2563EB" : "#D97706" }} />
+                    <div className="fw8 fs13">{item.label}</div>
+                    <span className="b bt">{item.value}%</span>
+                  </div>
+                )) : (
+                  <div style={{ border: "1px dashed var(--border)", borderRadius: 8, padding: 14, background: "var(--bg)", textAlign: "center" }}>
+                    <div className="muted fs12">ยังไม่มีกิจกรรมให้แสดงรายละเอียด</div>
+                  </div>
+                )}
+                <div className="muted fs12">สัดส่วนนี้คำนวณจากน้ำหนัก (%) ของกิจกรรมทั้งหมดที่กรอกในสมรรถนะนี้</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+    </>
+  );
+};
+
+export const EmployeeProgress: React.FC = () => {
+  const defaultProgressForms = MOCK_IDP_ACTIVITIES.reduce<Record<string, any>>((acc, activity) => {
+    acc[activity.id] = {
+      executionStatus: "",
+      executionReason: "",
+      achievementResult: "",
+      improvementPlan: "",
+      evidenceNo: "",
+      evidenceUrl: activity.evidenceUrl || "",
+      progressComment: activity.progressComment || "",
+      supervisorFeedback: "",
+      supervisorDecision: "",
+      submitted: activity.status === "evidence_submitted" || activity.status === "completed"
+    };
+    return acc;
+  }, {});
+  const [files, setFiles] = useState<Record<string, string[]>>({});
+  const [forms, setForms] = useState<Record<string, any>>(() => readLocal("mock-progress-forms:20002", defaultProgressForms));
+  const [activeCompetencyCode, setActiveCompetencyCode] = useState<string | null>(null);
+  const [learningTypeFilter, setLearningTypeFilter] = useState("ทั้งหมด");
+  const competencyByCode = (code: string) => WORKFLOW_COMPETENCIES.filter(comp => comp.code === code)[0];
+  const gapByCode = (code: string) => gapResultsFor(MOCK_GAP_CHECKED_BEHAVIOR_IDS).filter(item => item.competency.code === code)[0];
+
+  const idpPlanForms = readLocal<Record<string, any>>("mock-idp-forms-v2:20002", {});
+  const activitiesFromPlan = Object.keys(idpPlanForms).flatMap(competencyCode => {
+    const plan = idpPlanForms[competencyCode] || {};
+    const gap = gapByCode(competencyCode);
+    return (plan.activities || []).map((activity: any, index: number) => ({
+      ...activity,
+      id: activity.id || `${competencyCode}-activity-${index + 1}`,
+      competencyCode,
+      behaviorIds: gap?.missingBehaviors?.map((behavior: any) => behavior.id) || [],
+      target: plan.behaviorResult || activity.target || "ยังไม่ได้ระบุเป้าหมายการพัฒนา",
+      activityDetail: activity.activityDetail || activity.method || "ยังไม่ได้ระบุกิจกรรม",
+      evidenceFiles: activity.evidenceFiles || [],
+      evidenceUrl: activity.evidenceUrl || "",
+      approvalStatus: "approved",
+      approvedAt: plan.approvedAt || "mock-approved",
+      status: activity.status || "in_progress"
+    }));
+  });
+  const approvedActivities = activitiesFromPlan.length
+    ? activitiesFromPlan
+    : [
+        ...MOCK_IDP_ACTIVITIES.filter(activity => activity.approvalStatus === "approved"),
+        {
+          id: "idp-1-social-demo",
+          userSso: "20002",
+          competencyCode: "FC2-061",
+          behaviorIds: ["FC2-061-2.3"],
+          target: "พัฒนาการใช้เครื่องมือดิจิทัลให้รองรับงานประจำและการติดตามงาน",
+          method: "Coaching by Supervisor",
+          learningType: "Social Learning",
+          learningWeight: 20,
+          activityDetail: "รับ coaching จากหัวหน้างานเรื่องการเลือกเครื่องมือดิจิทัลและการติดตามงาน",
+          kpi: "มีบันทึก coaching และปรับ workflow การติดตามงานได้จริง",
+          startDate: "2026-07-01",
+          endDate: "2026-08-15",
+          approvalStatus: "approved",
+          approvedAt: "2026-06-10",
+          status: "in_progress",
+          evidenceFiles: [],
+          evidenceUrl: ""
+        },
+        {
+          id: "idp-1-formal-demo",
+          userSso: "20002",
+          competencyCode: "FC2-061",
+          behaviorIds: ["FC2-061-3.1", "FC2-061-3.3"],
+          target: "พัฒนาการใช้เครื่องมือดิจิทัลให้รองรับงานประจำและการติดตามงาน",
+          method: "อบรม AI & Data Analytics",
+          learningType: "Formal Learning",
+          learningWeight: 10,
+          activityDetail: "เข้าอบรมหลักสูตร AI & Data Analytics และสรุปการนำไปใช้กับงานประจำ",
+          kpi: "ผ่านการอบรมและมีชิ้นงานหรือรายงานผลการนำไปใช้",
+          startDate: "2026-08-01",
+          endDate: "2026-09-15",
+          approvalStatus: "approved",
+          approvedAt: "2026-06-10",
+          status: "in_progress",
+          evidenceFiles: [],
+          evidenceUrl: ""
+        }
+      ];
+  const competencyRows = approvedActivities.reduce<Array<{ code: string; activities: any[] }>>((rows, activity) => {
+    const row = rows.filter(item => item.code === activity.competencyCode)[0];
+    if (row) row.activities.push(activity);
+    else rows.push({ code: activity.competencyCode, activities: [activity] });
+    return rows;
+  }, []);
+  const activeActivities = approvedActivities.filter(activity => activity.competencyCode === activeCompetencyCode);
+  const learningTypeOptions = ["ทั้งหมด", ...activeActivities.reduce<string[]>((items, activity) => {
+    if (activity.learningType && !items.includes(activity.learningType)) items.push(activity.learningType);
+    return items;
+  }, [])];
+  const filteredActiveActivities = learningTypeFilter === "ทั้งหมด"
+    ? activeActivities
+    : activeActivities.filter(activity => activity.learningType === learningTypeFilter);
+
+  const updateProgress = (activityId: string, field: string, value: any) => {
+    setForms(prev => {
+      const nextForms = { ...prev, [activityId]: { ...prev[activityId], [field]: value } };
+      writeLocal("mock-progress-forms:20002", nextForms);
+      return nextForms;
+    });
+  };
+
+  const evidenceNames = (activity: any) => [
+    ...(activity.evidenceFiles || []),
+    ...((forms[activity.id] || {}).evidenceFiles || []),
+    ...(files[activity.id] || [])
+  ].filter((name, index, all) => all.indexOf(name) === index);
+
+  const hasEvidence = (activity: any) => {
+    const form = forms[activity.id] || {};
+    return Boolean((form.evidenceNo || "").trim() || (form.evidenceUrl || "").trim() || evidenceNames(activity).length);
+  };
+
+  const isProgressReady = (activity: any) => {
+    const form = forms[activity.id] || {};
+    if (!form.executionStatus || !form.achievementResult || !hasEvidence(activity)) return false;
+    if (form.executionStatus === "off_plan" && !(form.executionReason || "").trim()) return false;
+    if (form.achievementResult === "not_achieved" && !(form.improvementPlan || "").trim()) return false;
+    return true;
+  };
+
+  const submitProgress = (activity: any) => {
+    if (!isProgressReady(activity)) {
+      alert("กรอกสถานะ ผลสัมฤทธิ์ และหลักฐานของกิจกรรมนี้ให้ครบก่อนส่งหัวหน้า");
+      return;
+    }
+    const nextForms = { ...forms, [activity.id]: { ...forms[activity.id], submitted: true } };
+    setForms(nextForms);
+    writeLocal("mock-progress-forms:20002", nextForms);
+    alert(`ส่งผลความก้าวหน้าของกิจกรรม ${activity.id} ให้หัวหน้างานตรวจแล้ว`);
+  };
+
+  const statusText = (activity: any, submitted: boolean) => {
+    if (submitted) return "ส่งให้หัวหน้างานตรวจแล้ว";
+    if (activity.status === "completed") return "หัวหน้ารับรองแล้ว";
+    return "รออัปเดตผล";
+  };
+
+  const achievementText: Record<string, string> = {
+    exceeded: "บรรลุเกินเป้าหมาย",
+    achieved: "บรรลุตามเป้าหมาย",
+    not_achieved: "ไม่บรรลุผล"
+  };
+
+  const renderActivityFields = (activity: any, order: number) => {
+    const form = forms[activity.id] || {};
+    const ready = isProgressReady(activity);
+    const disabledForSupervisor = !form.submitted;
+    const behaviorText = WORKFLOW_COMPETENCIES
+      .reduce<any[]>((items, comp) => [...items, ...comp.indicators], [])
+      .filter(indicator => (activity.behaviorIds || []).includes(indicator.id));
+
+    return (
+      <section key={activity.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ padding: "12px 14px", background: "var(--bg)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <div className="fw8">กิจกรรมที่ {order}: {activity.activityDetail}</div>
+            <div className="muted fs12 mt4">Learning Type: {activity.learningType} · น้ำหนัก {activity.learningWeight}% · ระยะเวลา {activity.startDate} ถึง {activity.endDate}</div>
+          </div>
+          <span className={`b ${(form.submitted || activity.status === "evidence_submitted") ? "bo" : ready ? "by" : "bgr"}`}>{statusText(activity, Boolean(form.submitted))}</span>
+        </div>
+
+        <div style={{ padding: 14, display: "grid", gap: 14 }}>
+          <div className="grid" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 10 }}>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+              <div className="sl">เป้าหมายการพัฒนา (Behavior Result)</div>
+              <div className="fw8 fs13" style={{ lineHeight: 1.55 }}>{activity.target}</div>
+              {behaviorText.length > 0 && <ul className="blist mt8">{behaviorText.map(item => <li key={item.id}>{item.text}</li>)}</ul>}
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+              <div className="sl">KPI / Success Criteria</div>
+              <div className="fw8 fs13" style={{ lineHeight: 1.55 }}>{activity.kpi}</div>
+              <div className="sl mt10">หลักฐานเดิมจากแผน/กิจกรรม</div>
+              <div className="muted fs12">{evidenceNames(activity).length ? evidenceNames(activity).join(", ") : "ยังไม่มีหลักฐาน"}</div>
+            </div>
+          </div>
+
+          <div>
+            <div className="lbl mb8">สถานะการดำเนินการพัฒนา (Execution Status)</div>
+            <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 8 }}>
+              <label className="check-row" style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                <input type="radio" name={`execution-${activity.id}`} checked={form.executionStatus === "on_plan"} onChange={() => updateProgress(activity.id, "executionStatus", "on_plan")} />
+                <span className="fw8">เป็นไปตามแผน</span>
+              </label>
+              <label className="check-row" style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                <input type="radio" name={`execution-${activity.id}`} checked={form.executionStatus === "off_plan"} onChange={() => updateProgress(activity.id, "executionStatus", "off_plan")} />
+                <span className="fw8">ไม่เป็นไปตามแผน</span>
+              </label>
+            </div>
+            {form.executionStatus === "off_plan" && (
+              <div className="fg mt10 mb0">
+                <label className="lbl">เหตุผลประกอบว่าเพราะอะไร <span style={{ color: "var(--red)" }}>*</span></label>
+                <textarea className="ta" value={form.executionReason || ""} onChange={event => updateProgress(activity.id, "executionReason", event.target.value)} />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="lbl mb8">ผลสัมฤทธิ์ของการพัฒนา (Achievement Result)</div>
+            <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 8 }}>
+              {[
+                ["exceeded", "บรรลุเกินเป้าหมายที่กำหนด"],
+                ["achieved", "บรรลุตามเป้าหมายที่กำหนด"],
+                ["not_achieved", "ไม่บรรลุผล"]
+              ].map(([value, label]) => (
+                <label key={value} className="check-row" style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                  <input type="radio" name={`achievement-${activity.id}`} checked={form.achievementResult === value} onChange={() => updateProgress(activity.id, "achievementResult", value)} />
+                  <span className="fw8">{label}</span>
+                </label>
+              ))}
+            </div>
+            {form.achievementResult === "not_achieved" && (
+              <div className="fg mt10 mb0">
+                <label className="lbl">ควรพัฒนาต่อเพื่อ... <span style={{ color: "var(--red)" }}>*</span></label>
+                <textarea className="ta" value={form.improvementPlan || ""} onChange={event => updateProgress(activity.id, "improvementPlan", event.target.value)} />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="lbl mb8">การแนบเอกสารประกอบ/หลักฐาน (Evidence Attachment)</div>
+            <div className="g2">
+              <div className="fg"><label className="lbl">หมายเลขเอกสารหลักฐาน</label><input className="inp" value={form.evidenceNo || ""} onChange={event => updateProgress(activity.id, "evidenceNo", event.target.value)} placeholder="เช่น CERT-2569-001" /></div>
+              <div className="fg"><label className="lbl">URL หลักฐาน/ลิงก์ผลงาน</label><input className="inp" value={form.evidenceUrl || ""} onChange={event => updateProgress(activity.id, "evidenceUrl", event.target.value)} placeholder="https://..." /></div>
+            </div>
+            <div className="fg mb0">
+              <label className="lbl">อัปโหลดไฟล์หลักฐาน เช่น รูปภาพ Certificate แบบฟอร์ม OJT</label>
+              <input
+                className="inp"
+                type="file"
+                multiple
+                onChange={event => {
+                  const names = Array.from(event.target.files || []).map((file: File) => file.name);
+                  setFiles({ ...files, [activity.id]: names });
+                  updateProgress(activity.id, "evidenceFiles", names);
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+            <div className="muted fs12">{ready ? "กิจกรรมนี้พร้อมส่งให้หัวหน้างานตรวจ" : "กรอกสถานะ ผลสัมฤทธิ์ และหลักฐานของกิจกรรมนี้ให้ครบ"}</div>
+            <button className="btn btn-t btn-sm" onClick={() => submitProgress(activity)} disabled={!ready} style={{ opacity: ready ? 1 : 0.45 }}>ส่งกิจกรรมนี้ให้หัวหน้า</button>
+          </div>
+
+          <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "var(--yellow-bg)", opacity: disabledForSupervisor ? 0.62 : 1 }}>
+            <div className="fw8 fs13 mb8">Supervisor Verification & Approval</div>
+            <textarea
+              className="ta"
+              value={form.supervisorFeedback || ""}
+              disabled={disabledForSupervisor}
+              onChange={event => updateProgress(activity.id, "supervisorFeedback", event.target.value)}
+              placeholder={disabledForSupervisor ? "ส่วนนี้จะใช้งานหลังพนักงานส่งกิจกรรมนี้" : "Feedback จากหัวหน้างาน"}
+            />
+            <div className="flex g8 mt10">
+              <button className="btn btn-t btn-sm" disabled={disabledForSupervisor} onClick={() => updateProgress(activity.id, "supervisorDecision", "approved")}>รับรองผลการพัฒนา</button>
+              <button className="btn btn-s btn-sm" disabled={disabledForSupervisor} onClick={() => updateProgress(activity.id, "supervisorDecision", "returned")}>ส่งกลับแก้ไข</button>
+            </div>
+          </div>
+        </div>
+      </section>
     );
+  };
+
+  const renderProgressModal = () => {
+    if (!activeCompetencyCode || activeActivities.length === 0) return null;
+    const comp = competencyByCode(activeCompetencyCode);
+    const gap = gapByCode(activeCompetencyCode);
+
+    return (
+      <div className="mo">
+        <div className="mo-box" style={{ maxWidth: 980 }}>
+          <div className="mo-h">
+            <div style={{ minWidth: 0 }}>
+              <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                {comp && <span className={comp.tagClass}>{tagLabel(comp.type)}</span>}
+                <div className="fw8">อัปเดตความก้าวหน้า · {activeCompetencyCode} · {comp?.name}</div>
+              </div>
+              <div className="muted fs12 mt4">แสดงข้อมูลสมรรถนะและกิจกรรมทุกอันจากแผน IDP ที่อนุมัติแล้ว</div>
+            </div>
+            <button className="btn btn-s btn-sm" onClick={() => setActiveCompetencyCode(null)}>ปิด</button>
+          </div>
+          <div className="mo-b" style={{ display: "grid", gap: 16 }}>
+            <section style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 14, background: "var(--blue-lt)" }}>
+              <div className="fw8">ข้อมูลสมรรถนะ (Read-only)</div>
+              <div className="grid mt10" style={{ gridTemplateColumns: "minmax(0,1fr) 120px 140px", gap: 10 }}>
+                <div><div className="sl">สมรรถนะ</div><div className="fw8 fs14">{activeCompetencyCode} · {comp?.name}</div></div>
+                <div><div className="sl">Gap</div><div className="fw8 fs18" style={{ color: gap && gap.gap < 0 ? "var(--red)" : "var(--teal)" }}>{gap ? fmt(gap.gap) : "-"}</div></div>
+                <div><div className="sl">จำนวนกิจกรรม</div><div className="fw8 fs18">{activeActivities.length}</div></div>
+              </div>
+            </section>
+
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <div>
+                <div className="fw8">กิจกรรมตามประเภทการเรียนรู้</div>
+                <div className="muted fs12 mt4">เลือกดูเฉพาะประเภทการเรียนรู้ที่กรอกไว้ในแผน IDP ของสมรรถนะนี้</div>
+              </div>
+              <div className="seg">
+                {learningTypeOptions.map(option => (
+                  <button
+                    key={option}
+                    className={learningTypeFilter === option ? "on" : ""}
+                    onClick={() => setLearningTypeFilter(option)}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredActiveActivities.map((activity, index) => renderActivityFields(activity, index + 1))}
+            {filteredActiveActivities.length === 0 && (
+              <div className="text-center muted fs13" style={{ padding: 24, border: "1px dashed var(--border)", borderRadius: 8 }}>
+                ไม่มีกิจกรรมในประเภทการเรียนรู้นี้
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div className="flex ic jb mb20">
+        <div>
+          <div className="sec-t">อัปเดตความก้าวหน้า IDP</div>
+          <div className="sec-s">รายงานผลเฉพาะกิจกรรมในแผน IDP ที่หัวหน้าอนุมัติแล้ว พร้อมแนบหลักฐานเพื่อให้หัวหน้าตรวจรับรอง</div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+        <div>
+          <div className="fw8" style={{ fontSize: 20 }}>กิจกรรมพัฒนาที่ต้องอัปเดต</div>
+          <div className="muted fs12 mt4">แสดงเฉพาะกิจกรรมจากแผน IDP ที่ผ่านการอนุมัติแล้วเท่านั้น</div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 12 }}>
+        {competencyRows.map((row, index) => {
+          const comp = competencyByCode(row.code);
+          const first = row.activities[0];
+          const submitted = row.activities.every(activity => forms[activity.id]?.submitted);
+          const ready = row.activities.every(activity => isProgressReady(activity));
+
+          return (
+            <button
+              key={row.code}
+              onClick={() => {
+                setLearningTypeFilter("ทั้งหมด");
+                setActiveCompetencyCode(row.code);
+              }}
+              style={{
+                width: "100%",
+                border: "1px solid var(--border)",
+                borderLeft: `5px solid ${submitted ? "var(--orange)" : ready ? "var(--teal)" : "var(--navy)"}`,
+                borderRadius: 8,
+                background: "#fff",
+                padding: 0,
+                cursor: "pointer",
+                textAlign: "left",
+                boxShadow: "0 2px 8px rgba(15,45,91,.05)",
+                overflow: "hidden"
+              }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "64px minmax(0,1fr) 170px", alignItems: "stretch" }}>
+                <div style={{ display: "grid", placeItems: "center", background: "var(--bg)", borderRight: "1px solid var(--border)" }}>
+                  <div style={{ textAlign: "center" }}>
+                    
+                    <div className="fw8" style={{ fontSize: 22 }}>{index + 1}</div>
+                  </div>
+                </div>
+
+                <div style={{ padding: "18px 20px" }}>
+                  <div className="flex ic g8" style={{ flexWrap: "wrap", marginBottom: 8 }}>
+                    {comp && <span className={comp.tagClass}>{tagLabel(comp.type)}</span>}
+                    <div className="fw8" style={{ fontSize: 16 }}>{row.code} · {comp?.name || "สมรรถนะที่ต้องพัฒนา"}</div>
+                  </div>
+                  <div className="muted fs12">ระยะเวลา {first.startDate} ถึง {first.endDate}</div>
+                </div>
+
+                <div style={{ borderLeft: "1px solid var(--border)", background: submitted ? "var(--yellow-bg)" : ready ? "var(--green-bg)" : "var(--bg)", padding: "18px 16px", display: "grid", alignContent: "center", gap: 10 }}>
+                  <span className={`b ${submitted ? "bo" : first.status === "completed" ? "bg" : ready ? "by" : "bgr"}`} style={{ justifySelf: "start" }}>
+                    {statusText(first, submitted)}
+                  </span>
+                  <span className="btn btn-s btn-sm" style={{ justifySelf: "start" }}>อัพเดตความก้าวหน้า</span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+
+        {approvedActivities.length === 0 && (
+          <div className="text-center muted fs13" style={{ padding: 36, border: "1px dashed var(--border)", borderRadius: 8, background: "#fff" }}>
+            ยังไม่มีแผน IDP ที่ผ่านการอนุมัติ จึงยังไม่มีรายการให้ update ความก้าวหน้า
+          </div>
+        )}
+      </div>
+      {renderProgressModal()}
+    </>
+  );
 };
 
 export const EmployeeIDPDetail: React.FC = () => {
-    const [expandedId, setExpandedId] = useState<string | null>(null);
-    const [activeRound, setActiveRound] = useState("current");
+  const [selectedYear, setSelectedYear] = useState("2569");
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
+  const [selectedCompetencyCode, setSelectedCompetencyCode] = useState<string | null>(null);
+  const gaps = gapResultsFor(MOCK_GAP_CHECKED_BEHAVIOR_IDS);
+  const gapCompetencies = gaps.filter(item => item.gap < 0);
+  const progressForms = readLocal<Record<string, any>>("mock-progress-forms:20002", {});
+  const idpPlanForms = readLocal<Record<string, any>>("mock-idp-forms-v2:20002", {});
+  const currentPlanActivities = Object.keys(idpPlanForms).flatMap(competencyCode => {
+    const plan = idpPlanForms[competencyCode] || {};
+    return (plan.activities || []).map((activity: any, index: number) => ({
+      ...activity,
+      id: activity.id || `${competencyCode}-activity-${index + 1}`,
+      competencyCode,
+      target: plan.behaviorResult || activity.target || "ยังไม่ได้ระบุเป้าหมายการพัฒนา",
+      activityDetail: activity.activityDetail || activity.method || "ยังไม่ได้ระบุกิจกรรม",
+      status: progressForms[activity.id]?.submitted ? "evidence_submitted" : activity.status || "in_progress"
+    }));
+  });
+  const currentActivities = currentPlanActivities.length
+    ? currentPlanActivities
+    : MOCK_IDP_ACTIVITIES.filter(activity => activity.approvalStatus === "approved");
+  const activityStatus = (activity: any) => {
+    const form = progressForms[activity.id] || {};
+    if (form.supervisorDecision === "approved" || activity.status === "completed") return { label: "เสร็จสิ้น", className: "bg" };
+    if (form.submitted || activity.status === "evidence_submitted") return { label: "รอรับรองผล", className: "bo" };
+    if (activity.status === "rejected") return { label: "ส่งกลับแก้ไข", className: "br" };
+    return { label: "กำลังดำเนินการ", className: "by" };
+  };
+  const groupedActivities = currentActivities.reduce<Array<{ code: string; activities: any[] }>>((rows, activity) => {
+    const row = rows.filter(item => item.code === activity.competencyCode)[0];
+    if (row) row.activities.push(activity);
+    else rows.push({ code: activity.competencyCode, activities: [activity] });
+    return rows;
+  }, []);
+  const completedActivities = currentActivities.filter(activity => activityStatus(activity).label === "เสร็จสิ้น").length;
+  const submittedActivities = currentActivities.filter(activity => activityStatus(activity).label === "รอรับรองผล").length;
+  const historyPlans: Record<string, any[]> = {
+    "2568": [
+      { competencyCode: "CC-002", name: "การมุ่งผลสัมฤทธิ์", status: "เสร็จสิ้น", activities: 2, result: "ปิดแผนแล้ว" },
+      { competencyCode: "FC2-062", name: "การวิเคราะห์ข้อมูล", status: "เสร็จสิ้น", activities: 1, result: "ผ่านการรับรองผล" }
+    ],
+    "2567": [
+      { competencyCode: "CC-003", name: "การทำงานเป็นทีม", status: "เสร็จสิ้น", activities: 2, result: "นำไปใช้ในงานประจำแล้ว" }
+    ]
+  };
+  const isCurrentYear = selectedYear === "2569";
+  const competencyByCode = (code: string) => WORKFLOW_COMPETENCIES.filter(comp => comp.code === code)[0];
+  const gapByCode = (code: string) => gaps.filter(item => item.competency.code === code)[0];
+  const selectedActivity = currentActivities.filter(activity => activity.id === selectedActivityId)[0] || null;
+  const selectedActivityProgress = selectedActivity ? progressForms[selectedActivity.id] || {} : {};
+  const selectedCompetency = selectedCompetencyCode ? gapByCode(selectedCompetencyCode) : null;
+  const selectedCompetencyActivities = selectedCompetencyCode
+    ? currentActivities.filter(activity => activity.competencyCode === selectedCompetencyCode)
+    : [];
+  const progressLabel: Record<string, string> = {
+    on_plan: "เป็นไปตามแผน",
+    off_plan: "ไม่เป็นไปตามแผน",
+    exceeded: "บรรลุเกินเป้าหมายที่กำหนด",
+    achieved: "บรรลุตามเป้าหมายที่กำหนด",
+    not_achieved: "ไม่บรรลุผล"
+  };
+  const detailEvidenceNames = (activity: any) => [
+    ...(activity.evidenceFiles || []),
+    ...((progressForms[activity.id] || {}).evidenceFiles || [])
+  ].filter((name, index, all) => all.indexOf(name) === index);
 
-    const pastRounds = [
-        {
-            id: "r2567",
-            n: "รอบประเมิน 2567",
-            isCurrent: false,
-            gaps: [
-                {
-                    cd: "CC-003",
-                    n: "การทำงานเป็นทีม",
-                    t: "CC",
-                    gap: 1,
-                    acts: [
-                        {
-                            ic: "",
-                            t: "Peer Learning / Group Activity",
-                            m: "Social Learning",
-                            logs: [
-                                { d: "5 พ.ค. 67", n: "เริ่มกิจกรรมกลุ่มครั้งที่ 1", by: "สมชาย มีสุข", type: "log", evidence: "team_activity_round1.pdf" },
-                                { d: "30 มิ.ย. 67", n: "เสร็จสิ้นกิจกรรมและสรุปผล", by: "สมชาย มีสุข", type: "done", evidence: "team_summary_final.pdf" }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    cd: "FC2-061",
-                    n: "การใช้เทคโนโลยีดิจิทัล",
-                    t: "FC",
-                    gap: 1,
-                    acts: [
-                        {
-                            ic: "",
-                            t: "อบรม AI & Data Analytics",
-                            m: "Formal Learning",
-                            logs: [
-                                { d: "10 มิ.ย. 67", n: "ลงทะเบียนหลักสูตรและเข้าร่วมครบตามเกณฑ์", by: "สมชาย มีสุข", type: "log", evidence: "course_register.pdf" },
-                                { d: "28 มิ.ย. 67", n: "ผ่านการอบรมและส่งใบประกาศนียบัตร", by: "สมชาย มีสุข", type: "done", evidence: "certificate_ai_data.pdf" }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            id: "r2566",
-            n: "รอบประเมิน 2566",
-            isCurrent: false,
-            gaps: [
-                {
-                    cd: "FC2-062",
-                    n: "การวิเคราะห์ข้อมูล",
-                    t: "FC",
-                    gap: 1,
-                    acts: [
-                        {
-                            ic: "",
-                            t: "โครงการพัฒนาระบบฐานข้อมูล",
-                            m: "Experiential Learning",
-                            logs: [
-                                { d: "15 ก.ค. 66", n: "เริ่มต้นวิเคราะห์ระบบฐานข้อมูลเดิม", by: "สมชาย มีสุข", type: "log", evidence: "database_review.docx" },
-                                { d: "31 ส.ค. 66", n: "เสร็จสิ้นโครงการและส่งมอบรายงาน", by: "สมชาย มีสุข", type: "done", evidence: "database_project_final.pdf" }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        }
-    ];
+  return (
+    <>
+      <div className="flex ic jb mb20">
+        <div>
+          <div className="sec-t">รายละเอียด IDP</div>
+          <div className="sec-s">ภาพรวมแผน IDP ปัจจุบัน ประวัติย้อนหลัง และรายงานสำหรับเก็บเป็นแฟ้มผลงาน</div>
+        </div>
+        <div className="flex g8" style={{ flexWrap: "wrap" }}>
+          <button className="btn btn-s btn-sm" onClick={() => alert("Export PDF mock")}>Export PDF</button>
+          <button className="btn btn-s btn-sm" onClick={() => alert("Export Excel mock")}>Export Excel</button>
+        </div>
+      </div>
 
-    const rounds = [{ id: "current", n: "รอบประเมิน 2568", isCurrent: true }, ...pastRounds];
-    const activeRoundData = rounds.find(round => round.id === activeRound) || rounds[0];
+      <div className="card mb16">
+        <div className="ch" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+          <div>
+            <div className="fw8">ปีการประเมิน</div>
+            <div className="muted fs12 mt4">เลือกดูแผนปัจจุบันหรือประวัติการพัฒนาย้อนหลังแบบ read-only</div>
+          </div>
+          <select className="sel" style={{ width: 170 }} value={selectedYear} onChange={event => setSelectedYear(event.target.value)}>
+            <option value="2569">2569 (ปัจจุบัน)</option>
+            <option value="2568">2568</option>
+            <option value="2567">2567</option>
+          </select>
+        </div>
+      </div>
 
-    const currentGaps = IDP_GAPS_DATA.map(gap => {
-        const activities = IDP_ACTIVITIES_DATA[gap.cd] || [];
-        const doneCount = activities.filter((act: any) => act.result === "done").length;
-        return { ...gap, gapValue: Math.max(gap.exp - gap.actual, 0), acts: activities, doneCount };
-    });
-
-    const timelineActs = IDP_GAPS_DATA.flatMap(gap =>
-        (IDP_ACTIVITIES_DATA[gap.cd] || []).map((act: any, idx: number) => ({
-            ...act,
-            id: `${gap.cd}-${idx}`,
-            gapCd: gap.cd,
-            gapN: gap.n,
-            gapT: gap.t
-        }))
-    );
-
-    const cntTotal = timelineActs.length;
-    const cntDone = timelineActs.filter(act => act.result === "done").length;
-    const cntFailed = timelineActs.filter(act => act.result === "failed").length;
-    const cntInprog = cntTotal - cntDone - cntFailed;
-
-    const getGapTagClass = (type: string) => type === "CC" ? "tag-cc" : type === "MC" ? "tag-mc" : "tag-fc";
-    const getResultMeta = (result: string | null) => {
-        if (result === "done") return { color: "var(--green)", bg: "var(--green-bg)", label: "เสร็จสิ้น", badge: "bg" };
-        if (result === "failed") return { color: "var(--red)", bg: "var(--red-bg)", label: "ไม่ผ่าน", badge: "br" };
-        return { color: "var(--blue)", bg: "var(--blue-lt)", label: "กำลังดำเนินการ", badge: "bt" };
-    };
-    const getMethodMeta = (method: string) => {
-        if (method === "Formal Learning") return { color: "var(--blue)", bg: "var(--blue-lt)" };
-        if (method === "Social Learning") return { color: "var(--green)", bg: "var(--green-bg)" };
-        return { color: "var(--orange)", bg: "#FFF7ED" };
-    };
-    const getStatusMeta = (status: string) => {
-        if (status === "submitted") return { cls: "by", label: "รออนุมัติ" };
-        if (status === "approved") return { cls: "bg", label: "อนุมัติแล้ว" };
-        if (status === "rejected") return { cls: "br", label: "ไม่ผ่าน" };
-        return { cls: "bb", label: "Draft" };
-    };
-
-    return (
+      {isCurrentYear ? (
         <>
-            <div className="flex ic jb mb20">
-                <div>
-                    <div className="sec-t">รายละเอียด IDP </div>
-                    <div className="sec-s">ภาพรวม · Timeline · ประวัติย้อนหลัง</div>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "6px", padding: "4px 12px", background: "var(--navy)", borderRadius: "20px" }}>
-                        <span style={{ fontSize: "12px" }}></span>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#fff" }}>รอบประเมิน 2568</span>
-                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,.6)" }}>รอบปัจจุบัน</span>
-                    </div>
-                </div>
-                <button className="btn btn-s"> Export PDF</button>
-            </div>
+          <div className="grid mb16" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+            <div className="sc"><div className="sl">สมรรถนะที่ต้องพัฒนา</div><div className="sv" style={{ color: "var(--red)" }}>{gapCompetencies.length}</div><div className="ss muted">เกิด Gap และเข้า IDP</div></div>
+            <div className="sc"><div className="sl">กิจกรรมในแผน IDP</div><div className="sv">{currentActivities.length}</div><div className="ss muted">จากแผนที่อนุมัติแล้ว</div></div>
+            <div className="sc"><div className="sl">ส่งหลักฐาน/เสร็จสิ้น</div><div className="sv">{submittedActivities + completedActivities}</div><div className="ss muted">รอรับรองหรือปิดแผนแล้ว</div></div>
+          </div>
 
-            <div className="g4 mb20">
-                <div className="sc" style={{ borderTop: "3px solid var(--navy)" }}>
-                    <div className="sl">กิจกรรมทั้งหมด</div>
-                    <div className="sv" style={{ color: "var(--navy)" }}>{cntTotal}</div>
-                    <div className="ss muted">รอบปัจจุบัน</div>
-                </div>
-                <div className="sc" style={{ borderTop: "3px solid var(--green)" }}>
-                    <div className="sl">เสร็จสิ้น</div>
-                    <div className="sv gcc">{cntDone}</div>
-                    <div className="ss muted">กิจกรรม</div>
-                </div>
-                <div className="sc" style={{ borderTop: "3px solid var(--blue)" }}>
-                    <div className="sl">กำลังดำเนินการ</div>
-                    <div className="sv bc">{cntInprog}</div>
-                    <div className="ss muted">กิจกรรม</div>
-                </div>
-                <div className="sc" style={{ borderTop: "3px solid var(--red)" }}>
-                    <div className="sl">ไม่ผ่าน</div>
-                    <div className="sv rc">{cntFailed}</div>
-                    <div className="ss muted">กิจกรรม</div>
-                </div>
-            </div>
+          <div className="card mb16">
+              <div className="ch"><div><div className="fw8">สมรรถนะที่ต้องพัฒนา</div><div className="muted fs12 mt4">รายการที่เกิด Gap และถูกนำไปจัดทำแผน IDP</div></div></div>
+              <div className="cb" style={{ display: "grid", gap: 8 }}>
+                {gapCompetencies.map(item => (
+                  <div key={item.competency.code} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto auto", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid #fecaca", borderRadius: 8, background: "var(--red-bg)" }}>
+                    <div className="flex ic g8"><span className={item.competency.tagClass}>{tagLabel(item.competency.type)}</span><span className="fw8">{item.competency.code} · {item.competency.name}</span></div>
+                    <span className="b br">Gap {fmt(item.gap)}</span>
+                    <button className="btn btn-s btn-sm" onClick={() => setSelectedCompetencyCode(item.competency.code)}>รายละเอียด IDP</button>
+                  </div>
+                ))}
+              </div>
+          </div>
 
-            <div className="card mb20">
-                <div className="ch">
-                    <div>
-                        <div className="ct"> Timeline กิจกรรม IDP</div>
-                        <div className="cs">กดที่กิจกรรมเพื่อดูรายละเอียดและหลักฐาน</div>
+          <div className="card">
+            <div className="ch">
+              <div>
+                <div className="fw8">สรุปแผน IDP ปัจจุบันและความก้าวหน้ารายกิจกรรม</div>
+                <div className="muted fs12 mt4">สถานะกิจกรรม เช่น รอรับรองผล กำลังดำเนินการ หรือเสร็จสิ้น</div>
+              </div>
+            </div>
+            <div className="cb" style={{ display: "grid", gap: 12 }}>
+              {groupedActivities.map(row => {
+                const comp = competencyByCode(row.code);
+                const gap = gapByCode(row.code);
+                return (
+                  <div key={row.code} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                    <div style={{ padding: "12px 14px", background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
+                      <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                        {comp && <span className={comp.tagClass}>{tagLabel(comp.type)}</span>}
+                        <div className="fw8">{row.code} · {comp?.name}</div>
+                        {gap && <span className="b br">Gap {fmt(gap.gap)}</span>}
+                      </div>
                     </div>
-                </div>
-                <div className="cb" style={{ padding: 0 }}>
-                    {timelineActs.map((act, index) => {
-                        const meta = getResultMeta(act.result);
-                        const methodMeta = getMethodMeta(act.m);
-                        const isOpen = expandedId === act.id;
+                    <div style={{ display: "grid" }}>
+                      {row.activities.map((activity, index) => {
+                        const status = activityStatus(activity);
                         return (
-                            <div key={act.id} style={{ borderBottom: index === timelineActs.length - 1 ? "none" : "1px solid var(--border)" }}>
-                                <div
-                                    style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 18px", cursor: "pointer", transition: ".15s" }}
-                                    onClick={() => setExpandedId(isOpen ? null : act.id)}
-                                >
-                                    <div style={{ width: "4px", height: "48px", borderRadius: "2px", background: meta.color, flexShrink: 0 }} />
-                                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: act.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>{act.ic}</div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                                            <span className="fw7 fs13">{act.t}</span>
-                                            <span className={getGapTagClass(act.gapT)} style={{ fontSize: "9px" }}>{act.gapT}</span>
-                                        </div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px", flexWrap: "wrap" }}>
-                                            <span style={{ fontSize: "11px", color: "var(--text3)" }}>{act.gapCd} · {act.gapN}</span>
-                                        </div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", flexWrap: "wrap" }}>
-                                            <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "10px", background: methodMeta.bg, color: methodMeta.color }}>{act.m}</span>
-                                            <span style={{ fontSize: "11px", color: "var(--text3)" }}>ครบ {act.due}</span>
-                                        </div>
-                                    </div>
-                                    <div style={{ textAlign: "center", flexShrink: 0 }}>
-                                        <div style={{ fontSize: "18px", fontWeight: 800, color: meta.color }}>{act.logs.length}</div>
-                                        <div style={{ fontSize: "10px", color: "var(--text3)" }}>บันทึก</div>
-                                    </div>
-                                    <span className={`b ${meta.badge}`} style={{ flexShrink: 0 }}>{meta.label}</span>
-                                    <span style={{ fontSize: "12px", color: "var(--text3)", flexShrink: 0 }}>{isOpen ? "▾" : "▸"}</span>
-                                </div>
-
-                                {act.result === "failed" && (
-                                    <div style={{ background: "#FEF2F2", borderTop: "1px solid #FECACA", padding: "10px 18px 10px 36px", display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                                        <span style={{ fontSize: "16px", flexShrink: 0 }}></span>
-                                        <div>
-                                            <div className="fw7 fs12" style={{ color: "var(--red)" }}>ไม่ผ่าน · {act.rejectedBy} · {act.rejectedDate}</div>
-                                            <div style={{ fontSize: "12px", color: "#991B1B", marginTop: "3px" }}>"{act.rejectComment}"</div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {isOpen && (
-                                    <div style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
-                                        <div style={{ padding: "14px 18px 6px" }}>
-                                            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: "10px" }}>
-                                                ประวัติการดำเนินงาน
-                                            </div>
-                                            <div style={{ position: "relative", paddingLeft: "28px" }}>
-                                                <div style={{ position: "absolute", left: "9px", top: 0, bottom: 0, width: "2px", background: "var(--border)", borderRadius: "1px" }} />
-                                                {act.logs.map((log: any, logIdx: number) => {
-                                                    const dotColor = log.type === "reject" ? "var(--red)" : log.type === "done" ? "var(--green)" : "var(--blue)";
-                                                    return (
-                                                        <div key={logIdx} style={{ position: "relative", paddingBottom: logIdx === act.logs.length - 1 ? 0 : "14px" }}>
-                                                            <div style={{ position: "absolute", left: "-24px", top: "2px", width: "12px", height: "12px", borderRadius: "50%", background: dotColor, border: "2px solid #fff", boxShadow: `0 0 0 2px ${dotColor}` }} />
-                                                            <div style={{
-                                                                background: "#fff",
-                                                                border: "1px solid var(--border)",
-                                                                borderRadius: "var(--r)",
-                                                                padding: "10px 12px",
-                                                                borderLeft: log.type === "reject" ? "3px solid var(--red)" : log.type === "done" ? "3px solid var(--green)" : undefined
-                                                            }}>
-                                                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
-                                                                    <div>
-                                                                        <div style={{ fontSize: "12px", fontWeight: 600, color: log.type === "reject" ? "var(--red)" : log.type === "done" ? "var(--green)" : "var(--text)" }}>{log.n}</div>
-                                                                        <div style={{ fontSize: "11px", color: "var(--text3)", marginTop: "2px" }}>by {log.by}</div>
-                                                                    </div>
-                                                                    <div style={{ fontSize: "11px", color: "var(--text3)", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>{log.d}</div>
-                                                                </div>
-                                                                {log.evidence && (
-                                                                    <div style={{ marginTop: "8px", padding: "6px 10px", background: "var(--blue-lt)", borderRadius: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
-                                                                        <span style={{ fontSize: "14px" }}></span>
-                                                                        <span style={{ fontSize: "11px", color: "var(--blue)", fontWeight: 600 }}>{log.evidence}</span>
-                                                                        <span style={{ fontSize: "10px", color: "var(--text3)", marginLeft: "auto" }}>คลิกเพื่อดู →</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                          <button
+                            key={activity.id}
+                            onClick={() => setSelectedActivityId(activity.id)}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "48px minmax(0,1fr) 140px",
+                              gap: 12,
+                              padding: "12px 14px",
+                              border: "none",
+                              borderTop: index ? "1px solid var(--border)" : "none",
+                              alignItems: "center",
+                              background: "#fff",
+                              textAlign: "left",
+                              cursor: "pointer",
+                              font: "inherit"
+                            }}
+                          >
+                            <div className="fw8 muted">#{index + 1}</div>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="fw8 fs13">{activity.activityDetail}</div>
+                              <div className="muted fs12 mt4">{activity.learningType} · น้ำหนัก {activity.learningWeight}% · {activity.startDate} ถึง {activity.endDate}</div>
+                              <div className="muted fs12 mt4">KPI: {activity.kpi}</div>
                             </div>
+                            <span className={`b ${status.className}`}>{status.label}</span>
+                          </button>
                         );
-                    })}
-                </div>
-            </div>
-
-            <div className="card">
-                <div className="ch" style={{ flexDirection: "column", alignItems: "flex-start", gap: "12px" }}>
-                    <div className="ct"> ประวัติ IDP ย้อนหลัง</div>
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                        {rounds.map(round => {
-                            const isActive = activeRound === round.id;
-                            return (
-                                <button
-                                    key={round.id}
-                                    type="button"
-                                    onClick={() => setActiveRound(round.id)}
-                                    style={{
-                                        padding: "5px 14px",
-                                        borderRadius: "20px",
-                                        fontSize: "12px",
-                                        fontWeight: 700,
-                                        cursor: "pointer",
-                                        transition: ".15s",
-                                        border: `1px solid ${isActive ? "transparent" : "var(--border)"}`,
-                                        background: isActive ? "var(--navy)" : "var(--bg)",
-                                        color: isActive ? "#fff" : "var(--text2)"
-                                    }}
-                                >
-                                    {round.n}{round.isCurrent ? " (ปัจจุบัน)" : ""}
-                                </button>
-                            );
-                        })}
+                      })}
                     </div>
-                </div>
-                <div className="cb" style={{ paddingTop: 0 }}>
-                    {activeRoundData.isCurrent ? (
-                        <div style={{ padding: "16px 0" }}>
-                            {currentGaps.map(gap => {
-                                const statusMeta = getStatusMeta(gap.status);
-                                const pct = gap.acts.length ? Math.round((gap.doneCount / gap.acts.length) * 100) : 0;
-                                return (
-                                    <div key={gap.cd} style={{ padding: "14px 0", borderBottom: "1px solid var(--border)" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                                            <span className={getGapTagClass(gap.t)}>{gap.t}</span>
-                                            <span className="fw7 fs13">{gap.n}</span>
-                                            <span className="muted fs12">{gap.cd} · Gap {gap.gapValue}</span>
-                                            <span className={`b ${statusMeta.cls}`} style={{ marginLeft: "auto" }}>{statusMeta.label}</span>
-                                        </div>
-                                        <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "10px" }}>
-                                            <div className="pw" style={{ flex: 1, height: "6px" }}>
-                                                <div className="pb" style={{ width: `${pct}%`, background: pct === 100 ? "var(--green)" : "var(--blue)" }} />
-                                            </div>
-                                            <span style={{ fontSize: "11px", color: "var(--text3)" }}>เสร็จแล้ว {gap.doneCount}/{gap.acts.length} กิจกรรม</span>
-                                        </div>
-                                        {!!gap.acts.length && (
-                                            <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                                                {gap.acts.map((act: any, actIdx: number) => {
-                                                    const meta = getResultMeta(act.result);
-                                                    return (
-                                                        <div key={actIdx} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", background: "var(--bg)", borderRadius: "var(--r)", border: "1px solid var(--border)" }}>
-                                                            <span style={{ fontSize: "16px" }}>{act.ic}</span>
-                                                            <div style={{ flex: 1 }}>
-                                                                <div className="fw6 fs12">{act.t}</div>
-                                                                <div className="muted fs11">{act.m} · ครบ {act.due}</div>
-                                                            </div>
-                                                            <span className={`b ${meta.badge}`}>{meta.label}</span>
-                                                            <span className="muted fs11">{act.logs.length} บันทึก</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div style={{ padding: "16px 0" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", background: "var(--green-bg)", border: "1px solid var(--green-md)", borderRadius: "var(--r)", marginBottom: "16px" }}>
-                                <span></span>
-                                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--green)" }}>{activeRoundData.n} — เสร็จสิ้นแล้ว</span>
-                            </div>
-                            {((activeRoundData as { gaps?: any[] }).gaps || []).map((gap: any, idx: number) => (
-                                <div key={`${gap.cd}-${idx}`} style={{ padding: "14px 0", borderBottom: "1px solid var(--border)" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
-                                        <span className={getGapTagClass(gap.t)}>{gap.t}</span>
-                                        <span className="fw7 fs13">{gap.n}</span>
-                                        <span className="muted fs12">{gap.cd} · Gap {gap.gap}</span>
-                                        <span className="b bg" style={{ marginLeft: "auto" }}>เสร็จสิ้น</span>
-                                    </div>
-                                    {gap.acts.map((act: any, actIdx: number) => (
-                                        <div key={actIdx} style={{ marginBottom: "8px", padding: "8px 12px", background: "var(--bg)", borderRadius: "var(--r)", borderLeft: "3px solid var(--green)" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                                                <span style={{ fontSize: "15px" }}>{act.ic}</span>
-                                                <span className="fw6 fs12">{act.t}</span>
-                                                <span className="muted fs11">{act.m}</span>
-                                                <span className="b bg" style={{ marginLeft: "auto", fontSize: "9px" }}>ผ่านแล้ว </span>
-                                            </div>
-                                            {act.logs.map((log: any, logIdx: number) => (
-                                                <div key={logIdx} style={{ display: "flex", gap: "8px", padding: "6px 0", borderTop: "1px dashed var(--border)", alignItems: "flex-start" }}>
-                                                    <span style={{ width: "56px", fontSize: "10px", color: "var(--text3)", flexShrink: 0, paddingTop: "1px" }}>{log.d}</span>
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{ fontSize: "11px", color: log.type === "done" ? "var(--green)" : "var(--text2)", fontWeight: log.type === "done" ? 700 : 400 }}>{log.n}</div>
-                                                        {log.evidence && (
-                                                            <div style={{ marginTop: "4px", display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 9px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "20px" }}>
-                                                                <span style={{ fontSize: "12px" }}></span>
-                                                                <span style={{ fontSize: "11px", color: "var(--blue)", fontWeight: 600 }}>{log.evidence}</span>
-                                                                <span style={{ fontSize: "10px", color: "var(--text3)" }}>↗</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <span style={{ fontSize: "10px", color: "var(--text3)", flexShrink: 0, whiteSpace: "nowrap" }}>by {log.by}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                  </div>
+                );
+              })}
             </div>
+          </div>
         </>
-    );
+      ) : (
+        <div className="card">
+          <div className="ch">
+            <div>
+              <div className="fw8">ประวัติการพัฒนาย้อนหลัง ปี {selectedYear}</div>
+              <div className="muted fs12 mt4">ข้อมูลเก่าถูกแสดงแบบ read-only เพื่อดูพัฒนาการและใช้วางแผนปีถัดไป</div>
+            </div>
+          </div>
+          <div className="cb" style={{ display: "grid", gap: 10 }}>
+            {(historyPlans[selectedYear] || []).map(item => (
+              <div key={item.competencyCode} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 120px 140px", gap: 12, alignItems: "center", padding: "12px 14px", border: "1px solid var(--border)", borderRadius: 8 }}>
+                <div>
+                  <div className="fw8">{item.competencyCode} · {item.name}</div>
+                  <div className="muted fs12 mt4">{item.result}</div>
+                </div>
+                <div><div className="sl">กิจกรรม</div><div className="fw8">{item.activities} รายการ</div></div>
+                <span className="b bg">{item.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {selectedActivity && (
+        <div className="mo">
+          <div className="mo-box" style={{ maxWidth: 760 }}>
+            <div className="mo-h">
+              <div>
+                <div className="fw8">รายละเอียดความก้าวหน้ารายกิจกรรม</div>
+                <div className="muted fs12 mt4">{selectedActivity.competencyCode} · {selectedActivity.learningType}</div>
+              </div>
+              <button className="btn btn-s btn-sm" onClick={() => setSelectedActivityId(null)}>ปิด</button>
+            </div>
+            <div className="mo-b" style={{ display: "grid", gap: 14 }}>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 14, background: "var(--bg)" }}>
+                <div className="sl">กิจกรรม</div>
+                <div className="fw8 fs14">{selectedActivity.activityDetail}</div>
+                <div className="muted fs12 mt6">น้ำหนัก {selectedActivity.learningWeight}% · {selectedActivity.startDate} ถึง {selectedActivity.endDate}</div>
+                <div className="muted fs12 mt6">KPI: {selectedActivity.kpi}</div>
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                  <div className="sl">สถานะกิจกรรม</div>
+                  <div className="fw8">{activityStatus(selectedActivity).label}</div>
+                </div>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                  <div className="sl">Execution Status</div>
+                  <div className="fw8">{progressLabel[selectedActivityProgress.executionStatus] || "ยังไม่ได้อัปเดต"}</div>
+                </div>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                  <div className="sl">Achievement Result</div>
+                  <div className="fw8">{progressLabel[selectedActivityProgress.achievementResult] || "ยังไม่ได้อัปเดต"}</div>
+                </div>
+              </div>
+              {selectedActivityProgress.executionReason && (
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                  <div className="sl">เหตุผลที่ไม่เป็นไปตามแผน</div>
+                  <div className="fw8 fs13">{selectedActivityProgress.executionReason}</div>
+                </div>
+              )}
+              {selectedActivityProgress.improvementPlan && (
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                  <div className="sl">ควรพัฒนาต่อเพื่อ</div>
+                  <div className="fw8 fs13">{selectedActivityProgress.improvementPlan}</div>
+                </div>
+              )}
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+                <div className="sl">หลักฐาน</div>
+                <div className="fw8 fs13">
+                  {selectedActivityProgress.evidenceNo || selectedActivityProgress.evidenceUrl || detailEvidenceNames(selectedActivity).length
+                    ? [selectedActivityProgress.evidenceNo, selectedActivityProgress.evidenceUrl, ...detailEvidenceNames(selectedActivity)].filter(Boolean).join(" · ")
+                    : "ยังไม่มีหลักฐาน"}
+                </div>
+              </div>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "var(--yellow-bg)" }}>
+                <div className="sl">Feedback / การรับรองจากหัวหน้า</div>
+                <div className="fw8 fs13">{selectedActivityProgress.supervisorFeedback || "ยังไม่มี feedback จากหัวหน้า"}</div>
+                {selectedActivityProgress.supervisorDecision && <div className="mt8"><span className={`b ${selectedActivityProgress.supervisorDecision === "approved" ? "bg" : "br"}`}>{selectedActivityProgress.supervisorDecision === "approved" ? "รับรองผลแล้ว" : "ส่งกลับแก้ไข"}</span></div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {selectedCompetency && (
+        <div className="mo">
+          <div className="mo-box" style={{ maxWidth: 960 }}>
+            <div className="mo-h">
+              <div style={{ minWidth: 0 }}>
+                <div className="flex ic g8" style={{ flexWrap: "wrap" }}>
+                  <span className={selectedCompetency.competency.tagClass}>{tagLabel(selectedCompetency.competency.type)}</span>
+                  <div className="fw8">รายละเอียด IDP · {selectedCompetency.competency.code} · {selectedCompetency.competency.name}</div>
+                </div>
+                <div className="muted fs12 mt4">ข้อมูลแผน IDP ของสมรรถนะนี้และประวัติการอัปเดตความก้าวหน้าจากรอบปัจจุบัน</div>
+              </div>
+              <button className="btn btn-s btn-sm" onClick={() => setSelectedCompetencyCode(null)}>ปิด</button>
+            </div>
+            <div className="mo-b" style={{ display: "grid", gap: 14 }}>
+              <div className="grid" style={{ gridTemplateColumns: "minmax(0,1fr) 120px 150px", gap: 10 }}>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "var(--bg)" }}>
+                  <div className="sl">สมรรถนะ</div>
+                  <div className="fw8">{selectedCompetency.competency.code} · {selectedCompetency.competency.name}</div>
+                </div>
+                <div style={{ border: "1px solid #fecaca", borderRadius: 8, padding: 12, background: "var(--red-bg)" }}>
+                  <div className="sl">Gap</div>
+                  <div className="fw8" style={{ color: "var(--red)" }}>{fmt(selectedCompetency.gap)}</div>
+                </div>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "var(--bg)" }}>
+                  <div className="sl">กิจกรรมในแผน</div>
+                  <div className="fw8">{selectedCompetencyActivities.length} รายการ</div>
+                </div>
+              </div>
+
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ padding: "12px 14px", background: "var(--blue-lt)", borderBottom: "1px solid var(--border)" }}>
+                  <div className="fw8">ข้อมูลการทำ IDP ของสมรรถนะนี้</div>
+                  <div className="muted fs12 mt4">แสดงกิจกรรมทั้งหมดที่อยู่ในแผน IDP ของสมรรถนะนี้</div>
+                </div>
+                <div style={{ display: "grid" }}>
+                  {selectedCompetencyActivities.map((activity, index) => {
+                    const status = activityStatus(activity);
+                    return (
+                      <div key={activity.id} style={{ display: "grid", gridTemplateColumns: "44px minmax(0,1fr) 135px", gap: 12, padding: "12px 14px", borderTop: index ? "1px solid var(--border)" : "none", alignItems: "center" }}>
+                        <div className="fw8 muted">#{index + 1}</div>
+                        <div>
+                          <div className="fw8 fs13">{activity.activityDetail}</div>
+                          <div className="muted fs12 mt4">{activity.learningType} · น้ำหนัก {activity.learningWeight}% · {activity.startDate} ถึง {activity.endDate}</div>
+                          <div className="muted fs12 mt4">KPI: {activity.kpi}</div>
+                        </div>
+                        <span className={`b ${status.className}`}>{status.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ padding: "12px 14px", background: "var(--green-bg)", borderBottom: "1px solid var(--border)" }}>
+                  <div className="fw8">ประวัติการอัปเดตความก้าวหน้า</div>
+                  <div className="muted fs12 mt4">ดึงจากข้อมูลที่บันทึกในหน้าอัปเดตความก้าวหน้า</div>
+                </div>
+                <div style={{ display: "grid" }}>
+                  {selectedCompetencyActivities.map((activity, index) => {
+                    const form = progressForms[activity.id] || {};
+                    const status = activityStatus(activity);
+                    return (
+                      <div key={`${activity.id}-history`} style={{ display: "grid", gridTemplateColumns: "44px minmax(0,1fr) 135px", gap: 12, padding: "12px 14px", borderTop: index ? "1px solid var(--border)" : "none", alignItems: "start" }}>
+                        <div className="fw8 muted">#{index + 1}</div>
+                        <div>
+                          <div className="fw8 fs13">{activity.activityDetail}</div>
+                          <div className="muted fs12 mt4">Execution: {progressLabel[form.executionStatus] || "ยังไม่ได้อัปเดต"} · Achievement: {progressLabel[form.achievementResult] || "ยังไม่ได้อัปเดต"}</div>
+                          <div className="muted fs12 mt4">หลักฐาน: {[form.evidenceNo, form.evidenceUrl, ...detailEvidenceNames(activity)].filter(Boolean).join(" · ") || "ยังไม่มีหลักฐาน"}</div>
+                          {form.supervisorFeedback && <div className="muted fs12 mt4">Feedback: {form.supervisorFeedback}</div>}
+                        </div>
+                        <span className={`b ${status.className}`}>{status.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 };

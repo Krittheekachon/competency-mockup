@@ -3,8 +3,8 @@ export const ROLES_CONFIG = {
   hr: { lbl: "งานทรัพยากรบุคคล", name: "คุณมาลี ดีเสมอ", av: "ม", pos: "งานทรัพยากรบุคคล", col: "#2563EB" },
   employee: { lbl: "บุคลากร", name: "สมชาย มีสุข", av: "ส", pos: "นักวิชาการศึกษา · สายสนับสนุน", col: "#0EA5A0" },
   supervisor: { lbl: "หัวหน้างาน", name: "กัญญารัตน์ ศรีวิชา", av: "ก", pos: "หัวหน้างานสนับสนุนการศึกษาและวิชาการ", col: "#EA580C" },
-  manager_dept: { lbl: "ผู้บังคับบัญชา", name: "ผศ.ดร.ธนพล ไชยรักษ์", av: "ธ", pos: "รองคณบดีฝ่ายบริหาร", col: "#D97706" },
-  manager: { lbl: "ผู้บริหารคณะ", name: "รศ.ดร.กิตติพงศ์ แสงทอง", av: "ก", pos: "คณบดี", col: "#0F2D5B" }
+  department_head: { lbl: "หัวหน้าฝ่าย", name: "ผศ.ดร.ธนพล ไชยรักษ์", av: "ธ", pos: "รองคณบดีฝ่ายบริหาร", col: "#D97706" },
+  dean: { lbl: "ผู้บริหาร", name: "รศ.ดร.กิตติพงศ์ แสงทอง", av: "ก", pos: "คณบดี", col: "#0F2D5B" }
 };
 
 export const NAV_CONFIG = {
@@ -12,11 +12,11 @@ export const NAV_CONFIG = {
     {
       sec: "การประเมินของฉัน",
       items: [
-        { id: "emp-assess", ic: "", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "", lb: "ผลการประเมิน" },
-        { id: "emp-idp", ic: "", lb: "แผนพัฒนา IDP" },
-        { id: "emp-progress", ic: "", lb: "อัปเดตความก้าวหน้า" },
-        { id: "emp-idp-detail", ic: "", lb: "รายละเอียด IDP" }
+        { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
+        { id: "emp-idp", ic: "📝", lb: "แผนพัฒนา IDP" },
+        { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
+        { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
       ]
     }
   ],
@@ -24,58 +24,61 @@ export const NAV_CONFIG = {
     {
       sec: "ของฉัน (บุคลากร)",
       items: [
-        { id: "emp-assess", ic: "", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "", lb: "ผลการประเมิน" },
-        { id: "emp-idp", ic: "", lb: "IDP ของฉัน" },
-        { id: "emp-progress", ic: "", lb: "อัปเดตความก้าวหน้า" },
-        { id: "emp-idp-detail", ic: "", lb: "รายละเอียด IDP" }
+        { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
+        { id: "emp-idp", ic: "📝", lb: "IDP ของฉัน" },
+        { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
+        { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
       ]
     },
     {
       sec: "จัดการทีม",
       items: [
-        { id: "dh-assess", ic: "", lb: "ประเมินลูกน้อง" },
-        { id: "sup-gap", ic: "", lb: "ผลการประเมินของทีม" },
-        { id: "dh-idp", ic: "", lb: "IDP & ติดตามทีม" }
+        { id: "sup-assess", ic: "✍️", lb: "ตรวจประเมินลูกน้อง" },
+        { id: "sup-gap", ic: "📊", lb: "Competency Gap ทีม" },
+        { id: "sup-idp", ic: "✅", lb: "ติดตาม IDP ทีม" }
       ]
     }
   ],
-  manager_dept: [
+  department_head: [
     {
       sec: "ของฉัน (บุคลากร)",
       items: [
-        { id: "emp-assess", ic: "", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "", lb: "ผลการประเมิน" },
-        { id: "emp-idp", ic: "", lb: "IDP ของฉัน" },
-        { id: "emp-progress", ic: "", lb: "อัปเดตความก้าวหน้า" },
-        { id: "emp-idp-detail", ic: "", lb: "รายละเอียด IDP" }
+        { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
+        { id: "emp-idp", ic: "📝", lb: "IDP ของฉัน" },
+        { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
+        { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
       ]
     },
     {
-      sec: "จัดการทีม",
+      sec: "จัดการฝ่าย",
       items: [
-        { id: "sup-assess", ic: "", lb: "ประเมินลูกน้อง" },
-        { id: "sup-gap", ic: "", lb: "ผลการประเมินของทีม" },
-        { id: "sup-idp", ic: "", lb: "IDP & ติดตามทีม" }
+        { id: "dept-assessment-approval", ic: "✅", lb: "อนุมัติผลการประเมิน" },
+        { id: "dept-gap", ic: "📊", lb: "ผลประเมินฝ่าย" },
+        { id: "dept-idp-approval", ic: "🗂️", lb: "อนุมัติผล IDP" },
+        { id: "dept-idp-tracking", ic: "📉", lb: "ติดตาม IDP ฝ่าย" }
       ]
     }
   ],
-  manager: [
+  dean: [
     {
       sec: "ของฉัน (บุคลากร)",
       items: [
-        { id: "emp-assess", ic: "", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "", lb: "ผลการประเมิน" },
-        { id: "emp-idp", ic: "", lb: "IDP ของฉัน" },
-        { id: "emp-progress", ic: "", lb: "อัปเดตความก้าวหน้า" },
-        { id: "emp-idp-detail", ic: "", lb: "รายละเอียด IDP" }
+        { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
+        { id: "emp-idp", ic: "📝", lb: "IDP ของฉัน" },
+        { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
+        { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
       ]
     },
     {
       sec: "ภาพรวมคณะ",
       items: [
-        { id: "mgr-gap", ic: "", lb: "ภาพรวมผลการประเมินคณะ" },
-        { id: "mgr-idp", ic: "", lb: "ติดตาม IDP ภาพรวม" }
+        { id: "dean-gap", ic: "📈", lb: "Competency Gap คณะ" },
+        { id: "dean-idp", ic: "📉", lb: "ติดตาม IDP ภาพรวม" },
+        { id: "dean-assessment-approval", ic: "✅", lb: "อนุมัติผลการประเมิน" },
+        { id: "dean-idp-approval", ic: "🗂️", lb: "อนุมัติแผน IDP" }
       ]
     }
   ],
@@ -83,25 +86,27 @@ export const NAV_CONFIG = {
     {
       sec: "ของฉัน (บุคลากร)",
       items: [
-        { id: "emp-assess", ic: "", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "", lb: "ผลการประเมิน" },
-        { id: "emp-idp", ic: "", lb: "IDP ของฉัน" },
-        { id: "emp-progress", ic: "", lb: "อัปเดตความก้าวหน้า" },
-        { id: "emp-idp-detail", ic: "", lb: "รายละเอียด IDP" }
+        { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
+        { id: "emp-idp", ic: "📝", lb: "IDP ของฉัน" },
+        { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
+        { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
       ]
     },
     {
       sec: "HR",
       items: [
-        { id: "hr-position-competencies", ic: "", lb: "กำหนดสมรรถนะประจำตำแหน่ง" },
-        { id: "hr-catalog", ic: "", lb: "Learning Catalog" }
+        { id: "hr-position-competencies", ic: "🔗", lb: "กำหนดสมรรถนะประจำตำแหน่ง" },
+        { id: "hr-cycle", ic: "🗓️", lb: "รอบการประเมิน" },
+        { id: "hr-template", ic: "🎯", lb: "กำหนดความคาดหวัง" },
+        { id: "hr-catalog", ic: "📚", lb: "Learning Catalog" }
       ]
     },
     {
       sec: "ภาพรวมคณะ",
       items: [
-        { id: "hr-comp-overview", ic: "", lb: "ภาพรวมผลการประเมินคณะ" },
-        { id: "hr-idp-overview", ic: "", lb: "ภาพรวม IDP คณะ" }
+        { id: "hr-comp-overview", ic: "📈", lb: "ภาพรวม Competency คณะ" },
+        { id: "hr-idp-overview", ic: "📉", lb: "ภาพรวม IDP คณะ" }
       ]
     }
   ],
@@ -109,19 +114,19 @@ export const NAV_CONFIG = {
     {
       sec: "ของฉัน (บุคลากร)",
       items: [
-        { id: "emp-assess", ic: "", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "", lb: "สรุปผลสมรรถนะ" },
-        { id: "emp-idp", ic: "", lb: "แผนพัฒนา IDP" },
-        { id: "emp-progress", ic: "", lb: "อัปเดตความก้าวหน้า" }
+        { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
+        { id: "emp-idp", ic: "📝", lb: "แผนพัฒนา IDP" },
+        { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" }
       ]
     },
     {
       sec: "ระบบ",
       items: [
-        { id: "admin-users", ic: "", lb: "จัดการผู้ใช้งาน" },
-        { id: "admin-org", ic: "", lb: "จัดการสายการบังคับบัญชา" },
-        { id: "admin-org-structure", ic: "", lb: "จัดการโครงสร้างองค์กร & สมรรถนะ" },
-        { id: "admin-dict", ic: "", lb: "พจนานุกรมสมรรถนะ" }
+        { id: "admin-users", ic: "👤", lb: "จัดการผู้ใช้งาน" },
+        { id: "admin-org", ic: "🌿", lb: "จัดการสายการบังคับบัญชา" },
+        { id: "admin-org-structure", ic: "🏗️", lb: "จัดการโครงสร้างองค์กร & สมรรถนะ" },
+        { id: "admin-dict", ic: "📖", lb: "พจนานุกรมสมรรถนะ" }
       ]
     }
   ]
@@ -130,24 +135,28 @@ export const NAV_CONFIG = {
 export const PAGE_TITLES = {
   "profile": "โปรไฟล์",
   "emp-assess": "ประเมินตนเอง",
-  "emp-gap": "สรุปผลสมรรถนะ",
+  "emp-gap": "ผลการประเมิน",
   "emp-idp": "แผนพัฒนา IDP",
   "emp-progress": "อัปเดตความก้าวหน้า",
   "emp-idp-detail": "รายละเอียด IDP",
-  "sup-assess": "ประเมินลูกน้อง",
-  "sup-gap": "ผลการประเมินของทีม",
-  "sup-idp": "IDP & ติดตามทีม",
-  "dh-assess": "ประเมินลูกน้อง (หน่วยงาน)",
-  "dh-idp": "IDP & ติดตามทีม",
+  "sup-assess": "ตรวจประเมินลูกน้อง",
+  "sup-gap": "Competency Gap ทีม",
+  "sup-idp": "ติดตาม IDP ทีม",
+  "dept-assessment-approval": "อนุมัติผลการประเมินในฝ่าย",
+  "dept-gap": "ผลประเมินฝ่าย",
+  "dept-idp-approval": "อนุมัติผล IDP",
+  "dept-idp-tracking": "ติดตาม IDP ฝ่าย",
   "dept-monitor": "ภาพรวมหน่วยงาน (Department View)",
-  "mgr-gap": "Competency Gap คณะ",
-  "mgr-idp": "ติดตาม IDP ภาพรวม",
+  "dean-gap": "Competency Gap คณะ",
+  "dean-idp": "ติดตาม IDP ภาพรวม",
+  "dean-assessment-approval": "อนุมัติผลการประเมิน",
+  "dean-idp-approval": "อนุมัติแผน IDP",
   "hr-cycle": "รอบการประเมิน",
   "hr-template": "กำหนดความคาดหวัง",
   "hr-position-competencies": "กำหนดสมรรถนะประจำตำแหน่ง",
   "hr-catalog": "Learning Catalog",
   "hr-monitor": "ติดตามภาพรวม",
-  "hr-comp-overview": "ภาพรวมผลการประเมินคณะ",
+  "hr-comp-overview": "ภาพรวม Competency คณะ",
   "hr-idp-overview": "ภาพรวม IDP คณะ",
   "admin-users": "จัดการผู้ใช้งาน",
   "admin-org": "จัดการสายการบังคับบัญชา",
@@ -173,9 +182,9 @@ export const DEPT_STRUCTURE = {
 };
 
 export const INITIAL_USERS = [
-  { n: "กิตติพงศ์ แสงทอง", t: "รศ.ดร.", sso: "10000", p: "คณบดี", l: "คณบดี", w: "สายงานบริหาร", sup: "", r: "manager", act: true, g: "ชาย", fe: "Kittipong", le: "Saengthong", em: "kittipong.s@kku.ac.th", ph: "081-000-1000", d: "คณะวิศวกรรมศาสตร์", evalStatus: "draft" },
-  { n: "ปาริชาติ วงศ์ดี", t: "รศ.ดร.", sso: "10001", p: "รองคณบดีฝ่ายวิชาการ", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "manager_dept", act: true, g: "หญิง", fe: "Parichat", le: "Wongdee", em: "parichat.w@kku.ac.th", ph: "081-000-1001", d: "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้", evalStatus: "draft" },
-  { n: "ธนพล ไชยรักษ์", t: "ผศ.ดร.", sso: "10002", p: "รองคณบดีฝ่ายบริหาร", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "manager_dept", act: true, g: "ชาย", fe: "Thanaphon", le: "Chairak", em: "thanaphon.c@kku.ac.th", ph: "081-000-1002", d: "ฝ่ายบริหาร", evalStatus: "draft" },
+  { n: "กิตติพงศ์ แสงทอง", t: "รศ.ดร.", sso: "10000", p: "คณบดี", l: "คณบดี", w: "สายงานบริหาร", sup: "", r: "dean", act: true, g: "ชาย", fe: "Kittipong", le: "Saengthong", em: "kittipong.s@kku.ac.th", ph: "081-000-1000", d: "คณะวิศวกรรมศาสตร์", evalStatus: "draft" },
+  { n: "ปาริชาติ วงศ์ดี", t: "รศ.ดร.", sso: "10001", p: "รองคณบดีฝ่ายวิชาการ", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "department_head", act: true, g: "หญิง", fe: "Parichat", le: "Wongdee", em: "parichat.w@kku.ac.th", ph: "081-000-1001", d: "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้", evalStatus: "draft" },
+  { n: "ธนพล ไชยรักษ์", t: "ผศ.ดร.", sso: "10002", p: "รองคณบดีฝ่ายบริหาร", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "department_head", act: true, g: "ชาย", fe: "Thanaphon", le: "Chairak", em: "thanaphon.c@kku.ac.th", ph: "081-000-1002", d: "ฝ่ายบริหาร", evalStatus: "draft" },
   { n: "สุรีพร นาคประสิทธิ์", t: "ศ.ดร.", sso: "11001", p: "อาจารย์", l: "ศาสตราจารย์", w: "สายวิชาการ", sup: "ปาริชาติ วงศ์ดี", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Sureeporn", le: "Nakprasit", em: "sureeporn.n@kku.ac.th", ph: "081-000-1101", d: "อาจารย์", evalStatus: "self_submitted" },
   { n: "เมธา ศิริกุล", t: "รศ.ดร.", sso: "11002", p: "อาจารย์", l: "รองศาสตราจารย์", w: "สายวิชาการ", sup: "สุรีพร นาคประสิทธิ์", evaluator2: "ปาริชาติ วงศ์ดี", r: "employee", act: true, g: "ชาย", fe: "Metha", le: "Sirikul", em: "metha.s@kku.ac.th", ph: "081-000-1102", d: "อาจารย์", evalStatus: "unit_evaluated" },
   { n: "อรพรรณ ศรีสวัสดิ์", t: "ผศ.ดร.", sso: "11003", p: "อาจารย์", l: "ผู้ช่วยศาสตราจารย์", w: "สายวิชาการ", sup: "สุรีพร นาคประสิทธิ์", evaluator2: "ปาริชาติ วงศ์ดี", r: "employee", act: true, g: "หญิง", fe: "Oraphan", le: "Srisawat", em: "oraphan.s@kku.ac.th", ph: "081-000-1103", d: "อาจารย์", evalStatus: "draft" },
@@ -189,12 +198,7 @@ export const INITIAL_USERS = [
   { n: "พรพิมล บุคคลดี", t: "นางสาว", sso: "20008", p: "นักทรัพยากรบุคคล", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Pornpimol", le: "Bukkondee", em: "pornpimol.b@kku.ac.th", ph: "081-000-2008", d: "ทรัพยากรบุคคล", evalStatus: "unit_evaluated" },
   { n: "วารุณี พรหมบัญชี", t: "นาง", sso: "20009", p: "นักบัญชี", l: "ชำนาญการพิเศษ", w: "สายสนับสนุน", sup: "ธนพล ไชยรักษ์", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Warunee", le: "Phrombunchee", em: "warunee.f@kku.ac.th", ph: "081-000-2009", d: "บริการการเงิน", evalStatus: "unit_evaluated" },
   { n: "จิราพร วัฒนกลยุทธ์", t: "นางสาว", sso: "20010", p: "นักจัดการงานทั่วไป", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "นฤมล ใจเย็น", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "หญิง", fe: "Jiraporn", le: "Wattanaklayut", em: "jiraporn.p@kku.ac.th", ph: "081-000-2010", d: "บริหารยุทธศาสตร์", evalStatus: "draft" },
-  { n: "ชลธิชา วรรณวิทย์", t: "นางสาว", sso: "20011", p: "นักวิชาการวิทยาศาสตร์", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "หญิง", fe: "Chonthicha", le: "Wanwitt", em: "chonthicha.l@kku.ac.th", ph: "081-000-2011", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "draft" },
-  { n: "วรรณภา ใจดี", t: "นางสาว", sso: "20012", p: "นักวิชาการศึกษา", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "หญิง", fe: "Wannapha", le: "Jaidee", em: "wannapha.j@kku.ac.th", ph: "081-000-2012", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "unit_evaluated" },
-  { n: "ภาณุพงศ์ แสงดี", t: "นาย", sso: "20013", p: "นักเอกสารสนเทศ", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "ชาย", fe: "Phanuphong", le: "Saengdee", em: "phanuphong.s@kku.ac.th", ph: "081-000-2013", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "dept_evaluated" },
-  { n: "กมลชนก พูนผล", t: "นาง", sso: "20014", p: "นักแนะแนวการศึกษาและอาชีพ", l: "ชำนาญการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "หญิง", fe: "Kamonchanok", le: "Poonphon", em: "kamonchanok.p@kku.ac.th", ph: "081-000-2014", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "dean_approved" },
-  { n: "ปิยวัฒน์ รุ่งเรือง", t: "นาย", sso: "20015", p: "นักวิชาการศึกษา", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "ชาย", fe: "Piyawat", le: "Rungrueang", em: "piyawat.r@kku.ac.th", ph: "081-000-2015", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "unit_evaluated" },
-  { n: "ณัฐธิดา แก้วใส", t: "นางสาว", sso: "20016", p: "นักเอกสารสนเทศ", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "หญิง", fe: "Natthida", le: "Kaewsai", em: "natthida.k@kku.ac.th", ph: "081-000-2016", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "dept_evaluated" }
+  { n: "ชลธิชา วรรณวิทย์", t: "นางสาว", sso: "20011", p: "นักวิชาการวิทยาศาสตร์", l: "ปฏิบัติการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์", r: "employee", act: true, g: "หญิง", fe: "Chonthicha", le: "Wanwitt", em: "chonthicha.l@kku.ac.th", ph: "081-000-2011", d: "สนับสนุนการศึกษาและวิชาการ", evalStatus: "draft" }
 ];
 
 export const INITIAL_COMPETENCIES = [
@@ -208,54 +212,28 @@ export const INITIAL_COMPETENCIES = [
       { lvl: 5, label: "ระดับที่ 5 (Expert Level)", indicators: ["สามารถกำหนดทิศทาง นโยบาย การดำเนินงานด้านการตอบสนองความต้องการของผู้เรียน ลูกค้า และผู้รับบริการ", "การมุ่งเน้นที่การค้นหาโอกาสเชิงกลยุทธ์ และการสร้างนวัตกรรม การบริหารความเสี่ยง การปรับธุรกิจให้สนองต่อการเปลี่ยนแปลง และการพลิกฟื้นสถานการณ์ โดยใช้ข้อมูลสารสนเทศ แนวโน้ม รวมถึงการคาดการณ์อย่างเป็นระบบเพื่อบริหารความสัมพันธ์และความผูกพันของลูกค้า", "สามารถจัดทำแผนธุรกิจและแผนเชิงกลยุทธ์ในระดับหน่วยงานและองค์การ รวมถึงให้คำปรึกษาแนะนำ และให้ข้อเสนอแนะในการแก้ไขปัญหาภายในสถานการณ์ที่ซับซ้อนให้แก่ผู้อื่นในเชิงนโยบาย กลยุทธ์ กระบวนการและขั้นตอนการทำงาน เพื่อตอบสนองต่อความคาดหวัง ความกังวล ของลูกค้าและผู้มีส่วนได้ส่วนเสียได้อย่างมีประสิทธิภาพและยั่งยืน", "สามารถขับเคลื่อนการเปลี่ยนแปลงเชิงกลยุทธ์นำไปสู่การปฏิบัติใช้จริง เพื่อสร้างวัฒนธรรมที่มุ่งเน้นการสร้างคุณค่าและสร้างประสบการณ์ที่ดีให้แก่ผู้เรียน ลูกค้า และผู้รับบริการในทุกระดับ"] }
     ]
   },
-  {
-    cd: "CC-002", n: "การมุ่งผลสัมฤทธิ์", t: "CC", tg: "tag-cc", det: "มุ่งเน้นผลลัพธ์เชิงรูปธรรม", lv: 5, grp: "ทุกตำแหน่ง",
-    levels: [
-      { lvl: 1, label: "ระดับที่ 1 (Basic Level)", indicators: ["รับทราบเป้าหมายงานและตัวชี้วัดที่ได้รับมอบหมาย", "จัดลำดับงานประจำวันและส่งมอบงานตามเวลาที่กำหนด", "ติดตามความคืบหน้าของงานตนเองและแจ้งปัญหาเมื่อพบอุปสรรค", "ปรับปรุงงานจากคำแนะนำของหัวหน้าเพื่อให้ได้ผลลัพธ์ตามเกณฑ์"] }
-    ]
-  },
-  {
-    cd: "CC-005", n: "AI Literacy", t: "CC", tg: "tag-cc", det: "ประยุกต์ใช้ AI ในการทำงาน", lv: 5, grp: "ทุกตำแหน่ง",
-    levels: [
-      { lvl: 1, label: "ระดับที่ 1 (Basic Level)", indicators: ["อธิบายแนวคิดพื้นฐานและข้อจำกัดของ AI ที่เกี่ยวข้องกับงานได้", "เลือกใช้เครื่องมือ AI เบื้องต้นเพื่อช่วยสรุป ค้นหา หรือจัดรูปแบบข้อมูลได้อย่างเหมาะสม", "ตรวจสอบผลลัพธ์จาก AI ก่อนนำไปใช้ในงานจริง", "ปฏิบัติตามแนวทางความปลอดภัย ข้อมูลส่วนบุคคล และจริยธรรมเมื่อใช้ AI"] }
-    ]
-  },
-  {
-    cd: "MC-001", n: "Visionary Leadership", t: "MC", tg: "tag-mc", det: "นำวิสัยทัศน์สู่การปฏิบัติ", lv: 5, grp: "ผู้บริหาร / หัวหน้า",
-    levels: [
-      { lvl: 1, label: "ระดับที่ 1 (Basic Level)", indicators: ["เข้าใจทิศทางและเป้าหมายของหน่วยงานที่เกี่ยวข้องกับบทบาทของตน", "สื่อสารเป้าหมายงานให้ทีมย่อยหรือผู้ร่วมงานเข้าใจตรงกัน", "ติดตามงานตามแผนและสะท้อนปัญหาที่กระทบต่อเป้าหมาย", "สนับสนุนการเปลี่ยนแปลงตามแนวทางที่ผู้บังคับบัญชากำหนด"] }
-    ]
-  },
-  {
-    cd: "FC2-061", n: "การใช้เทคโนโลยีดิจิทัล", t: "FC2", tg: "tag-fc2", det: "ใช้ดิจิทัลเพื่องาน", lv: 5, grp: "สายสนับสนุน",
-    levels: [
-      { lvl: 1, label: "ระดับที่ 1 (Basic Level)", indicators: ["ใช้เครื่องมือดิจิทัลพื้นฐานตามขั้นตอนการทำงานที่กำหนด", "จัดเก็บและค้นหาไฟล์งานในระบบที่หน่วยงานใช้อย่างเป็นระเบียบ", "ใช้ระบบสื่อสารและระบบงานออนไลน์ของมหาวิทยาลัยได้ถูกต้อง", "ขอคำแนะนำหรือแจ้งปัญหาเมื่อพบข้อผิดพลาดด้านเทคโนโลยี"] }
-    ]
-  },
-  {
-    cd: "FC1-011", n: "การสอนและถ่ายทอด", t: "FC1", tg: "tag-fc1", det: "สอนและถ่ายทอดความรู้", lv: 5, grp: "สายวิชาการ",
-    levels: [
-      { lvl: 1, label: "ระดับที่ 1 (Basic Level)", indicators: ["เตรียมเนื้อหาและสื่อการสอนตามวัตถุประสงค์รายวิชาที่กำหนด", "อธิบายเนื้อหาพื้นฐานให้ผู้เรียนเข้าใจด้วยภาษาที่ชัดเจน", "ตอบคำถามและให้คำแนะนำเบื้องต้นแก่ผู้เรียนได้เหมาะสม", "รวบรวมข้อเสนอแนะจากผู้เรียนเพื่อนำมาปรับปรุงการถ่ายทอดความรู้"] }
-    ]
-  }
+  { cd: "CC-002", n: "การมุ่งผลสัมฤทธิ์", t: "CC", tg: "tag-cc", det: "มุ่งเน้นผลลัพธ์เชิงรูปธรรม", lv: 5, grp: "ทุกตำแหน่ง" },
+  { cd: "CC-005", n: "AI Literacy", t: "CC", tg: "tag-cc", det: "ประยุกต์ใช้ AI ในการทำงาน", lv: 5, grp: "ทุกตำแหน่ง" },
+  { cd: "MC-001", n: "Visionary Leadership", t: "MC", tg: "tag-mc", det: "นำวิสัยทัศน์สู่การปฏิบัติ", lv: 5, grp: "ผู้บริหาร / หัวหน้า" },
+  { cd: "FC2-061", n: "การใช้เทคโนโลยีดิจิทัล", t: "FC2", tg: "tag-fc2", det: "ใช้ดิจิทัลเพื่องาน", lv: 5, grp: "สายสนับสนุน" },
+  { cd: "FC1-011", n: "การสอนและถ่ายทอด", t: "FC1", tg: "tag-fc1", det: "สอนและถ่ายทอดความรู้", lv: 5, grp: "สายวิชาการ" }
 ];
 
 export const IDP_GAPS_DATA = [
   { cd: "FC2-061", n: "การใช้เทคโนโลยีดิจิทัล", t: "FC2", exp: 3, actual: 1, pri: "high", status: "rejected", rejectedBy: "ผศ.ดร.ธนพล ไชยรักษ์", rejectedDate: "8 พ.ค. 68", rejectComment: "กิจกรรมที่เลือกยังไม่ตรงกับสมรรถนะที่ต้องการพัฒนา ควรเพิ่ม OJT หรือ Workshop เฉพาะด้าน Digital Literacy" },
   { cd: "CC-003", n: "การทำงานเป็นทีม", t: "CC", exp: 3, actual: 2, pri: "medium", status: "submitted", rejectedBy: null, rejectedDate: null, rejectComment: null },
-  { cd: "FC2-062", n: "การวิเคราะห์ข้อมูล", t: "FC2", exp: 2, actual: 1, pri: "medium", status: "approved", rejectedBy: null, rejectedDate: null, rejectComment: null },
-  { cd: "CC-005", n: "AI Literacy", t: "CC", exp: 3, actual: 1, pri: "medium", status: "draft", rejectedBy: null, rejectedDate: null, rejectComment: null }
+  { cd: "FC2-062", n: "การวิเคราะห์ข้อมูล", t: "FC2", exp: 2, actual: 1, pri: "medium", status: "draft", rejectedBy: null, rejectedDate: null, rejectComment: null }
 ];
 
 export const IDP_ACTIVITIES_DATA = {
   "FC2-061": [
-    { ic: "", bg: "#EFF6FF", t: "อบรม AI & Data Analytics", subtopic: "ทำแบบฝึกหัด Data Dashboard 1 ชุด", m: "Formal Learning", startDate: "2025-06-01", due: "30 มิ.ย. 68", weight: 40, cost: 4500, note: "ใช้ประกอบการพัฒนาทักษะ dashboard", st: "รออนุมัติ", stC: "by", result: null, logs: [{ d: "2 พ.ค.", n: "ลงทะเบียนหลักสูตรแล้ว", by: "สมชาย มีสุข", type: "log" }] },
-    { ic: "", bg: "#F0FDF4", t: "Mentoring Program กับ ผศ.ดร.ธนพล", subtopic: "นัด mentoring อย่างน้อย 3 ครั้งและส่ง reflection", m: "Social Learning", startDate: "2025-06-15", due: "31 ก.ค. 68", weight: 60, cost: 0, note: "ใช้ประกอบแผนพัฒนาสมรรถนะด้าน Digital Literacy", st: "กำลังดำเนินการ", stC: "bt", result: null, logs: [{ d: "1 พ.ค.", n: "นัดครั้งที่ 1 เสร็จแล้ว", by: "สมชาย มีสุข", type: "log" }, { d: "15 พ.ค.", n: "นัดครั้งที่ 2 เสร็จแล้ว", by: "สมชาย มีสุข", type: "log" }, { d: "10 พ.ค.", n: "สมรรถนะนี้ไม่ผ่านตามข้อเสนอแนะของผู้ตรวจ", by: "ผศ.ดร.ธนพล ไชยรักษ์", type: "reject" }] }
+    { ic: "💻", bg: "#EFF6FF", t: "อบรม AI & Data Analytics", m: "Formal Learning", due: "30 มิ.ย. 68", st: "กำลังดำเนินการ", stC: "bt", result: null, logs: [{ d: "2 พ.ค.", n: "ลงทะเบียนหลักสูตรแล้ว", by: "สมชาย มีสุข", type: "log" }] },
+    { ic: "🤝", bg: "#F0FDF4", t: "Mentoring Program กับ ผศ.ดร.ธนพล", m: "Social Learning", due: "31 ก.ค. 68", st: "ไม่ผ่าน", stC: "br", result: "failed", rejectedBy: "ผศ.ดร.ธนพล ไชยรักษ์", rejectedDate: "10 พ.ค. 68", rejectComment: "ยังไม่ครบตามเกณฑ์ที่กำหนด จำนวนชั่วโมง Mentoring ไม่ถึง 10 ชม. และยังไม่ส่ง reflection log", logs: [{ d: "1 พ.ค.", n: "นัดครั้งที่ 1 เสร็จแล้ว", by: "สมชาย มีสุข", type: "log" }, { d: "15 พ.ค.", n: "นัดครั้งที่ 2 เสร็จแล้ว", by: "สมชาย มีสุข", type: "log" }, { d: "10 พ.ค.", n: "ไม่ผ่าน — ยังไม่ครบตามเกณฑ์ฯ", by: "ผศ.ดร.ธนพล ไชยรักษ์", type: "reject" }] }
   ],
   "CC-003": [
-    { ic: "", bg: "#F5F3FF", t: "Peer Learning / Group Activity", subtopic: "เข้าร่วมกิจกรรมทีม 2 ครั้งและสรุปบทเรียน", m: "Social Learning", startDate: "2025-05-20", due: "30 มิ.ย. 68", weight: 100, cost: 0, note: "ส่งแล้วรอหัวหน้าประเมิน", st: "รออนุมัติ", stC: "by", result: null, logs: [{ d: "5 พ.ค.", n: "เริ่มกิจกรรมกลุ่มครั้งที่ 1", by: "สมชาย มีสุข", type: "log" }] }
+    { ic: "👥", bg: "#F5F3FF", t: "Peer Learning / Group Activity", m: "Social Learning", due: "30 มิ.ย. 68", st: "กำลังดำเนินการ", stC: "bt", result: null, logs: [{ d: "5 พ.ค.", n: "เริ่มกิจกรรมกลุ่มครั้งที่ 1", by: "สมชาย มีสุข", type: "log" }] }
   ],
   "FC2-062": [
-    { ic: "", bg: "#FFF7ED", t: "โครงการพัฒนาระบบฐานข้อมูล", subtopic: "จัดทำรายงานวิเคราะห์ข้อมูลและส่ง dashboard", m: "Experiential Learning", startDate: "2025-05-15", due: "31 ส.ค. 68", weight: 100, cost: 0, note: "ผ่านทุกกิจกรรม แผนหลักต้องขึ้นผ่าน", st: "ผ่าน", stC: "bg", result: "done", logs: [{ d: "15 พ.ค.", n: "ส่งรายงานสัปดาห์ที่ 2", by: "สมชาย มีสุข", type: "log" }, { d: "31 ส.ค.", n: "เสร็จสิ้นโครงการ ส่งงานแล้ว", by: "สมชาย มีสุข", type: "log" }] }
+    { ic: "🗂️", bg: "#FFF7ED", t: "โครงการพัฒนาระบบฐานข้อมูล", m: "Experiential Learning", due: "31 ส.ค. 68", st: "เสร็จสิ้น", stC: "bg", result: "done", logs: [{ d: "15 พ.ค.", n: "ส่งรายงานสัปดาห์ที่ 2", by: "สมชาย มีสุข", type: "log" }, { d: "31 ส.ค.", n: "เสร็จสิ้นโครงการ ส่งงานแล้ว", by: "สมชาย มีสุข", type: "log" }] }
   ]
 };
