@@ -53,8 +53,8 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
     switch (role) {
       case "admin": return <span className="b bp">ผู้ดูแลระบบ</span>;
       case "hr": return <span className="b bb">งานทรัพยากรบุคคล</span>;
-      case "manager": return <span className="b bg" style={{ background: "#e0f2fe", color: "#0369a1" }}>ผู้บริหารคณะ</span>;
-      case "manager_dept": return <span className="b bg" style={{ background: "#f0f9ff", color: "#0284c7" }}>ผู้บังคับบัญชา</span>;
+      case "dean": return <span className="b bg" style={{ background: "#e0f2fe", color: "#0369a1" }}>ผู้บริหาร</span>;
+      case "department_head": return <span className="b bg" style={{ background: "#f0f9ff", color: "#0284c7" }}>หัวหน้าฝ่าย</span>;
       case "supervisor": return <span className="b bg" style={{ background: "#fff7ed", color: "#c2410c" }}>หัวหน้างาน</span>;
       default: return <span className="b bgr">บุคลากร</span>;
     }
@@ -196,7 +196,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                           <th style={{ minWidth: "200px" }}>กลุ่มงาน / สังกัด</th>
                           <th>ตำแหน่ง</th>
                           <th>ผู้ประเมินคนที่ 1 (หัวหน้างาน)</th>
-                          <th>ผู้ประเมินคนที่ 2 (ผู้บังคับบัญชา)</th>
+                          <th>ผู้ประเมินคนที่ 2 (หัวหน้าฝ่าย)</th>
                           <th>บทบาท</th>
                           <th style={{ width: "130px" }}></th>
                         </tr>
@@ -299,7 +299,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
               </div>
               <div className="flex ic jb">
                 <div className="fs13 fw5" style={{ color: 'var(--text3)' }}>
-                  {drillPath.length === 0 ? "📍 ระดับผู้บริหารคณะ" : `📍 รายชื่อผู้ที่มีหัวหน้างานเป็น: ${drillPath[drillPath.length - 1].n}`}
+                  {drillPath.length === 0 ? "📍 ระดับผู้บริหาร" : `📍 รายชื่อผู้ที่มีหัวหน้างานเป็น: ${drillPath[drillPath.length - 1].n}`}
                 </div>
               </div>
             </div>
@@ -364,7 +364,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                             </div>
                             <div className="muted fs12" style={{ marginTop: "8px" }}>
                               <span className="fw6">คนที่ 1 (หัวหน้างาน):</span> {u.sup || "—"}
-                              {u.evaluator2 && <span> · <span className="fw6">คนที่ 2 (ผู้บังคับบัญชา):</span> {u.evaluator2}</span>}
+                              {u.evaluator2 && <span> · <span className="fw6">คนที่ 2 (หัวหน้าฝ่าย):</span> {u.evaluator2}</span>}
                             </div>
                           </td>
                           <td style={{ paddingRight: '40px', textAlign: 'right', paddingTop: '24px', paddingBottom: '24px' }} onClick={e => e.stopPropagation()}>

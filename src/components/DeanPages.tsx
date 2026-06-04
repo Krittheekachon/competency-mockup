@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 import { DEPT_STRUCTURE } from '../data';
 
-export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
+export const DeanGap: React.FC<{ users: any[] }> = ({ users }) => {
     const [openDept, setOpenDept] = useState<string | null>(null);
     const [openProblem, setOpenProblem] = useState<string | null>(null);
     const [worklineFilter, setWorklineFilter] = useState("all");
@@ -634,7 +634,7 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
     );
 };
 
-export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
+export const DeanIDP: React.FC<{ users: any[] }> = ({ users }) => {
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
     const idpStats = {
@@ -867,7 +867,7 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
 };
 
 const getApprovalRows = (users: any[]) => {
-    const activeStaff = users.filter(user => user.act !== false && user.r !== "manager").slice(0, 12);
+    const activeStaff = users.filter(user => user.act !== false && user.r !== "dean").slice(0, 12);
     const fallback = [
         { n: "สมชาย มีสุข", t: "นาย", p: "นักวิชาการศึกษา", d: "สนับสนุนการศึกษาและวิชาการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์" },
         { n: "มาลี ดีเสมอ", t: "นางสาว", p: "นักทรัพยากรบุคคล", d: "ทรัพยากรบุคคล", w: "สายสนับสนุน", sup: "พรพิมล บุคคลดี", evaluator2: "ธนพล ไชยรักษ์" },
@@ -880,10 +880,12 @@ const getApprovalRows = (users: any[]) => {
         employee: `${user.t || ""}${user.n}`,
         position: user.p || "บุคลากร",
         dept: user.d || "ไม่ระบุหน่วยงาน",
+        workline: user.w || "ไม่ระบุสายงาน",
         evaluator1: user.sup || "",
         evaluator2: user.evaluator2 || "กิตติพงศ์ แสงทอง",
         score: 3 + (index % 3),
         submittedAt: `${18 + (index % 6)} พ.ค. 2568`,
+        completed: !["draft", "", undefined, null].includes(user.evalStatus),
         competencyDetails: [
             { n: "AI Literacy", expected: 4, actual: index % 2 ? 3 : 4, note: index % 2 ? "ควรพัฒนาเพิ่มเติม" : "ผ่านตามเกณฑ์" },
             { n: "การใช้เทคโนโลยีดิจิทัล", expected: 4, actual: index % 3 ? 3 : 4, note: index % 3 ? "มีช่องว่างระดับสมรรถนะ" : "ผ่านตามเกณฑ์" },
@@ -896,7 +898,251 @@ const getApprovalRows = (users: any[]) => {
     }));
 };
 
-export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users }) => {
+type ApprovalRow = ReturnType<typeof getApprovalRows>[number];
+type ApprovalGroupSummary = {
+    name: string;
+    total: number;
+    completed: number;
+    pending: number;
+    approved: number;
+    notStarted: number;
+    rows: ApprovalRow[];
+};
+
+const getPct = (value: number, total: number) => total ? Math.round((value / total) * 100) : 0;
+
+const buildApprovalDashboard = (rows: ApprovalRow[], approvedIds: string[]) => {
+    const approvedSet = new Set(approvedIds);
+    const summarizeRows = (name: string, groupRows: ApprovalRow[]): ApprovalGroupSummary => {
+        const completed = groupRows.filter(row => row.completed).length;
+        const approved = groupRows.filter(row => approvedSet.has(row.id)).length;
+
+        return {
+            name,
+            total: groupRows.length,
+            completed,
+            pending: Math.max(completed - approved, 0),
+            approved,
+            notStarted: Math.max(groupRows.length - completed, 0),
+            rows: groupRows
+        };
+    };
+    const unique = (values: string[]) => Array.from(new Set(values));
+    const worklines = unique(rows.map(row => row.workline || "ไม่ระบุสายงาน"))
+        .map(workline => summarizeRows(workline, rows.filter(row => (row.workline || "ไม่ระบุสายงาน") === workline)))
+        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "th"));
+    const departments = unique(rows.map(row => row.dept || "ไม่ระบุหน่วยงาน"))
+        .map(dept => {
+            const deptRows = rows.filter(row => (row.dept || "ไม่ระบุหน่วยงาน") === dept);
+            const summary = summarizeRows(dept, deptRows);
+
+            return {
+                ...summary,
+                worklines: unique(deptRows.map(row => row.workline || "ไม่ระบุสายงาน"))
+                    .map(workline => summarizeRows(workline, deptRows.filter(row => (row.workline || "ไม่ระบุสายงาน") === workline)))
+                    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "th"))
+            };
+        })
+        .sort((a, b) => b.pending - a.pending || b.total - a.total || a.name.localeCompare(b.name, "th"));
+    const totals = {
+        departments: departments.length,
+        total: rows.length,
+        completed: rows.filter(row => row.completed).length,
+        pending: rows.filter(row => row.completed && !approvedSet.has(row.id)).length,
+        approved: rows.filter(row => approvedSet.has(row.id)).length,
+        notStarted: rows.filter(row => !row.completed).length
+    };
+
+    return { totals, worklines, departments };
+};
+
+export const __approvalDashboardTestHooks = { buildApprovalDashboard };
+
+type ApprovalDashboardCopy = {
+    title: string;
+    subtitle: string;
+    completedLabel: string;
+    notStartedLabel: string;
+    pendingLabel: string;
+    approvedLabel: string;
+    approveLabel: string;
+    approvedButtonLabel: string;
+    detailLabel: string;
+    primaryTone: "btn-p" | "btn-t";
+    accent: string;
+    renderMainMetric: (row: ApprovalRow) => React.ReactNode;
+};
+
+const StatTile: React.FC<{ label: string; value: number | string; hint?: string; color?: string }> = ({ label, value, hint, color = "var(--navy)" }) => (
+    <div className="sc" style={{ minHeight: 92 }}>
+        <div className="sl">{label}</div>
+        <div className="sv" style={{ color }}>{value}</div>
+        {hint && <div className="muted fs11 mt4">{hint}</div>}
+    </div>
+);
+
+const ProgressBar: React.FC<{ value: number; color?: string }> = ({ value, color = "var(--teal)" }) => (
+    <div style={{ height: 8, background: "var(--bg)", borderRadius: 999, overflow: "hidden" }}>
+        <div style={{ width: `${Math.min(value, 100)}%`, height: "100%", background: color, borderRadius: 999 }} />
+    </div>
+);
+
+const ApprovalDashboardView: React.FC<{
+    rows: ApprovalRow[];
+    approvedIds: string[];
+    copy: ApprovalDashboardCopy;
+    onSelect: (id: string) => void;
+    onApprove: (id: string) => void;
+}> = ({ rows, approvedIds, copy, onSelect, onApprove }) => {
+    const dashboard = buildApprovalDashboard(rows, approvedIds);
+    const [openDept, setOpenDept] = useState<string | null>(dashboard.departments[0]?.name || null);
+    const [openLine, setOpenLine] = useState<string | null>(dashboard.departments[0]?.worklines[0]?.name || null);
+
+    return (
+        <>
+            <div className="mb20">
+                <div className="sec-t">{copy.title}</div>
+                <div className="sec-s">{copy.subtitle}</div>
+            </div>
+
+            <div className="grid4 mb20">
+                <StatTile label="หน่วยงานทั้งหมด" value={dashboard.totals.departments} hint={`${dashboard.totals.total} รายชื่อในรอบนี้`} />
+                <StatTile label={copy.completedLabel} value={dashboard.totals.completed} hint={`${getPct(dashboard.totals.completed, dashboard.totals.total)}% ของทั้งหมด`} color="var(--teal)" />
+                <StatTile label={copy.pendingLabel} value={dashboard.totals.pending} hint="รอผู้บริหารยืนยัน" color="var(--orange)" />
+                <StatTile label={copy.notStartedLabel} value={dashboard.totals.notStarted} hint={`${copy.approvedLabel} ${dashboard.totals.approved} ราย`} color="var(--red)" />
+            </div>
+
+            <div className="card mb20">
+                <div className="ch">
+                    <div>
+                        <div className="ct">สรุปตามสายงาน</div>
+                        <div className="cs">แยกความคืบหน้าตามสายงาน ก่อนลงรายละเอียดรายหน่วยงาน</div>
+                    </div>
+                </div>
+                <div className="cb">
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                        {dashboard.worklines.map(line => (
+                            <div key={line.name} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", padding: 14, background: "#fff" }}>
+                                <div className="flex between ic mb8">
+                                    <div className="fw8 fs13">{line.name}</div>
+                                    <span className="b bgr">{line.total} คน</span>
+                                </div>
+                                <ProgressBar value={getPct(line.approved, line.total)} color={copy.accent} />
+                                <div className="flex between mt10 fs12">
+                                    <span className="muted">{copy.pendingLabel}</span>
+                                    <span className="fw7">{line.pending}</span>
+                                </div>
+                                <div className="flex between mt4 fs12">
+                                    <span className="muted">{copy.approvedLabel}</span>
+                                    <span className="fw7">{line.approved}</span>
+                                </div>
+                                <div className="flex between mt4 fs12">
+                                    <span className="muted">{copy.notStartedLabel}</span>
+                                    <span className="fw7">{line.notStarted}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="card">
+                <div className="ch">
+                    <div>
+                        <div className="ct">รายการตามหน่วยงานและสายงาน</div>
+                        <div className="cs">กดเปิดหน่วยงาน แล้วเลือกสายงานเพื่อดูรายชื่อที่ต้องดำเนินการ</div>
+                    </div>
+                </div>
+                <div className="cb" style={{ display: "grid", gap: 12 }}>
+                    {dashboard.departments.map(dept => {
+                        const deptOpen = openDept === dept.name;
+                        const deptPct = getPct(dept.approved, dept.total);
+
+                        return (
+                            <div key={dept.name} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden" }}>
+                                <button
+                                    className="btn btn-s"
+                                    onClick={() => {
+                                        setOpenDept(deptOpen ? null : dept.name);
+                                        setOpenLine(dept.worklines[0]?.name || null);
+                                    }}
+                                    style={{ width: "100%", justifyContent: "space-between", borderRadius: 0, padding: "14px 16px", background: deptOpen ? "var(--bg)" : "#fff" }}
+                                >
+                                    <span style={{ textAlign: "left" }}>
+                                        <span className="fw8 fs14">{dept.name}</span>
+                                        <span className="muted fs11" style={{ display: "block", marginTop: 3 }}>{dept.worklines.length} สายงาน · {dept.total} คน</span>
+                                    </span>
+                                    <span className="flex ic g8" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                        <span className="b by">{copy.pendingLabel} {dept.pending}</span>
+                                        <span className="b bg">{copy.approvedLabel} {dept.approved}</span>
+                                        <span className="fw8">{deptOpen ? "−" : "+"}</span>
+                                    </span>
+                                </button>
+                                {deptOpen && (
+                                    <div style={{ padding: 16, display: "grid", gap: 14 }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
+                                            <ProgressBar value={deptPct} color={copy.accent} />
+                                            <div className="fw8 fs12">{deptPct}%</div>
+                                        </div>
+
+                                        {dept.worklines.map(line => {
+                                            const lineOpen = openLine === line.name;
+
+                                            return (
+                                                <div key={line.name} style={{ border: "1px solid var(--border)", borderRadius: "var(--r)", background: "#fff" }}>
+                                                    <button
+                                                        className="btn btn-s btn-sm"
+                                                        onClick={() => setOpenLine(lineOpen ? null : line.name)}
+                                                        style={{ width: "100%", justifyContent: "space-between", borderRadius: 0, padding: "10px 12px" }}
+                                                    >
+                                                        <span className="fw8 fs13">{line.name}</span>
+                                                        <span className="flex ic g6" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                                            <span className="b bgr">ทั้งหมด {line.total}</span>
+                                                            <span className="b by">รอ {line.pending}</span>
+                                                            <span className="b bg">แล้ว {line.approved}</span>
+                                                        </span>
+                                                    </button>
+                                                    {lineOpen && (
+                                                        <div style={{ borderTop: "1px solid var(--border)" }}>
+                                                            {line.rows.map(row => {
+                                                                const approved = approvedIds.includes(row.id);
+
+                                                                return (
+                                                                    <div key={row.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, padding: "12px", borderBottom: "1px solid var(--border)", alignItems: "center" }}>
+                                                                        <div>
+                                                                            <div className="fw7 fs13">{row.employee}</div>
+                                                                            <div className="muted fs11">{row.position}</div>
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="muted fs10">หัวหน้างาน / ผู้บังคับบัญชา</div>
+                                                                            <div className="fw6 fs12">{row.evaluator1 || "—"} · {row.evaluator2}</div>
+                                                                        </div>
+                                                                        <div>{copy.renderMainMetric(row)}</div>
+                                                                        <div className="flex ic g6" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+                                                                            <span className={`b ${approved ? "bg" : row.completed ? "by" : "bgr"}`}>{approved ? copy.approvedLabel : row.completed ? copy.pendingLabel : copy.notStartedLabel}</span>
+                                                                            <button className="btn btn-s btn-xs" onClick={() => onSelect(row.id)}>{copy.detailLabel}</button>
+                                                                            <button className={`btn ${approved ? "btn-g" : copy.primaryTone} btn-xs`} disabled={approved || !row.completed} onClick={() => onApprove(row.id)}>{approved ? copy.approvedButtonLabel : copy.approveLabel}</button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </>
+    );
+};
+
+export const DeanAssessmentApproval: React.FC<{ users: any[] }> = ({ users }) => {
     const [approvedIds, setApprovedIds] = useState<string[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const approvalRows = getApprovalRows(users);
@@ -905,47 +1151,31 @@ export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users })
 
     return (
         <>
-            <div className="mb20">
-                <div className="sec-t">อนุมัติผลการประเมินรายบุคคล</div>
-                <div className="sec-s">ตรวจสอบผู้ถูกประเมิน หัวหน้างาน และผู้บังคับบัญชา ก่อนยืนยันผลการประเมิน</div>
-            </div>
-            <div className="card">
-                <div className="ch"><div className="ct">รายการผลการประเมินที่รอยืนยัน</div></div>
-                <div className="cb" style={{ padding: 0 }}>
-                    <table className="tbl">
-                        <thead>
-                            <tr>
-                                <th>ผู้ถูกประเมิน</th>
-                                <th>หัวหน้างาน</th>
-                                <th>ผู้บังคับบัญชา</th>
-                                <th style={{ width: "100px", textAlign: "center" }}>คะแนน</th>
-                                <th style={{ width: "118px" }}>สถานะ</th>
-                                <th style={{ width: "190px" }}>จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {approvalRows.map(row => {
-                                const approved = approvedIds.includes(row.id);
-                                return (
-                                    <tr key={row.id}>
-                                        <td><div className="fw7 fs13">{row.employee}</div><div className="muted fs11">{row.position} · {row.dept}</div></td>
-                                        <td><div className="fw6 fs12">{row.evaluator1 || "—"}</div></td>
-                                        <td><div className="fw6 fs12">{row.evaluator2}</div></td>
-                                        <td style={{ textAlign: "center" }}><span className="fw8" style={{ color: "var(--blue)" }}>{row.score}</span><span className="muted fs10"> / 5</span></td>
-                                        <td><span className={`b ${approved ? "bg" : "by"}`}>{approved ? "ยืนยันแล้ว" : "รอยืนยัน"}</span></td>
-                                        <td>
-                                            <div className="flex ic g6">
-                                                <button className="btn btn-s btn-xs" onClick={() => setSelectedId(row.id)}>ดูรายละเอียด</button>
-                                                <button className={`btn ${approved ? "btn-g" : "btn-p"} btn-xs`} disabled={approved} onClick={() => approve(row.id)}>{approved ? "ยืนยันแล้ว" : "ยืนยัน"}</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <ApprovalDashboardView
+                rows={approvalRows}
+                approvedIds={approvedIds}
+                onSelect={setSelectedId}
+                onApprove={approve}
+                copy={{
+                    title: "อนุมัติผลการประเมิน",
+                    subtitle: "ตรวจสอบความคืบหน้าตามหน่วยงานและสายงาน ก่อนยืนยันผลการประเมินรายบุคคล",
+                    completedLabel: "ประเมินแล้ว",
+                    notStartedLabel: "ยังไม่ประเมิน",
+                    pendingLabel: "รออนุมัติ",
+                    approvedLabel: "อนุมัติแล้ว",
+                    approveLabel: "ยืนยันผล",
+                    approvedButtonLabel: "ยืนยันแล้ว",
+                    detailLabel: "ดูผล",
+                    primaryTone: "btn-p",
+                    accent: "var(--blue)",
+                    renderMainMetric: row => (
+                        <div style={{ textAlign: "right" }}>
+                            <span className="fw8" style={{ color: "var(--blue)" }}>{row.score}</span>
+                            <span className="muted fs10"> / 5</span>
+                        </div>
+                    )
+                }}
+            />
             {selected && (
                 <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedId(null)}>
                     <div className="mo-box" style={{ width: "720px" }} onMouseDown={event => event.stopPropagation()}>
@@ -971,7 +1201,7 @@ export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users })
     );
 };
 
-export const ManagerIDPApproval: React.FC<{ users: any[] }> = ({ users }) => {
+export const DeanIDPApproval: React.FC<{ users: any[] }> = ({ users }) => {
     const [approvedIds, setApprovedIds] = useState<string[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const approvalRows = getApprovalRows(users);
@@ -980,47 +1210,30 @@ export const ManagerIDPApproval: React.FC<{ users: any[] }> = ({ users }) => {
 
     return (
         <>
-            <div className="mb20">
-                <div className="sec-t">อนุมัติแผน IDP รายบุคคล</div>
-                <div className="sec-s">ตรวจสอบแผน IDP จากหัวหน้างานและผู้บังคับบัญชา ก่อนยืนยันแผนพัฒนารายบุคคล</div>
-            </div>
-            <div className="card">
-                <div className="ch"><div className="ct">รายการแผน IDP ที่รอยืนยัน</div></div>
-                <div className="cb" style={{ padding: 0 }}>
-                    <table className="tbl">
-                        <thead>
-                            <tr>
-                                <th>ผู้ถูกประเมิน</th>
-                                <th>หัวหน้างาน</th>
-                                <th>ผู้บังคับบัญชา</th>
-                                <th>หัวข้อ IDP</th>
-                                <th style={{ width: "118px" }}>สถานะ</th>
-                                <th style={{ width: "190px" }}>จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {approvalRows.map(row => {
-                                const approved = approvedIds.includes(row.id);
-                                return (
-                                    <tr key={row.id}>
-                                        <td><div className="fw7 fs13">{row.employee}</div><div className="muted fs11">{row.position} · {row.dept}</div></td>
-                                        <td><div className="fw6 fs12">{row.evaluator1 || "—"}</div></td>
-                                        <td><div className="fw6 fs12">{row.evaluator2}</div></td>
-                                        <td><div className="flex ic g4" style={{ flexWrap: "wrap" }}>{row.idpDetails.map(item => <span key={item.topic} className="b bt">{item.topic}</span>)}</div></td>
-                                        <td><span className={`b ${approved ? "bg" : "by"}`}>{approved ? "ยืนยันแล้ว" : "รอยืนยัน"}</span></td>
-                                        <td>
-                                            <div className="flex ic g6">
-                                                <button className="btn btn-s btn-xs" onClick={() => setSelectedId(row.id)}>ดูรายละเอียด</button>
-                                                <button className={`btn ${approved ? "btn-g" : "btn-t"} btn-xs`} disabled={approved} onClick={() => approve(row.id)}>{approved ? "ยืนยันแล้ว" : "ยืนยัน"}</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <ApprovalDashboardView
+                rows={approvalRows}
+                approvedIds={approvedIds}
+                onSelect={setSelectedId}
+                onApprove={approve}
+                copy={{
+                    title: "อนุมัติแผน IDP",
+                    subtitle: "ติดตามแผนพัฒนารายบุคคลตามหน่วยงานและสายงาน ก่อนยืนยันแผน IDP",
+                    completedLabel: "มีแผน IDP แล้ว",
+                    notStartedLabel: "ยังไม่มีแผน",
+                    pendingLabel: "รออนุมัติแผน",
+                    approvedLabel: "อนุมัติแล้ว",
+                    approveLabel: "ยืนยันแผน",
+                    approvedButtonLabel: "ยืนยันแล้ว",
+                    detailLabel: "ดูแผน",
+                    primaryTone: "btn-t",
+                    accent: "var(--teal)",
+                    renderMainMetric: row => (
+                        <div className="flex ic g4" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            {row.idpDetails.slice(0, 2).map(item => <span key={item.topic} className="b bt">{item.topic}</span>)}
+                        </div>
+                    )
+                }}
+            />
             {selected && (
                 <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedId(null)}>
                     <div className="mo-box" style={{ width: "720px" }} onMouseDown={event => event.stopPropagation()}>

@@ -33,8 +33,8 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
     switch (role) {
       case "admin": return <span className="b bp">ผู้ดูแลระบบ</span>;
       case "hr": return <span className="b bb">งานทรัพยากรบุคคล</span>;
-      case "manager": return <span className="b bg" style={{ background: "#e0f2fe", color: "#0369a1" }}>ผู้บริหารคณะ</span>;
-      case "manager_dept": return <span className="b bg" style={{ background: "#fef3c7", color: "#92400e" }}>ผู้บังคับบัญชา</span>;
+      case "dean": return <span className="b bg" style={{ background: "#e0f2fe", color: "#0369a1" }}>ผู้บริหาร</span>;
+      case "department_head": return <span className="b bg" style={{ background: "#fef3c7", color: "#92400e" }}>หัวหน้าฝ่าย</span>;
       case "supervisor": return <span className="b bg" style={{ background: "#f0f9ff", color: "#0284c7" }}>หัวหน้างาน</span>;
       default: return <span className="b bgr">บุคลากร</span>;
     }
@@ -47,8 +47,8 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
     let roleName = "บุคลากร";
     if (u.r === "admin") roleName = "ผู้ดูแลระบบ";
     else if (u.r === "hr") roleName = "งานทรัพยากรบุคคล";
-    else if (u.r === "manager") roleName = "ผู้บริหารคณะ";
-    else if (u.r === "manager_dept") roleName = "ผู้บังคับบัญชา";
+    else if (u.r === "dean") roleName = "ผู้บริหาร";
+    else if (u.r === "department_head") roleName = "หัวหน้าฝ่าย";
     else if (u.r === "supervisor") roleName = "หัวหน้างาน";
     
     const matchesRole = roleFilter === "ทุกบทบาท (Role)" || roleName === roleFilter;
@@ -89,8 +89,8 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
             <option>ทุกบทบาท (Role)</option>
             <option>บุคลากร</option>
             <option>หัวหน้างาน</option>
-            <option>ผู้บังคับบัญชา</option>
-            <option>ผู้บริหารคณะ</option>
+            <option>หัวหน้าฝ่าย</option>
+            <option>ผู้บริหาร</option>
             <option>งานทรัพยากรบุคคล</option>
             <option>ผู้ดูแลระบบ</option>
           </select>
@@ -111,7 +111,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ openModal, users, setUsers, aca
                 <th>ตำแหน่ง</th>
                 <th>ระดับตำแหน่ง</th>
                 <th>หัวหน้างาน</th>
-                <th>ผู้บังคับบัญชา</th>
+                <th>หัวหน้าฝ่าย</th>
                 <th style={{ minWidth: "160px" }}>บทบาทในระบบ</th>
                 <th>สถานะ</th>
                 <th></th>

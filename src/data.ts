@@ -3,8 +3,8 @@ export const ROLES_CONFIG = {
   hr: { lbl: "งานทรัพยากรบุคคล", name: "คุณมาลี ดีเสมอ", av: "ม", pos: "งานทรัพยากรบุคคล", col: "#2563EB" },
   employee: { lbl: "บุคลากร", name: "สมชาย มีสุข", av: "ส", pos: "นักวิชาการศึกษา · สายสนับสนุน", col: "#0EA5A0" },
   supervisor: { lbl: "หัวหน้างาน", name: "กัญญารัตน์ ศรีวิชา", av: "ก", pos: "หัวหน้างานสนับสนุนการศึกษาและวิชาการ", col: "#EA580C" },
-  manager_dept: { lbl: "ผู้บังคับบัญชา", name: "ผศ.ดร.ธนพล ไชยรักษ์", av: "ธ", pos: "รองคณบดีฝ่ายบริหาร", col: "#D97706" },
-  manager: { lbl: "ผู้บริหารคณะ", name: "รศ.ดร.กิตติพงศ์ แสงทอง", av: "ก", pos: "คณบดี", col: "#0F2D5B" }
+  department_head: { lbl: "หัวหน้าฝ่าย", name: "ผศ.ดร.ธนพล ไชยรักษ์", av: "ธ", pos: "รองคณบดีฝ่ายบริหาร", col: "#D97706" },
+  dean: { lbl: "ผู้บริหาร", name: "รศ.ดร.กิตติพงศ์ แสงทอง", av: "ก", pos: "คณบดี", col: "#0F2D5B" }
 };
 
 export const NAV_CONFIG = {
@@ -13,7 +13,7 @@ export const NAV_CONFIG = {
       sec: "การประเมินของฉัน",
       items: [
         { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "📊", lb: "ผล Competency Gap" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
         { id: "emp-idp", ic: "📝", lb: "แผนพัฒนา IDP" },
         { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
         { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
@@ -25,7 +25,7 @@ export const NAV_CONFIG = {
       sec: "ของฉัน (บุคลากร)",
       items: [
         { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "📊", lb: "ผล Competency Gap" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
         { id: "emp-idp", ic: "📝", lb: "IDP ของฉัน" },
         { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
         { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
@@ -34,38 +34,39 @@ export const NAV_CONFIG = {
     {
       sec: "จัดการทีม",
       items: [
-        { id: "dh-assess", ic: "✍️", lb: "ประเมินลูกน้อง" },
+        { id: "sup-assess", ic: "✍️", lb: "ตรวจประเมินลูกน้อง" },
         { id: "sup-gap", ic: "📊", lb: "Competency Gap ทีม" },
-        { id: "dh-idp", ic: "✅", lb: "IDP & ติดตามทีม" }
+        { id: "sup-idp", ic: "✅", lb: "ติดตาม IDP ทีม" }
       ]
     }
   ],
-  manager_dept: [
+  department_head: [
     {
       sec: "ของฉัน (บุคลากร)",
       items: [
         { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "📊", lb: "ผล Competency Gap" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
         { id: "emp-idp", ic: "📝", lb: "IDP ของฉัน" },
         { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
         { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
       ]
     },
     {
-      sec: "จัดการทีม",
+      sec: "จัดการฝ่าย",
       items: [
-        { id: "sup-assess", ic: "✍️", lb: "ประเมินลูกน้อง" },
-        { id: "sup-gap", ic: "📊", lb: "Competency Gap ทีม" },
-        { id: "sup-idp", ic: "✅", lb: "IDP & ติดตามทีม" }
+        { id: "dept-assessment-approval", ic: "✅", lb: "อนุมัติผลการประเมิน" },
+        { id: "dept-gap", ic: "📊", lb: "ผลประเมินฝ่าย" },
+        { id: "dept-idp-approval", ic: "🗂️", lb: "อนุมัติผล IDP" },
+        { id: "dept-idp-tracking", ic: "📉", lb: "ติดตาม IDP ฝ่าย" }
       ]
     }
   ],
-  manager: [
+  dean: [
     {
       sec: "ของฉัน (บุคลากร)",
       items: [
         { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "📊", lb: "ผล Competency Gap" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
         { id: "emp-idp", ic: "📝", lb: "IDP ของฉัน" },
         { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
         { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
@@ -74,10 +75,10 @@ export const NAV_CONFIG = {
     {
       sec: "ภาพรวมคณะ",
       items: [
-        { id: "mgr-gap", ic: "📈", lb: "Competency Gap คณะ" },
-        { id: "mgr-idp", ic: "📉", lb: "ติดตาม IDP ภาพรวม" },
-        { id: "mgr-assessment-approval", ic: "✅", lb: "อนุมัติผลการประเมิน" },
-        { id: "mgr-idp-approval", ic: "🗂️", lb: "อนุมัติแผน IDP" }
+        { id: "dean-gap", ic: "📈", lb: "Competency Gap คณะ" },
+        { id: "dean-idp", ic: "📉", lb: "ติดตาม IDP ภาพรวม" },
+        { id: "dean-assessment-approval", ic: "✅", lb: "อนุมัติผลการประเมิน" },
+        { id: "dean-idp-approval", ic: "🗂️", lb: "อนุมัติแผน IDP" }
       ]
     }
   ],
@@ -86,7 +87,7 @@ export const NAV_CONFIG = {
       sec: "ของฉัน (บุคลากร)",
       items: [
         { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "📊", lb: "ผล Competency Gap" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
         { id: "emp-idp", ic: "📝", lb: "IDP ของฉัน" },
         { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" },
         { id: "emp-idp-detail", ic: "📁", lb: "รายละเอียด IDP" }
@@ -114,7 +115,7 @@ export const NAV_CONFIG = {
       sec: "ของฉัน (บุคลากร)",
       items: [
         { id: "emp-assess", ic: "📋", lb: "ประเมินตนเอง" },
-        { id: "emp-gap", ic: "📊", lb: "สรุปผลสมรรถนะ" },
+        { id: "emp-gap", ic: "📊", lb: "ผลการประเมิน" },
         { id: "emp-idp", ic: "📝", lb: "แผนพัฒนา IDP" },
         { id: "emp-progress", ic: "🔄", lb: "อัปเดตความก้าวหน้า" }
       ]
@@ -134,20 +135,22 @@ export const NAV_CONFIG = {
 export const PAGE_TITLES = {
   "profile": "โปรไฟล์",
   "emp-assess": "ประเมินตนเอง",
-  "emp-gap": "สรุปผลสมรรถนะ",
+  "emp-gap": "ผลการประเมิน",
   "emp-idp": "แผนพัฒนา IDP",
   "emp-progress": "อัปเดตความก้าวหน้า",
   "emp-idp-detail": "รายละเอียด IDP",
-  "sup-assess": "ประเมินลูกน้อง",
+  "sup-assess": "ตรวจประเมินลูกน้อง",
   "sup-gap": "Competency Gap ทีม",
-  "sup-idp": "IDP & ติดตามทีม",
-  "dh-assess": "ประเมินลูกน้อง (หน่วยงาน)",
-  "dh-idp": "IDP & ติดตามทีม",
+  "sup-idp": "ติดตาม IDP ทีม",
+  "dept-assessment-approval": "อนุมัติผลการประเมินในฝ่าย",
+  "dept-gap": "ผลประเมินฝ่าย",
+  "dept-idp-approval": "อนุมัติผล IDP",
+  "dept-idp-tracking": "ติดตาม IDP ฝ่าย",
   "dept-monitor": "ภาพรวมหน่วยงาน (Department View)",
-  "mgr-gap": "Competency Gap คณะ",
-  "mgr-idp": "ติดตาม IDP ภาพรวม",
-  "mgr-assessment-approval": "อนุมัติผลการประเมิน",
-  "mgr-idp-approval": "อนุมัติแผน IDP",
+  "dean-gap": "Competency Gap คณะ",
+  "dean-idp": "ติดตาม IDP ภาพรวม",
+  "dean-assessment-approval": "อนุมัติผลการประเมิน",
+  "dean-idp-approval": "อนุมัติแผน IDP",
   "hr-cycle": "รอบการประเมิน",
   "hr-template": "กำหนดความคาดหวัง",
   "hr-position-competencies": "กำหนดสมรรถนะประจำตำแหน่ง",
@@ -179,9 +182,9 @@ export const DEPT_STRUCTURE = {
 };
 
 export const INITIAL_USERS = [
-  { n: "กิตติพงศ์ แสงทอง", t: "รศ.ดร.", sso: "10000", p: "คณบดี", l: "คณบดี", w: "สายงานบริหาร", sup: "", r: "manager", act: true, g: "ชาย", fe: "Kittipong", le: "Saengthong", em: "kittipong.s@kku.ac.th", ph: "081-000-1000", d: "คณะวิศวกรรมศาสตร์", evalStatus: "draft" },
-  { n: "ปาริชาติ วงศ์ดี", t: "รศ.ดร.", sso: "10001", p: "รองคณบดีฝ่ายวิชาการ", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "manager_dept", act: true, g: "หญิง", fe: "Parichat", le: "Wongdee", em: "parichat.w@kku.ac.th", ph: "081-000-1001", d: "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้", evalStatus: "draft" },
-  { n: "ธนพล ไชยรักษ์", t: "ผศ.ดร.", sso: "10002", p: "รองคณบดีฝ่ายบริหาร", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "manager_dept", act: true, g: "ชาย", fe: "Thanaphon", le: "Chairak", em: "thanaphon.c@kku.ac.th", ph: "081-000-1002", d: "ฝ่ายบริหาร", evalStatus: "draft" },
+  { n: "กิตติพงศ์ แสงทอง", t: "รศ.ดร.", sso: "10000", p: "คณบดี", l: "คณบดี", w: "สายงานบริหาร", sup: "", r: "dean", act: true, g: "ชาย", fe: "Kittipong", le: "Saengthong", em: "kittipong.s@kku.ac.th", ph: "081-000-1000", d: "คณะวิศวกรรมศาสตร์", evalStatus: "draft" },
+  { n: "ปาริชาติ วงศ์ดี", t: "รศ.ดร.", sso: "10001", p: "รองคณบดีฝ่ายวิชาการ", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "department_head", act: true, g: "หญิง", fe: "Parichat", le: "Wongdee", em: "parichat.w@kku.ac.th", ph: "081-000-1001", d: "ฝ่ายการศึกษาและพัฒนาทักษะการเรียนรู้", evalStatus: "draft" },
+  { n: "ธนพล ไชยรักษ์", t: "ผศ.ดร.", sso: "10002", p: "รองคณบดีฝ่ายบริหาร", l: "รองคณบดี", w: "สายงานบริหาร", sup: "กิตติพงศ์ แสงทอง", r: "department_head", act: true, g: "ชาย", fe: "Thanaphon", le: "Chairak", em: "thanaphon.c@kku.ac.th", ph: "081-000-1002", d: "ฝ่ายบริหาร", evalStatus: "draft" },
   { n: "สุรีพร นาคประสิทธิ์", t: "ศ.ดร.", sso: "11001", p: "อาจารย์", l: "ศาสตราจารย์", w: "สายวิชาการ", sup: "ปาริชาติ วงศ์ดี", evaluator2: "กิตติพงศ์ แสงทอง", r: "supervisor", act: true, g: "หญิง", fe: "Sureeporn", le: "Nakprasit", em: "sureeporn.n@kku.ac.th", ph: "081-000-1101", d: "อาจารย์", evalStatus: "self_submitted" },
   { n: "เมธา ศิริกุล", t: "รศ.ดร.", sso: "11002", p: "อาจารย์", l: "รองศาสตราจารย์", w: "สายวิชาการ", sup: "สุรีพร นาคประสิทธิ์", evaluator2: "ปาริชาติ วงศ์ดี", r: "employee", act: true, g: "ชาย", fe: "Metha", le: "Sirikul", em: "metha.s@kku.ac.th", ph: "081-000-1102", d: "อาจารย์", evalStatus: "unit_evaluated" },
   { n: "อรพรรณ ศรีสวัสดิ์", t: "ผศ.ดร.", sso: "11003", p: "อาจารย์", l: "ผู้ช่วยศาสตราจารย์", w: "สายวิชาการ", sup: "สุรีพร นาคประสิทธิ์", evaluator2: "ปาริชาติ วงศ์ดี", r: "employee", act: true, g: "หญิง", fe: "Oraphan", le: "Srisawat", em: "oraphan.s@kku.ac.th", ph: "081-000-1103", d: "อาจารย์", evalStatus: "draft" },
