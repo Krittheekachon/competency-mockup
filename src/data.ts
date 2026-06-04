@@ -75,9 +75,7 @@ export const NAV_CONFIG = {
       sec: "ภาพรวมคณะ",
       items: [
         { id: "mgr-gap", ic: "", lb: "ภาพรวมผลการประเมินคณะ" },
-        { id: "mgr-idp", ic: "", lb: "ติดตาม IDP ภาพรวม" },
-        { id: "mgr-assessment-approval", ic: "", lb: "อนุมัติผลการประเมิน" },
-        { id: "mgr-idp-approval", ic: "", lb: "อนุมัติแผน IDP" }
+        { id: "mgr-idp", ic: "", lb: "ติดตาม IDP ภาพรวม" }
       ]
     }
   ],
@@ -96,8 +94,6 @@ export const NAV_CONFIG = {
       sec: "HR",
       items: [
         { id: "hr-position-competencies", ic: "", lb: "กำหนดสมรรถนะประจำตำแหน่ง" },
-        { id: "hr-cycle", ic: "", lb: "รอบการประเมิน" },
-        { id: "hr-template", ic: "", lb: "กำหนดความคาดหวัง" },
         { id: "hr-catalog", ic: "", lb: "Learning Catalog" }
       ]
     },
@@ -146,8 +142,6 @@ export const PAGE_TITLES = {
   "dept-monitor": "ภาพรวมหน่วยงาน (Department View)",
   "mgr-gap": "Competency Gap คณะ",
   "mgr-idp": "ติดตาม IDP ภาพรวม",
-  "mgr-assessment-approval": "อนุมัติผลการประเมิน",
-  "mgr-idp-approval": "อนุมัติแผน IDP",
   "hr-cycle": "รอบการประเมิน",
   "hr-template": "กำหนดความคาดหวัง",
   "hr-position-competencies": "กำหนดสมรรถนะประจำตำแหน่ง",

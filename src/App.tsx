@@ -24,7 +24,7 @@ import Profile from './components/Profile';
 import { HRCycle, HRCatalog, HRMonitor, HRTemplate, HRPositionCompetencies } from './components/HRPages';
 import { EmployeeAssess, EmployeeGap, EmployeeIDP, EmployeeIDPDetail, EmployeeProgress } from './components/EmployeePages';
 import { SupervisorAssess, TeamGap, TeamIDP } from './components/SupervisorPages';
-import { ManagerGap, ManagerIDP, ManagerAssessmentApproval, ManagerIDPApproval, DeptMonitor } from './components/ManagerPages';
+import { ManagerGap, ManagerIDP, DeptMonitor } from './components/ManagerPages';
 
 const formatPhone = (val: string) => {
   if (!val) return val;
@@ -261,6 +261,7 @@ export default function App() {
   const [evaluator2, setEvaluator2] = useState("");
   const [evaluator2Search, setEvaluator2Search] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const [ssoIdInput, setSsoIdInput] = useState("");
   const [userUniqueErrors, setUserUniqueErrors] = useState({
     sso: "",
     email: "",
@@ -286,6 +287,12 @@ export default function App() {
   const [worklines, setWorklines] = useState(["สายวิชาการ", "สายสนับสนุน", "สายงานบริหาร"]);
   const [adminDepts, setAdminDepts] = useState(["คณะวิศวกรรมศาสตร์"]);
   const [competencyTypes, setCompetencyTypes] = useState(["CC", "MC", "FC1", "FC2"]);
+  const [competencyTypeDetails, setCompetencyTypeDetails] = useState<Record<string, { fullName: string; desc: string }>>({
+    CC: { fullName: "Core Competency", desc: "สมรรถนะหลักที่บุคลากรทุกคนควรมี" },
+    MC: { fullName: "Managerial Competency", desc: "สมรรถนะสำหรับผู้บริหารและหัวหน้างาน" },
+    FC1: { fullName: "Functional Competency (Academic)", desc: "สมรรถนะประจำตำแหน่งสำหรับสายวิชาการ" },
+    FC2: { fullName: "Functional Competency (Support)", desc: "สมรรถนะประจำตำแหน่งสำหรับสายสนับสนุน" }
+  });
   const [supportPositionGroups, setSupportPositionGroups] = useState(SUPPORT_JOB_FAMILY_POSITIONS);
   const supportJobFamilies = Object.keys(supportPositionGroups);
   const [academicPositions, setAcademicPositions] = useState(["อาจารย์", "นักวิจัย"]);
@@ -520,6 +527,7 @@ export default function App() {
     setEvaluatorPairError("");
     if (data) {
       setModalData(data);
+      setSsoIdInput(data.sso || "");
       setPhoneNumber(data.ph || "");
       setWorkline(data.w);
       if (data.w === "สายสนับสนุน" && data.d && data.d.includes(" > ")) {
@@ -541,6 +549,7 @@ export default function App() {
       setEvaluator2Search(data.evaluator2 || "");
     } else {
       setModalData(null);
+      setSsoIdInput("");
       setWorkline("");
       setDept1("");
       setDept2("");
@@ -559,6 +568,7 @@ export default function App() {
     setModalType(null);
     setModalData(null);
     setPhoneNumber("");
+    setSsoIdInput("");
     setSupervisor("");
     setSupervisorSearch("");
     setEvaluator2("");
@@ -568,6 +578,22 @@ export default function App() {
     setShowResults(false);
     setDept2("");
     setDept3("");
+  };
+
+  const verifyUserId = () => {
+    const id = ssoIdInput.trim();
+    if (!id) {
+      setShowResults(false);
+      setUserUniqueErrors(errors => ({ ...errors, sso: "กรุณากรอก ID เพื่อทำการตรวจสอบข้อมูล" }));
+      return;
+    }
+    if (users.some(user => user.sso.toLowerCase() === id.toLowerCase() && user.sso !== modalData?.sso)) {
+      setShowResults(false);
+      setUserUniqueErrors(errors => ({ ...errors, sso: "มีผู้ใช้งานรายนี้ในระบบแล้ว" }));
+      return;
+    }
+    setUserUniqueErrors(errors => ({ ...errors, sso: "" }));
+    setShowResults(true);
   };
 
   const handleUserSubmit = (e: React.FormEvent) => {
@@ -581,6 +607,10 @@ export default function App() {
     const phone = ((formData.get("phone_number") as string) || "").trim();
     const submittedRoleId = formData.get("role_id") as string;
     const isActive = formData.get("is_active") === "on";
+    if (!modalData && !showResults) {
+      setUserUniqueErrors(errors => ({ ...errors, sso: "กรุณากดตรวจสอบข้อมูล ID ก่อนบันทึกผู้ใช้งาน" }));
+      return;
+    }
     const otherUsers = users.filter(user => user.sso !== modalData?.sso);
     const phoneDigits = phone.replace(/\D/g, "");
     const uniqueErrors = {
@@ -747,6 +777,7 @@ export default function App() {
           supportRank={supportPosList} setSupportRank={setSupportPosList}
           worklines={worklines} setWorklines={setWorklines}
           competencyTypes={competencyTypes} setCompetencyTypes={setCompetencyTypes}
+          competencyTypeDetails={competencyTypeDetails} setCompetencyTypeDetails={setCompetencyTypeDetails}
           learningMethods={learningMethods} setLearningMethods={setLearningMethods}
         />;
       case "admin-dict":
@@ -754,7 +785,7 @@ export default function App() {
       case "hr-cycle":
         return <HRCycle onGoTemplate={() => setActivePage("hr-template")} />;
       case "hr-catalog":
-        return <HRCatalog openModal={openModal} />;
+        return <HRCatalog competencies={competencies} learningMethods={learningMethods} />;
       case "hr-monitor":
         return <HRMonitor />;
       case "hr-template":
@@ -784,9 +815,9 @@ export default function App() {
           />
         );
       case "hr-comp-overview":
-        return <ManagerGap users={users} />;
+        return <ManagerGap users={users} supportOrg={supportOrg} />;
       case "hr-idp-overview":
-        return <ManagerIDP users={users} />;
+        return <ManagerIDP users={users} supportOrg={supportOrg} />;
       case "emp-assess": {
         const staff = users.find(u => u.sso === "64020") || users.find(u => u.r === 'staff');
         return <EmployeeAssess user={staff} setUsers={setUsers} />;
@@ -856,13 +887,9 @@ export default function App() {
           />
         );
       case "mgr-gap":
-        return <ManagerGap users={users} />;
+        return <ManagerGap users={users} supportOrg={supportOrg} />;
       case "mgr-idp":
-        return <ManagerIDP users={users} />;
-      case "mgr-assessment-approval":
-        return <ManagerAssessmentApproval users={users} />;
-      case "mgr-idp-approval":
-        return <ManagerIDPApproval users={users} />;
+        return <ManagerIDP users={users} supportOrg={supportOrg} />;
       case "dept-monitor":
         return <DeptMonitor users={users} />;
       default:
@@ -989,16 +1016,25 @@ export default function App() {
                 </div>
                 <div className="fg">
                   <label className="lbl">ID <span style={{ color: "var(--red)" }}>*</span></label>
-                  <input
-                    className="inp"
-                    name="sso_id"
-                    placeholder="เช่น 64XXXX หรือ stu_XXXXXXX"
-                    defaultValue={modalData?.sso || ""}
-                    onChange={() => setUserUniqueErrors(errors => ({ ...errors, sso: "" }))}
-                    style={userUniqueErrors.sso ? { borderColor: "var(--red)" } : undefined}
-                    required
-                  />
+                  <div className="flex g8">
+                    <input
+                      className="inp"
+                      name="sso_id"
+                      placeholder="เช่น 64XXXX หรือ stu_XXXXXXX"
+                      value={ssoIdInput}
+                      onChange={e => {
+                        setSsoIdInput(e.target.value);
+                        setShowResults(!!modalData);
+                        setUserUniqueErrors(errors => ({ ...errors, sso: "" }));
+                      }}
+                      style={userUniqueErrors.sso ? { borderColor: "var(--red)" } : undefined}
+                      readOnly={!!modalData}
+                      required
+                    />
+                    {!modalData && <button type="button" className="btn btn-s" onClick={verifyUserId}>ตรวจสอบข้อมูล</button>}
+                  </div>
                   {userUniqueErrors.sso && <div className="fs12" style={{ color: "var(--red)", marginTop: "4px" }}>{userUniqueErrors.sso}</div>}
+                  {!modalData && showResults && <div className="fs12" style={{ color: "#15803d", marginTop: "4px" }}>ตรวจสอบ ID แล้ว สามารถกรอกข้อมูลจาก KKU SSO API และกำหนดค่าภายในระบบ IDP ต่อได้</div>}
                 </div>
                 <div className="divider" />
                 <div className="g2">
@@ -1172,6 +1208,21 @@ export default function App() {
                 <div className="divider" />
                 <div className="g2">
                   <div className="fg">
+                    <label className="lbl">สถานะการเชื่อมสายบังคับบัญชา</label>
+                    {roleId === "manager" || supervisor ? (
+                      <div className="fs12 fw7" style={{ padding: "10px 12px", borderRadius: "8px", background: "#dcfce7", color: "#15803d" }}>
+                        Linked {roleId === "manager" ? "คณบดีเป็นจุดเริ่มต้นของสายอนุมัติ" : `หัวหน้างาน: ${supervisor}`}
+                      </div>
+                    ) : (
+                      <div className="fs12 fw7" style={{ padding: "10px 12px", borderRadius: "8px", background: "#fee2e2", color: "#b91c1c" }}>
+                        ไม่พบชื่อหัวหน้าในระบบ IDP กรุณากำหนดหัวหน้าในโครงสร้างองค์กร
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="divider" />
+                <div className="g2">
+                  <div className="fg">
                     <label className="lbl">บทบาทในระบบ <span style={{ color: "var(--red)" }}>*</span></label>
                     <select className="sel" name="role_id" value={roleId} onChange={e => { setRoleId(e.target.value); setSupervisor(""); setSupervisorSearch(""); setEvaluator2(""); setEvaluator2Search(""); setEvaluatorPairError(""); }} required>
                       <option value="employee">บุคลากร</option>
@@ -1308,6 +1359,7 @@ export default function App() {
                const nextUsers = users.map(u => u.sso === modalData.sso ? {
                  ...u,
                  d: fullDept,
+                 p: position,
                  sup: autoSup,
                  evaluator2: ["employee", "hr", "admin", "supervisor"].includes(u.r) ? autoEvaluator2 || u.evaluator2 || "" : "",
                  w: workline
@@ -1360,10 +1412,63 @@ export default function App() {
                       </div>
                     </div>
                   )}
+                  <div className="fg mt8">
+                    <label className="lbl">3. ตำแหน่ง</label>
+                    <input className="inp" value={position} onChange={e => setPosition(e.target.value)} required />
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: "8px", marginTop: "24px", justifyContent: "flex-end" }}>
                   <button type="button" className="btn btn-s" onClick={closeModal}>ยกเลิก</button>
                   <button type="submit" className="btn btn-p"> ยืนยันการเปลี่ยนโครงสร้าง</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {modalType === 'modal-org-hierarchy' && modalData && (
+        <div className="mo">
+          <div className="mo-box" style={{ width: "520px" }}>
+            <div className="mo-h">
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 800 }}>แก้ไขสายการบังคับบัญชา</div>
+                <div className="muted fs12">{modalData.t}{modalData.n} · ข้อมูลจาก KKU SSO ถูกล็อกไว้</div>
+              </div>
+              <button className="btn btn-s btn-sm" onClick={closeModal}>ปิด</button>
+            </div>
+            <form onSubmit={e => {
+              e.preventDefault();
+              setUsers(users.map(user => user.sso === modalData.sso ? {
+                ...user,
+                sup: supervisor,
+                evaluator2
+              } : user));
+              alert("บันทึกสายการบังคับบัญชาเรียบร้อยแล้ว");
+              closeModal();
+            }}>
+              <div className="mo-b">
+                <div className="fg">
+                  <label className="lbl">1. หัวหน้างาน (Direct Supervisor)</label>
+                  <select className="sel" value={supervisor} onChange={e => setSupervisor(e.target.value)} required>
+                    <option value="">— เลือกหัวหน้างาน —</option>
+                    {users.filter(user => user.sso !== modalData.sso).map(user => (
+                      <option key={user.sso} value={user.n}>{user.t}{user.n} · {user.p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="fg">
+                  <label className="lbl">2. หัวหน้าฝ่าย / ผู้บังคับบัญชา (Higher Supervisor)</label>
+                  <select className="sel" value={evaluator2} onChange={e => setEvaluator2(e.target.value)}>
+                    <option value="">— ไม่ระบุ —</option>
+                    {users.filter(user => user.sso !== modalData.sso && user.n !== supervisor).map(user => (
+                      <option key={user.sso} value={user.n}>{user.t}{user.n} · {user.p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex g8 mt24" style={{ justifyContent: "flex-end" }}>
+                  <button type="button" className="btn btn-s" onClick={closeModal}>ยกเลิก</button>
+                  <button type="submit" className="btn btn-p">บันทึก Override</button>
                 </div>
               </div>
             </form>

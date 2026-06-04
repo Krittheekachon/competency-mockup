@@ -27,6 +27,8 @@ interface AdminOrgStructureProps {
   setWorklines: React.Dispatch<React.SetStateAction<string[]>>;
   competencyTypes: string[];
   setCompetencyTypes: React.Dispatch<React.SetStateAction<string[]>>;
+  competencyTypeDetails: Record<string, { fullName: string; desc: string }>;
+  setCompetencyTypeDetails: React.Dispatch<React.SetStateAction<Record<string, { fullName: string; desc: string }>>>;
   learningMethods: { key: string; label: string; desc?: string }[];
   setLearningMethods: React.Dispatch<React.SetStateAction<{ key: string; label: string; desc?: string }[]>>;
 }
@@ -44,6 +46,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
   supportRank, setSupportRank,
   worklines, setWorklines,
   competencyTypes, setCompetencyTypes,
+  competencyTypeDetails, setCompetencyTypeDetails,
   learningMethods, setLearningMethods
 }) => {
   const POSITION_PREVIEW_LIMIT = 4;
@@ -51,13 +54,23 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
   const [activeTab, setActiveTab] = useState("workline");
   const [editingItem, setEditingId] = useState<any>(null);
   const [newValue, setNewValue] = useState("");
+  const [newFullName, setNewFullName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
   const [newSupportDeptName, setNewSupportDeptName] = useState("");
   const [newSupportWorkNames, setNewSupportWorkNames] = useState<Record<string, string>>({});
   const [newSupportUnitNames, setNewSupportUnitNames] = useState<Record<string, string>>({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedSupportGroups, setExpandedSupportGroups] = useState<Record<string, boolean>>({});
   const [showAllSupportGroups, setShowAllSupportGroups] = useState(false);
-  const [addItemData, setAddItemData] = useState({
+  const [addItemData, setAddItemData] = useState<{
+    category: string;
+    type: string;
+    name: string;
+    fullName?: string;
+    desc: string;
+    parent: string;
+    grandparent: string;
+  }>({
     category: "workline",
     type: "1",
     name: "",
@@ -71,6 +84,21 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
 
   const setOrgHead = (path: string, value: string) => {
     setOrgSups(current => ({ ...current, [path]: value }));
+  };
+
+  const renameOrgHeadPath = (oldPath: string, newPath: string) => {
+    setOrgSups(current => Object.fromEntries(
+      Object.entries(current).map(([path, head]) => [
+        path === oldPath || path.startsWith(`${oldPath} > `) ? `${newPath}${path.slice(oldPath.length)}` : path,
+        head
+      ])
+    ));
+  };
+
+  const removeOrgHeadPath = (targetPath: string) => {
+    setOrgSups(current => Object.fromEntries(
+      Object.entries(current).filter(([path]) => path !== targetPath && !path.startsWith(`${targetPath} > `))
+    ));
   };
 
   const addSupportDept = () => {
@@ -111,6 +139,14 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
   const startEdit = (type: string, oldName: string, extras?: any) => {
     setEditingId({ type, oldName, ...extras });
     setNewValue(oldName);
+    setNewFullName(type === "comp-type" ? competencyTypeDetails[oldName]?.fullName || "" : "");
+    setNewDesc(
+      type === "comp-type"
+        ? competencyTypeDetails[oldName]?.desc || ""
+        : type === "learning-method"
+          ? learningMethods.find(item => item.key === oldName)?.desc || ""
+          : ""
+    );
   };
 
   const saveEdit = () => {
@@ -124,6 +160,11 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         nextSupportPositionGroups[newValue] = nextSupportPositionGroups[oldName] || [];
         delete nextSupportPositionGroups[oldName];
         setSupportPositionGroups(nextSupportPositionGroups);
+        const nextSupportOrg = { ...supportOrg };
+        nextSupportOrg[newValue] = nextSupportOrg[oldName] || [];
+        delete nextSupportOrg[oldName];
+        setSupportOrg(nextSupportOrg);
+        renameOrgHeadPath(oldName, newValue);
         break;
       }
       case "support-group-pos":
@@ -137,6 +178,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         if (parent && nextSupportOrg[parent]) {
           nextSupportOrg[parent] = nextSupportOrg[parent].map((w: any) => w.work === oldName ? { ...w, work: newValue } : w);
           setSupportOrg(nextSupportOrg);
+          renameOrgHeadPath([parent, oldName].join(" > "), [parent, newValue].join(" > "));
         }
         break;
       }
@@ -154,9 +196,16 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
       case "academic-rank": setAcademicRank(academicRank.map(v => v === oldName ? newValue : v)); break;
       case "support-rank": setSupportRank(supportRank.map(v => v === oldName ? newValue : v)); break;
       case "workline": setWorklines(worklines.map(v => v === oldName ? newValue : v)); break;
-      case "comp-type": setCompetencyTypes(competencyTypes.map(v => v === oldName ? newValue : v)); break;
+      case "comp-type": {
+        setCompetencyTypes(competencyTypes.map(v => v === oldName ? newValue : v));
+        const nextDetails = { ...competencyTypeDetails };
+        delete nextDetails[oldName];
+        nextDetails[newValue] = { fullName: newFullName.trim(), desc: newDesc.trim() };
+        setCompetencyTypeDetails(nextDetails);
+        break;
+      }
       case "learning-method":
-        setLearningMethods(learningMethods.map(item => item.key === oldName ? { ...item, label: newValue } : item));
+        setLearningMethods(learningMethods.map(item => item.key === oldName ? { ...item, label: newValue, desc: newDesc.trim() } : item));
         break;
     }
     setEditingId(null);
@@ -172,6 +221,10 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         const nextSupportPositionGroups = { ...supportPositionGroups };
         delete nextSupportPositionGroups[oldName];
         setSupportPositionGroups(nextSupportPositionGroups);
+        const nextSupportOrg = { ...supportOrg };
+        delete nextSupportOrg[oldName];
+        setSupportOrg(nextSupportOrg);
+        removeOrgHeadPath(oldName);
         break;
       }
       case "support-group-pos":
@@ -185,6 +238,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         if (parent && nextSupportOrg[parent]) {
           nextSupportOrg[parent] = nextSupportOrg[parent].filter((w: any) => w.work !== oldName);
           setSupportOrg(nextSupportOrg);
+          removeOrgHeadPath([parent, oldName].join(" > "));
         }
         break;
       }
@@ -202,18 +256,16 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
       case "academic-rank": setAcademicRank(academicRank.filter(v => v !== oldName)); break;
       case "support-rank": setSupportRank(supportRank.filter(v => v !== oldName)); break;
       case "workline": setWorklines(worklines.filter(v => v !== oldName)); break;
-      case "comp-type": setCompetencyTypes(competencyTypes.filter(v => v !== oldName)); break;
+      case "comp-type": {
+        setCompetencyTypes(competencyTypes.filter(v => v !== oldName));
+        const nextDetails = { ...competencyTypeDetails };
+        delete nextDetails[oldName];
+        setCompetencyTypeDetails(nextDetails);
+        break;
+      }
       case "learning-method": setLearningMethods(learningMethods.filter(item => item.key !== oldName)); break;
     }
     setEditingId(null);
-  };
-
-  const openAddItem = () => {
-    const nextItem = activeTab === "comp"
-      ? { category: "comp", type: "1", name: "", desc: "", parent: "", grandparent: "" }
-      : { category: "workline", type: "1", name: "", desc: "", parent: "", grandparent: "" };
-    setShowAddModal(true);
-    setAddItemData(nextItem);
   };
 
   const getAddModalCopy = () => {
@@ -223,8 +275,8 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         ? "สายสนับสนุน"
         : "สายงานบริหาร";
 
-    if (addItemData.category === "workline") return { title: "เพิ่มสายงาน", label: "ชื่อสายงาน" };
-    if (addItemData.category === "comp") return { title: "เพิ่มประเภทสมรรถนะ", label: "ชื่อประเภทสมรรถนะ" };
+    if (addItemData.category === "workline") return { title: "เพิ่มกลุ่มงาน", label: "ชื่อกลุ่มงาน" };
+    if (addItemData.category === "comp") return { title: "เพิ่มประเภทสมรรถนะ", label: "รหัสประเภทสมรรถนะ" };
     if (addItemData.category === "learning") return { title: "เพิ่มประเภทการเรียนรู้", label: "ชื่อประเภทการเรียนรู้" };
     if (addItemData.category === "dept") return { title: `เพิ่มกลุ่มงาน${typeLabel}`, label: "ชื่อกลุ่มงาน" };
     if (addItemData.category === "pos") {
@@ -277,6 +329,10 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         setWorklines([...worklines, name]);
       } else if (category === "comp") {
         setCompetencyTypes([...competencyTypes, name]);
+        setCompetencyTypeDetails({
+          ...competencyTypeDetails,
+          [name]: { fullName: addItemData.fullName?.trim() || "", desc: desc.trim() }
+        });
       } else if (category === "learning") {
         const baseKey = name
           .trim()
@@ -307,19 +363,13 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
       <div className="flex ic jb mb20">
         <div>
           <div className="sec-t">จัดการโครงสร้างองค์กรและสมรรถนะ</div>
-          <div className="sec-s">กลุ่มงาน ตำแหน่ง ระดับตำแหน่ง และประเภทสมรรถนะ</div>
+          <div className="sec-s">กลุ่มงาน ฝ่าย/งาน ระดับตำแหน่ง และประเภทสมรรถนะ</div>
         </div>
-        {(activeTab === "workline" || activeTab === "comp") && (
-          <button className="btn btn-p" onClick={openAddItem}>
-            {activeTab === "workline" ? "+ เพิ่มสายงาน" : "+ เพิ่มประเภทสมรรถนะ"}
-          </button>
-        )}
       </div>
 
       <div className="structure-tabs mb20">
-        <button className={`structure-tab ${activeTab === "workline" ? "active" : ""}`} onClick={() => setActiveTab("workline")}>สายงาน</button>
+        <button className={`structure-tab ${activeTab === "workline" ? "active" : ""}`} onClick={() => setActiveTab("workline")}>กลุ่มงาน</button>
         <button className={`structure-tab ${activeTab === "support-chain" ? "active" : ""}`} onClick={() => setActiveTab("support-chain")}>ฝ่าย/งาน</button>
-        <button className={`structure-tab ${activeTab === "dept" ? "active" : ""}`} onClick={() => setActiveTab("dept")}>กลุ่มงาน</button>
         <button className={`structure-tab ${activeTab === "pos" ? "active" : ""}`} onClick={() => setActiveTab("pos")}>ระดับตำแหน่ง</button>
         <button className={`structure-tab ${activeTab === "comp" ? "active" : ""}`} onClick={() => setActiveTab("comp")}>ประเภทสมรรถนะ</button>
       </div>
@@ -328,8 +378,8 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         <div className="structure-shell">
           {activeTab === "workline" ? (
             <div className="structure-pane">
-              <div className="structure-heading">สายงานและตำแหน่ง</div>
-              <div className="structure-stack">
+              <div className="structure-heading">กลุ่มงานและตำแหน่ง</div>
+              <div className="structure-stack workline-stack">
                 {worklines.map(wl => {
                   let posList: string[] = [];
                   let type = "1";
@@ -337,7 +387,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                   if (wl === "สายวิชาการ") { posList = academicPos; type = "1"; editPosType = "academic-pos"; }
                   else if (wl === "สายสนับสนุน") {
                     return (
-                      <section key={wl} className="structure-section">
+                      <section key={wl} className="structure-section workline-card">
                         <div className="structure-section-head">
                           <div className="fw7 fs14 text-navy">{wl}</div>
                           <div className="flex g8">
@@ -388,7 +438,7 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                   }
                   else if (wl === "สายงานบริหาร") { posList = adminPos; type = "3"; editPosType = "admin-pos"; }
                   return (
-                    <section key={wl} className="structure-section">
+                    <section key={wl} className="structure-section workline-card">
                       <div className="structure-section-head">
                         <div className="fw7 fs14 text-navy">{wl}</div>
                         <div className="flex g8">
@@ -495,63 +545,6 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                 ))}
               </div>
             </div>
-          ) : activeTab === "dept" ? (
-            <div className="structure-pane">
-              <div className="structure-heading">กลุ่มงาน</div>
-              <div className="structure-stack">
-                <section className="structure-section">
-                  <div className="structure-section-head">
-                    <div className="fw7 fs14 text-navy">สายงานบริหาร</div>
-                    <button className="btn btn-s btn-sm" onClick={() => { setAddItemData({ category: "dept", type: "3", name: "", parent: "", grandparent: "" }); setShowAddModal(true); }}>+ เพิ่มกลุ่มงาน</button>
-                  </div>
-                  <div className="structure-grid">
-                    {adminDepts.map(item => (
-                      <div key={item} className="structure-item group">
-                        <div className="flex flex-col g4 overflow-hidden">
-                          <span className="fs13 fw7 text-gray-800">{item}</span>
-                        </div>
-                        <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("admin-dept", item)}>แก้ไข</button>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                <section className="structure-section">
-                  <div className="structure-section-head">
-                    <div className="fw7 fs14 text-navy">สายวิชาการ</div>
-                    <button className="btn btn-s btn-sm" onClick={() => { setAddItemData({ category: "dept", type: "1", name: "", parent: "", grandparent: "" }); setShowAddModal(true); }}>+ เพิ่มกลุ่มงาน</button>
-                  </div>
-                  <div className="structure-grid">
-                    {academicDepts.map(item => (
-                      <div key={item} className="structure-item group">
-                        <div className="flex flex-col g4 overflow-hidden">
-                          <span className="fs13 fw7 text-gray-800">{item}</span>
-                        </div>
-                        <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("academic-dept", item)}>แก้ไข</button>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                {supportDepts.map(item => (
-                  <section key={item} className="structure-section">
-                    <div className="structure-section-head">
-                      <div className="fw7 fs14 text-navy">{item}</div>
-                      <span className="fs11 muted">{(supportPositionGroups[item] || []).length} ตำแหน่ง</span>
-                    </div>
-                    <div className="structure-grid">
-                      {(supportPositionGroups[item] || []).map(position => (
-                        <div key={position} className="structure-item">
-                          <span className="fs12 fw6 text-gray-700">{position}</span>
-                        </div>
-                      ))}
-                      {(supportPositionGroups[item] || []).length === 0 && (
-                        <div className="structure-empty">ยังไม่มีตำแหน่งในกลุ่มงานนี้</div>
-                      )}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </div>
-
           ) : activeTab === "pos" ? (
             <div className="structure-pane">
               <div className="structure-heading">ระดับตำแหน่ง</div>
@@ -592,8 +585,11 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                 </div>
                 <div className="structure-grid">
                   {competencyTypes.map(item => (
-                    <div key={item} className="structure-item group">
-                      <span className="fs13 fw6 text-gray-700 truncate">{item}</span>
+                    <div key={item} className="structure-item group" style={{ alignItems: "flex-start", minHeight: "72px" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="fs13 fw7 text-gray-700 truncate">{item} · {competencyTypeDetails[item]?.fullName || "-"}</div>
+                        <div className="muted fs11" style={{ marginTop: "4px" }}>{competencyTypeDetails[item]?.desc || "-"}</div>
+                      </div>
                       <button className="btn-link opacity-0 group-hover:opacity-100" style={{ fontSize: '12px' }} onClick={() => startEdit("comp-type", item)}>แก้ไข</button>
                     </div>
                   ))}
@@ -635,13 +631,24 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                 <label className="lbl fw8" style={{ color: "var(--navy)" }}>{getAddModalCopy().label}</label>
                 <input className="inp" value={addItemData.name} onChange={e => setAddItemData({...addItemData, name: e.target.value})} placeholder="กรอกชื่อที่ต้องการ..." autoFocus />
               </div>
+              {addItemData.category === "comp" && (
+                <>
+                  <div className="fg">
+                    <label className="lbl fw8" style={{ color: "var(--navy)" }}>ชื่อเต็มประเภทสมรรถนะ</label>
+                    <input className="inp" value={addItemData.fullName || ""} onChange={e => setAddItemData({ ...addItemData, fullName: e.target.value })} placeholder="เช่น Core Competency" />
+                  </div>
+                  <div className="fg">
+                    <label className="lbl fw8" style={{ color: "var(--navy)" }}>รายละเอียด</label>
+                    <textarea className="ta" rows={3} value={addItemData.desc} onChange={e => setAddItemData({ ...addItemData, desc: e.target.value })} placeholder="อธิบายรายละเอียดของประเภทสมรรถนะนี้..." />
+                  </div>
+                </>
+              )}
               {addItemData.category === "learning" && (
                 <div className="fg">
                   <label className="lbl fw8" style={{ color: "var(--navy)" }}>รายละเอียดแบบย่อ</label>
                   <textarea className="ta" rows={3} value={addItemData.desc} onChange={e => setAddItemData({ ...addItemData, desc: e.target.value })} placeholder="อธิบายลักษณะของประเภทการเรียนรู้นี้โดยย่อ..." />
                 </div>
               )}
-
               <div style={{ display: "flex", gap: "8px", marginTop: "24px", justifyContent: "flex-end" }}>
                 <button className="btn btn-s" onClick={() => setShowAddModal(false)}>ยกเลิก</button>
                 <button className="btn btn-p" onClick={saveAddItem}>เพิ่มรายการ</button>
@@ -663,6 +670,24 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
                 <label className="lbl">ชื่อปัจจุบัน: <span className="muted">{editingItem.oldName}</span></label>
                 <input className="inp" value={newValue} onChange={e => setNewValue(e.target.value)} placeholder="กรอกชื่อใหม่..." autoFocus />
               </div>
+              {editingItem.type === "comp-type" && (
+                <>
+                  <div className="fg">
+                    <label className="lbl">ชื่อเต็มประเภทสมรรถนะ</label>
+                    <input className="inp" value={newFullName} onChange={e => setNewFullName(e.target.value)} placeholder="เช่น Core Competency" />
+                  </div>
+                  <div className="fg">
+                    <label className="lbl">รายละเอียด</label>
+                    <textarea className="ta" rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="อธิบายรายละเอียดของประเภทสมรรถนะนี้..." />
+                  </div>
+                </>
+              )}
+              {editingItem.type === "learning-method" && (
+                <div className="fg">
+                  <label className="lbl">รายละเอียดแบบย่อ</label>
+                  <textarea className="ta" rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="อธิบายลักษณะของประเภทการเรียนรู้นี้โดยย่อ..." />
+                </div>
+              )}
               <div style={{ display: "flex", gap: "8px", marginTop: "24px", justifyContent: "space-between" }}>
                 <button className="btn btn-r" style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca' }} onClick={deleteItem}> ลบรายการนี้</button>
                 <div className="flex g8">
@@ -688,6 +713,10 @@ const AdminOrgStructure: React.FC<AdminOrgStructureProps> = ({
         .structure-section { padding: 16px 0; border-top: 1px solid var(--border); }
         .structure-section:first-child { padding-top: 0; border-top: 0; }
         .structure-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+        .workline-stack { gap: 14px; }
+        .workline-card { padding: 0 16px 16px; border: 1px solid #dbe5f1; border-radius: 10px; background: #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); overflow: hidden; }
+        .workline-card:first-child { padding-top: 0; border: 1px solid #dbe5f1; }
+        .workline-card > .structure-section-head { margin: 0 -16px 14px; padding: 13px 16px; border-bottom: 1px solid #dbe5f1; background: #f8fafc; }
         .structure-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
         .structure-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); overflow: hidden; }
         .support-chain-item { align-items: center; grid-column: span 2; }

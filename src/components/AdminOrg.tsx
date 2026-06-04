@@ -253,8 +253,8 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                                 <button 
                                   className="btn btn-s btn-xs w-full" 
                                   style={{ padding: '6px', fontSize: '11px', borderRadius: '6px' }}
-                                  onClick={() => openModal("modal-user", u)}
-                                >แก้ไขผู้ใช้</button>
+                                  onClick={() => openModal("modal-org-edit", u)}
+                                >แก้ไขกลุ่มงาน</button>
                               </td>
                             </tr>
                           );
@@ -365,7 +365,7 @@ const AdminOrg: React.FC<AdminOrgProps> = ({ openModal, users, setUsers, academi
                             </div>
                           </td>
                           <td style={{ paddingRight: '40px', textAlign: 'right', paddingTop: '24px', paddingBottom: '24px' }} onClick={e => e.stopPropagation()}>
-                            <button className="btn-settings" onClick={() => openModal("modal-user", u)} title="แก้ไขผู้ใช้">แก้ไข</button>
+                            <button className="btn-settings" onClick={() => openModal("modal-org-hierarchy", u)} title="แก้ไขสายการบังคับบัญชา">แก้ไข</button>
                           </td>
                         </tr>
                       );

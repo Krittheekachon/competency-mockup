@@ -146,7 +146,7 @@ export const AutoSelect: React.FC<AutoSelectProps> = ({
   );
 };
 
-export const ExcelImportModal: React.FC<{ title: string, templateName: string, templateFile: string, onClose: () => void }> = ({ title, templateName, templateFile, onClose }) => {
+export const ExcelImportModal: React.FC<{ title: string, templateName: string, onClose: () => void }> = ({ title, templateName, onClose }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -173,16 +173,16 @@ export const ExcelImportModal: React.FC<{ title: string, templateName: string, t
 
   return (
     <div className="mo" style={{ zIndex: 1000 }}>
-      <div className="mo-box anim-fade-in" style={{ width: "550px", borderRadius: "24px" }}>
-        <div className="mo-h" style={{ padding: "24px 28px", borderBottom: "1px solid #f1f5f9" }}>
+      <div className="mo-box anim-fade-in" style={{ width: "620px", borderRadius: "24px" }}>
+        <div className="mo-h" style={{ padding: "28px 34px", borderBottom: "1px solid #f1f5f9" }}>
           <div>
             <div className="fw8 fs18" style={{ color: "var(--navy)" }}>{title}</div>
             <div className="fs12 muted mt4">อัปโหลดไฟล์ Excel เพื่อนำเข้าข้อมูลเข้าสู่ระบบโดยตรง</div>
           </div>
           <button className="btn-close" onClick={onClose}>ปิด</button>
         </div>
-        <div className="mo-b" style={{ padding: "28px" }}>
-          <div className="flex ic jb mb24 p16" style={{ background: "#f8fafc", borderRadius: "var(--r)", border: "1px solid #e2e8f0" }}>
+        <div className="mo-b" style={{ padding: "34px" }}>
+          <div className="flex ic jb p16" style={{ background: "#f8fafc", borderRadius: "var(--r)", border: "1px solid #e2e8f0", marginBottom: "28px", gap: "18px" }}>
             <div className="flex ic g12">
               <div>
                 <div className="fw8 fs14" style={{ color: "var(--text2)" }}>ไฟล์แม่แบบ (Template)</div>
@@ -194,8 +194,8 @@ export const ExcelImportModal: React.FC<{ title: string, templateName: string, t
             </button>
           </div>
 
-          <div className="fg">
-            <label className="lbl mb12 flex ic jb">
+          <div className="fg" style={{ marginBottom: 0 }}>
+            <label className="lbl flex ic jb" style={{ marginBottom: "16px" }}>
               <span>เลือกไฟล์จากคอมพิวเตอร์ของคุณ</span>
               <span className="fs11 fw4 muted">รองรับไฟล์ .xlsx, .csv</span>
             </label>
@@ -207,7 +207,7 @@ export const ExcelImportModal: React.FC<{ title: string, templateName: string, t
               onChange={handleFileChange} 
             />
             <div className="upload-dropzone" onClick={() => fileInputRef.current?.click()}>
-              <div className="flex col ic jc" style={{ padding: "60px 40px" }}>
+              <div className="flex col ic jc" style={{ padding: "64px 44px" }}>
                 
                 <div className="fw8 fs16 mb8" style={{ color: "var(--navy)" }}>
                   {selectedFile ? selectedFile.name : "ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อค้นหา"}
@@ -219,7 +219,7 @@ export const ExcelImportModal: React.FC<{ title: string, templateName: string, t
             </div>
           </div>
 
-          <div className="flex g12 mt32" style={{ justifyContent: "flex-end" }}>
+          <div className="flex g12" style={{ justifyContent: "flex-end", marginTop: "34px" }}>
             <button className="btn btn-s" onClick={onClose} style={{ minWidth: "100px", borderRadius: "var(--r)" }}>ยกเลิก</button>
             <button 
               className="btn btn-p shadow-sm" 

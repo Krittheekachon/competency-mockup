@@ -2,7 +2,742 @@ import React, { useState } from 'react';
 import { ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 import { DEPT_STRUCTURE } from '../data';
 
-export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
+type FacultyOverviewPerson = {
+    id: string;
+    name: string;
+    position: string;
+    workline: string;
+    dept: string;
+    group: string;
+    unit: string;
+    supervisor: string;
+    higherSupervisor: string;
+    assessed: boolean;
+    actualScore: number;
+    expectedScore: number;
+    gap: number;
+    gaps: { code: string; name: string; expected: number; actual: number; gap: number; missing: string[]; comment: string }[];
+    idpStatus: "completed" | "in_progress" | "pending" | "draft" | "no_idp";
+    idpTopics: string[];
+};
+
+type SupportOrgMap = Record<string, { work: string; units?: string[] }[]>;
+
+const fallbackText = (value: any, fallback: string) => {
+    const text = String(value || "").trim();
+    return text || fallback;
+};
+
+const getTextSeed = (value: string) => value.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
+const getFacultyDeptParts = (user: any) => fallbackText(user.d, "ไม่ระบุหน่วยงาน").split(" > ").map((part: string) => part.trim()).filter(Boolean);
+
+const normalizeOrgText = (value: string) => value
+    .toLowerCase()
+    .replace(/ฝ่าย|งาน|หน่วย|และ|การ|ทาง|ของ|คณะ|หลักสูตร/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+
+const getOrgMatchScore = (source: string, target: string) => {
+    const a = normalizeOrgText(source);
+    const b = normalizeOrgText(target);
+    if (!a || !b) return 0;
+    if (a === b) return 120;
+    if (a.includes(b) || b.includes(a)) return Math.min(a.length, b.length) >= 4 ? 80 : 0;
+    const sourceTokens: string[] = a.match(/[ก-๙a-z0-9]{4,}/g) ?? [];
+    const targetTokens: string[] = b.match(/[ก-๙a-z0-9]{4,}/g) ?? [];
+    return sourceTokens.reduce<number>((score, token) => (
+        score + (targetTokens.some(item => item.includes(token) || token.includes(item)) ? 18 : 0)
+    ), 0);
+};
+
+const resolveSupportOrgPath = (user: any, supportOrg: SupportOrgMap = DEPT_STRUCTURE) => {
+    const parts = getFacultyDeptParts(user);
+    const rawDept = parts[0] || "";
+    const candidates: string[] = [
+        ...parts,
+        fallbackText(user.p, ""),
+        fallbackText(user.sup, ""),
+        fallbackText(user.evaluator2, "")
+    ].filter(Boolean);
+
+    for (const [dept, works] of Object.entries(supportOrg)) {
+        if (rawDept === dept) {
+            const work = works.find(item => item.work === parts[1] || (item.units || []).includes(parts[1]));
+            return { dept, work: work?.work || parts[1] || dept, unit: parts[2] || "" };
+        }
+    }
+
+    const matches = Object.entries(supportOrg).flatMap(([dept, works]) => {
+        const deptScore = Math.max(...candidates.map(candidate => getOrgMatchScore(candidate, dept)), 0);
+        const workMatches = works.map(work => {
+            const labels = [work.work, ...(work.units || [])];
+            const score = Math.max(...candidates.flatMap(candidate => labels.map(label => getOrgMatchScore(candidate, label))), 0);
+            const unit = (work.units || []).find(unitName => candidates.some(candidate => getOrgMatchScore(candidate, unitName) >= 60)) || "";
+            return { dept, work: work.work, unit, score: score + (deptScore >= 60 ? 8 : 0) };
+        });
+
+        return [
+            { dept, work: works[0]?.work || dept, unit: "", score: deptScore },
+            ...workMatches
+        ];
+    }).sort((a, b) => b.score - a.score);
+
+    const best = matches[0];
+    if (best && best.score >= 36) return { dept: best.dept, work: best.work, unit: best.unit };
+
+    return { dept: rawDept || "ไม่ระบุฝ่าย", work: parts[1] || rawDept || "ไม่ระบุงาน", unit: parts[2] || "" };
+};
+
+const getFacultyWorkline = (user: any) => fallbackText(user.w, "ไม่ระบุสายงาน");
+
+const getFacultyDept = (user: any, supportOrg?: SupportOrgMap) => {
+    if (getFacultyWorkline(user).includes("สนับสนุน")) return resolveSupportOrgPath(user, supportOrg).dept;
+    return getFacultyDeptParts(user)[0] || "ไม่ระบุหน่วยงาน";
+};
+
+const getFacultyGroup = (user: any, supportOrg?: SupportOrgMap) => {
+    const parts = getFacultyDeptParts(user);
+    const workline = getFacultyWorkline(user);
+
+    if (workline.includes("สนับสนุน")) return resolveSupportOrgPath(user, supportOrg).work || fallbackText(user.p, "ไม่ระบุกลุ่มงาน");
+    if (workline.includes("วิชาการ")) return parts[0] || fallbackText(user.p, "กลุ่มอาจารย์");
+    return parts[0] || fallbackText(user.p, "ไม่ระบุกลุ่มงาน");
+};
+
+const getAssessmentStatusLabel = (person: FacultyOverviewPerson) => {
+    if (!person.assessed) return { label: "ยังไม่เริ่ม/ยังไม่ส่ง", cls: "bgr" };
+    if (person.gap < 0) return { label: "ต้องพัฒนา", cls: "br" };
+    return { label: "ผ่านเกณฑ์", cls: "bg" };
+};
+
+const buildFacultyOverviewPeople = (users: any[], supportOrg?: SupportOrgMap): FacultyOverviewPerson[] => users
+    .filter(user => user.act !== false && user.r !== "manager")
+    .map((user, index) => {
+        const id = fallbackText(user.sso, `user-${index}`);
+        const seed = getTextSeed(`${id}${user.n || ""}`);
+        const assessed = !["draft", "", undefined, null].includes(user.evalStatus);
+        const expectedScore = 3 + (seed % 3) * 0.25;
+        const actualScore = assessed ? Math.max(1, Math.min(5, expectedScore + (((seed % 7) - 3) * 0.25))) : 0;
+        const gap = assessed ? Number((actualScore - expectedScore).toFixed(2)) : Number((-expectedScore).toFixed(2));
+        const hasGap = gap < 0;
+        const competencyPool = getFacultyWorkline(user).includes("วิชาการ")
+            ? [
+                { code: "FC-AI", name: "AI Literacy" },
+                { code: "FC-TEACH", name: "การสอนและถ่ายทอดองค์ความรู้" },
+                { code: "CC-DATA", name: "การใช้ข้อมูลเพื่อการตัดสินใจ" }
+            ]
+            : [
+                { code: "FC-DIGI", name: "การใช้เทคโนโลยีดิจิทัล" },
+                { code: "FC-DATA", name: "การวิเคราะห์ข้อมูล" },
+                { code: "CC-TEAM", name: "การทำงานเป็นทีม" }
+            ];
+        const gaps = hasGap
+            ? competencyPool.slice(0, 1 + (seed % 2)).map((item, gapIndex) => ({
+                ...item,
+                expected: expectedScore,
+                actual: Math.max(1, actualScore - gapIndex * 0.25),
+                gap: Number((Math.max(1, actualScore - gapIndex * 0.25) - expectedScore).toFixed(2)),
+                missing: [`ข้อ ${2 + gapIndex}.3 ยังไม่แสดงพฤติกรรมครบ`, `ข้อ ${2 + gapIndex}.4 ต้องมีหลักฐานการนำไปใช้จริง`],
+                comment: "หัวหน้าระบุให้เพิ่มกิจกรรมพัฒนาเพื่อปิดช่องว่างรายพฤติกรรม"
+            }))
+            : [];
+        const idpStatus: FacultyOverviewPerson["idpStatus"] =
+            !hasGap ? "completed"
+                : user.evalStatus === "dept_evaluated" ? "pending"
+                    : user.evalStatus === "unit_evaluated" ? "in_progress"
+                        : user.evalStatus === "self_submitted" ? "draft"
+                            : "no_idp";
+        const supportPath = getFacultyWorkline(user).includes("สนับสนุน") ? resolveSupportOrgPath(user, supportOrg) : null;
+
+        return {
+            id,
+            name: `${fallbackText(user.t, "")}${fallbackText(user.n, "ไม่ระบุชื่อ")}`,
+            position: fallbackText(user.p, "ไม่ระบุตำแหน่ง"),
+            workline: getFacultyWorkline(user),
+            dept: getFacultyDept(user, supportOrg),
+            group: getFacultyGroup(user, supportOrg),
+            unit: supportPath?.unit || getFacultyGroup(user, supportOrg),
+            supervisor: fallbackText(user.sup, "ยังไม่ระบุหัวหน้างาน"),
+            higherSupervisor: fallbackText(user.evaluator2, "ยังไม่ระบุผู้บังคับบัญชา"),
+            assessed,
+            actualScore,
+            expectedScore,
+            gap,
+            gaps,
+            idpStatus,
+            idpTopics: gaps.length ? gaps.map(item => item.name) : ["ไม่มีช่องว่างที่ต้องทำแผนพัฒนา"]
+        };
+    });
+
+const summarizePeople = (people: FacultyOverviewPerson[]) => {
+    const assessed = people.filter(person => person.assessed);
+    const failed = assessed.filter(person => person.gap < 0);
+    const passed = assessed.length - failed.length;
+
+    return { total: people.length, assessed: assessed.length, passed, failed: failed.length };
+};
+
+const groupPeopleBy = (people: FacultyOverviewPerson[], key: keyof FacultyOverviewPerson) => Array.from(new Set(people.map(person => String(person[key]))))
+    .map(name => {
+        const members = people.filter(person => String(person[key]) === name);
+        return { name, members, summary: summarizePeople(members) };
+    })
+    .sort((a, b) => b.summary.failed - a.summary.failed || b.summary.total - a.summary.total || a.name.localeCompare(b.name, "th"));
+
+const groupReminderUnits = (members: FacultyOverviewPerson[]) => Array.from(new Set(members.map(person => person.unit || person.group || "ไม่ระบุหน่วยงาน")))
+    .map(name => ({ name, members: members.filter(person => (person.unit || person.group || "ไม่ระบุหน่วยงาน") === name) }))
+    .sort((a, b) => b.members.length - a.members.length || a.name.localeCompare(b.name, "th"));
+
+const ReminderNames: React.FC<{ members: FacultyOverviewPerson[] }> = ({ members }) => (
+    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
+        {members.slice(0, 5).map(person => (
+            <span key={person.id} className="b bgr" style={{ fontSize: "11px", padding: "4px 7px" }}>{person.name}</span>
+        ))}
+        {members.length > 5 && <span className="b bb" style={{ fontSize: "11px", padding: "4px 7px" }}>อีก {members.length - 5} คน</span>}
+    </div>
+);
+
+const assessmentTone = {
+    pass: { color: "#166534", bg: "#DCFCE7", border: "#86EFAC", bar: "#22c55e" },
+    fail: { color: "#374151", bg: "#F9FAFB", border: "#E5E7EB", bar: "#e5e7eb" },
+    neutral: { color: "#475569", bg: "#F8FAFC", border: "#CBD5E1" }
+};
+
+const statusPillStyle = (tone: "pass" | "fail" | "neutral"): React.CSSProperties => ({
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    padding: "5px 10px",
+    borderRadius: "999px",
+    background: assessmentTone[tone].bg,
+    color: assessmentTone[tone].color,
+    border: `1px solid ${assessmentTone[tone].border}`,
+    fontWeight: 800,
+    fontSize: "12px",
+    lineHeight: 1.2
+});
+
+const getStatusTone = (person: FacultyOverviewPerson): "pass" | "fail" | "neutral" => {
+    if (!person.assessed) return "neutral";
+    return person.gap < 0 ? "fail" : "pass";
+};
+
+const ResultBar: React.FC<{ passed: number; failed: number }> = ({ passed, failed }) => {
+    const total = Math.max(1, passed + failed);
+
+    return (
+        <div style={{ height: "12px", borderRadius: "999px", overflow: "hidden", display: "flex", background: "#E2E8F0", boxShadow: "inset 0 0 0 1px rgba(15,23,42,.08)" }}>
+            <div style={{ width: `${(passed / total) * 100}%`, background: assessmentTone.pass.bar }} />
+            <div style={{ width: `${(failed / total) * 100}%`, background: assessmentTone.fail.bar }} />
+        </div>
+    );
+};
+
+const DeanHRGapOverview: React.FC<{ users: any[], supportOrg?: SupportOrgMap }> = ({ users, supportOrg }) => {
+    const [selectedDept, setSelectedDept] = useState<string | null>(null);
+    const [isSelfReminderOpen, setIsSelfReminderOpen] = useState(false);
+    const [overviewMode, setOverviewMode] = useState<"dept" | "group">("dept");
+    const orgStructure = supportOrg || DEPT_STRUCTURE;
+    const people = buildFacultyOverviewPeople(users, supportOrg);
+    const summary = summarizePeople(people);
+    const deptGroups = Object.keys(orgStructure).map(name => {
+        const members = people.filter(person => person.dept === name);
+        return { name, members, summary: summarizePeople(members) };
+    });
+    const overviewGroups = overviewMode === "dept" ? deptGroups : groupPeopleBy(people, "group");
+    const selected = overviewGroups.find(group => group.name === selectedDept);
+    const pendingSelfPeople = people.filter(person => !person.assessed);
+    const pendingSelfGroups = groupPeopleBy(pendingSelfPeople, "dept");
+    const passRate = Math.round((summary.passed / Math.max(1, summary.assessed)) * 100);
+    const getDeptSupervisor = (members: FacultyOverviewPerson[]) => members.find(person => person.higherSupervisor)?.higherSupervisor || "ยังไม่ระบุผู้บังคับบัญชา";
+    const overviewLabel = overviewMode === "dept" ? "ฝ่าย" : "กลุ่มงาน";
+    const switchOverviewMode = (mode: "dept" | "group") => {
+        setOverviewMode(mode);
+        setSelectedDept(null);
+    };
+
+    return (
+        <>
+            <div className="mb20">
+                <div className="sec-t">ภาพรวมผลการประเมินคณะ</div>
+                <div className="sec-s">มุมมองสำหรับคณบดีและ HR คณะวิศวกรรมศาสตร์ · รอบประเมิน 2568</div>
+            </div>
+
+            <div className="card mb14" style={{ background: "#0F2D5B", color: "#fff" }}>
+                <div className="cb">
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 120px", gap: "18px", alignItems: "center" }}>
+                        <div>
+                            <div className="fs12" style={{ opacity: .68 }}>บุคลากรทั้งหมด</div>
+                            <div className="fw8" style={{ fontSize: "30px", lineHeight: 1 }}>{summary.total}</div>
+                            <div className="fs12" style={{ opacity: .72, marginTop: "6px" }}>รวมทุกสายงาน</div>
+                        </div>
+                        <div style={{ borderLeft: "1px solid rgba(255,255,255,.16)", paddingLeft: "18px" }}>
+                            <div className="fs12" style={{ opacity: .68 }}>ประเมินแล้ว</div>
+                            <div className="fw8 fs24">{summary.assessed}</div>
+                            <div className="fs12" style={{ opacity: .72 }}>ของทั้งหมด</div>
+                        </div>
+                        <div style={{ borderLeft: "1px solid rgba(255,255,255,.16)", paddingLeft: "18px" }}>
+                            <div className="fs12" style={{ opacity: .68 }}>ผ่านเกณฑ์</div>
+                            <div className="fw8 fs24" style={{ color: "#22c55e" }}>{summary.passed}</div>
+                            <div className="fs12" style={{ opacity: .72 }}>คน</div>
+                        </div>
+                        <div style={{ borderLeft: "1px solid rgba(255,255,255,.16)", paddingLeft: "18px" }}>
+                            <div className="fs12" style={{ opacity: .68 }}>ไม่ผ่านเกณฑ์</div>
+                            <div className="fw8 fs24" style={{ color: "#e5e7eb" }}>{summary.failed}</div>
+                            <div className="fs12" style={{ opacity: .72 }}>คน</div>
+                        </div>
+                        <div style={{ width: "94px", height: "94px", borderRadius: "50%", display: "grid", placeItems: "center", marginLeft: "auto", background: `conic-gradient(#22c55e ${passRate * 3.6}deg, rgba(255,255,255,.16) 0deg)` }}>
+                            <div style={{ width: "68px", height: "68px", borderRadius: "50%", display: "grid", placeItems: "center", background: "#173B70", color: "#fff", fontWeight: 800, fontSize: "18px" }}>{passRate}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="card mb14" style={{ borderLeft: pendingSelfPeople.length ? "4px solid var(--red)" : "4px solid var(--green)" }}>
+                <div className="ch">
+                    <button
+                        type="button"
+                        onClick={() => setIsSelfReminderOpen(current => !current)}
+                        style={{ border: 0, background: "transparent", padding: 0, textAlign: "left", cursor: "pointer", flex: 1 }}
+                    >
+                        <div className="ct">{isSelfReminderOpen ? "▾" : "▸"} แจ้งเตือนผู้ที่ยังไม่ประเมินตนเอง</div>
+                        <div className="cs">
+                            {pendingSelfPeople.length
+                                ? `พบ ${pendingSelfPeople.length} คนที่ยังไม่ส่งแบบประเมินตนเอง แยกตามฝ่าย/หน่วยงานด้านล่าง`
+                                : "บุคลากรทุกคนส่งแบบประเมินตนเองแล้ว"}
+                        </div>
+                    </button>
+                    <button
+                        className="btn btn-p btn-sm"
+                        style={{ marginLeft: "auto" }}
+                        disabled={pendingSelfPeople.length === 0}
+                        onClick={() => alert(`ส่งแจ้งเตือนให้ผู้ที่ยังไม่ประเมินตนเอง ${pendingSelfPeople.length} คนแล้ว`)}
+                    >
+                        ส่งแจ้งเตือนทั้งหมด
+                    </button>
+                </div>
+                {isSelfReminderOpen && pendingSelfPeople.length > 0 && (
+                    <div className="cb" style={{ paddingTop: 0 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "160px minmax(0, 1fr)", gap: "14px", alignItems: "stretch" }}>
+                            <div style={{ padding: "14px", borderRadius: "14px", background: "#FEF2F2", border: "1px solid #FECACA", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                                <div className="fs12 fw8" style={{ color: "#991B1B" }}>ยังไม่ประเมินตนเอง</div>
+                                <div className="fw8" style={{ fontSize: "28px", lineHeight: 1, color: "#B91C1C", marginTop: "6px" }}>{pendingSelfPeople.length}</div>
+                                <div className="fs11 muted mt6">คนที่ต้องติดตามก่อนปิดรอบประเมิน</div>
+                            </div>
+                            <div style={{ display: "grid", gap: "8px" }}>
+                                {pendingSelfGroups.map(group => (
+                                    <div key={group.name} style={{ padding: "12px 14px", borderRadius: "12px", background: "#F8FAFC", border: "1px solid var(--border)" }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
+                                            <div>
+                                                <div className="fw7 fs13">{group.name}</div>
+                                                <div className="fs11 muted mt4">{group.members.length} คน · {groupReminderUnits(group.members).length} หน่วยงาน</div>
+                                            </div>
+                                            <button
+                                                className="btn btn-s btn-sm"
+                                                onClick={() => alert(`ส่งแจ้งเตือนไปยัง ${group.name} จำนวน ${group.members.length} คนแล้ว`)}
+                                            >
+                                                แจ้งเตือน {group.members.length} คน
+                                            </button>
+                                        </div>
+                                        <div style={{ display: "grid", gap: "6px", marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--border)" }}>
+                                            {groupReminderUnits(group.members).map(unit => (
+                                                <div key={unit.name}>
+                                                    <div className="fs11 fw7 muted">{unit.name}</div>
+                                                    <ReminderNames members={unit.members} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="card">
+                <div className="ch">
+                    <div>
+                        <div className="ct">ภาพรวมผลการประเมินตาม{overviewLabel}</div>
+                        <div className="cs">เลือกดูแยกตามฝ่ายหรือกลุ่มงาน คลิกการ์ดเพื่อดูรายละเอียดรายงานและรายบุคคล</div>
+                    </div>
+                    <div style={{ marginLeft: "auto", display: "flex", gap: "8px", padding: "4px", borderRadius: "12px", background: "#F1F5F9" }}>
+                        {([
+                            ["dept", "ฝ่าย"],
+                            ["group", "กลุ่มงาน"]
+                        ] as const).map(([mode, label]) => (
+                            <button
+                                key={mode}
+                                type="button"
+                                onClick={() => switchOverviewMode(mode)}
+                                className={`btn btn-sm ${overviewMode === mode ? "btn-p" : "btn-s"}`}
+                                style={{ minWidth: "86px", boxShadow: overviewMode === mode ? "0 6px 14px rgba(37,99,235,.18)" : "none" }}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="cb">
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
+                        {overviewGroups.map(dept => {
+                            const pctPass = Math.round((dept.summary.passed / Math.max(1, dept.summary.assessed)) * 100);
+                            const pending = dept.summary.total - dept.summary.assessed;
+
+                            return (
+                                <div
+                                    key={dept.name}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setSelectedDept(dept.name)}
+                                    onKeyDown={event => { if (event.key === "Enter" || event.key === " ") setSelectedDept(dept.name); }}
+                                    style={{ textAlign: "left", border: "1px solid var(--border)", borderRadius: "18px", background: "#fff", padding: "18px", boxShadow: "0 10px 24px rgba(15,23,42,.07)", cursor: "pointer" }}
+                                >
+                                    <div className="fs11 fw8 mb6" style={{ color: "var(--teal)", letterSpacing: ".02em" }}>{overviewLabel}</div>
+                                    <div className="fw8 fs16 mb8" style={{ color: "var(--navy)" }}>{dept.name}</div>
+                                    <div className="fs12 muted mb12">ผู้บังคับบัญชา: {getDeptSupervisor(dept.members)}</div>
+                                    <div className="flex ic jb g8 mb10">
+                                        <div>
+                                            <div className="fw8" style={{ fontSize: "28px", lineHeight: 1, color: "var(--navy)" }}>{dept.summary.assessed}/{dept.summary.total}</div>
+                                            <div className="fs11 muted mt4">คนประเมินแล้ว</div>
+                                        </div>
+                                        <div className="flex g6" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+                                            <span style={statusPillStyle("pass")}>ผ่าน {dept.summary.passed}</span>
+                                            <span style={statusPillStyle("fail")}>ไม่ผ่าน {dept.summary.failed}</span>
+                                        </div>
+                                    </div>
+                                    <ResultBar passed={dept.summary.passed} failed={dept.summary.failed} />
+                                    <div className="flex ic jb g8 mt10">
+                                        <span className="fs11 muted">ผ่าน {pctPass}%</span>
+                                        <span className="fs11 fw8" style={{ color: pending ? "var(--orange)" : "var(--green)" }}>{pending ? `ยังไม่ประเมิน ${pending} คน` : "ประเมินครบแล้ว"}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {selected && (
+                <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedDept(null)}>
+                    <div className="mo-box" style={{ width: "980px" }} onMouseDown={event => event.stopPropagation()}>
+                        <div className="mo-h">
+                            <div>
+                                <div className="fw8 fs15">{overviewLabel}: {selected.name}</div>
+                                <div className="fs12 muted">ผู้บังคับบัญชา: {getDeptSupervisor(selected.members)} · รายละเอียดผลการประเมินรายงานและรายบุคคล</div>
+                            </div>
+                            <button className="btn btn-s btn-sm" onClick={() => setSelectedDept(null)}>ปิด</button>
+                        </div>
+                        <div className="mo-b" style={{ display: "grid", gap: "14px" }}>
+                            {groupPeopleBy(selected.members, "group").map(group => (
+                                <div key={group.name} style={{ border: "1px solid var(--border)", borderRadius: "14px", overflow: "hidden" }}>
+                                    <div style={{ padding: "12px 14px", background: "#F8FAFC", display: "grid", gridTemplateColumns: "1fr auto auto", gap: "12px", alignItems: "center" }}>
+                                        <div>
+                                            <div className="fw8 fs13">{group.name}</div>
+                                            <div className="fs11 muted">หัวหน้างาน: {group.members.find(person => person.supervisor)?.supervisor || "ยังไม่ระบุหัวหน้างาน"}</div>
+                                        </div>
+                                        <span style={statusPillStyle("pass")}>ผ่าน {group.summary.passed}</span>
+                                        <span style={statusPillStyle("fail")}>ไม่ผ่าน {group.summary.failed}</span>
+                                    </div>
+                                    {group.members.map(person => {
+                                        const meta = getAssessmentStatusLabel(person);
+
+                                        return (
+                                            <div key={person.id} style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr 88px 88px 88px 124px", gap: "12px", padding: "12px 14px", borderTop: "1px solid var(--border)", alignItems: "center" }}>
+                                                <div>
+                                                    <div className="fw7 fs13">{person.name}</div>
+                                                    <div className="fs11 muted">{person.position}</div>
+                                                </div>
+                                                <div className="fs12 muted">หน่วยงาน {person.unit}</div>
+                                                <div className="fs12">คาดหวัง {person.assessed ? person.expectedScore.toFixed(2) : "-"}</div>
+                                                <div className="fs12">ได้จริง {person.assessed ? person.actualScore.toFixed(2) : "-"}</div>
+                                                <div className="fs12 fw8" style={{ color: getStatusTone(person) === "fail" ? assessmentTone.fail.color : getStatusTone(person) === "pass" ? assessmentTone.pass.color : assessmentTone.neutral.color }}>{person.assessed ? person.gap.toFixed(2) : "-"}</div>
+                                                <div><span className={`b ${meta.cls}`} style={statusPillStyle(getStatusTone(person))}>{meta.label}</span></div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+const idpStatusMeta: Record<FacultyOverviewPerson["idpStatus"], { label: string; badge: string; color: string }> = {
+    completed: { label: "เสร็จสิ้น", badge: "bg", color: "#15803D" },
+    in_progress: { label: "กำลังดำเนินการ", badge: "bt", color: "#0EA5A0" },
+    pending: { label: "รออนุมัติ", badge: "by", color: "#FACC15" },
+    draft: { label: "ร่าง", badge: "bgr", color: "#FB923C" },
+    no_idp: { label: "ยังไม่ทำแผน", badge: "br", color: "#EF4444" }
+};
+
+const DeanHRIDPOverview: React.FC<{ users: any[], supportOrg?: SupportOrgMap }> = ({ users, supportOrg }) => {
+    const [selectedDept, setSelectedDept] = useState<string | null>(null);
+    const [isIdpReminderOpen, setIsIdpReminderOpen] = useState(false);
+    const orgStructure = supportOrg || DEPT_STRUCTURE;
+    const people = buildFacultyOverviewPeople(users, supportOrg).filter(person => person.gap < 0 || person.idpStatus !== "completed");
+    const deptGroups = Object.keys(orgStructure).map(name => {
+        const members = people.filter(person => person.dept === name);
+        return { name, members, summary: summarizePeople(members) };
+    });
+    const selected = deptGroups.find(group => group.name === selectedDept);
+    const getDoneCount = (members: FacultyOverviewPerson[]) => members.filter(person => person.idpStatus !== "no_idp").length;
+    const getFirstValue = (members: FacultyOverviewPerson[], key: "supervisor" | "higherSupervisor") => (
+        members.map(person => person[key]).find(Boolean) || "ไม่ระบุ"
+    );
+    const getOrgWorkCount = (dept: string) => (orgStructure[dept] || []).length;
+    const stats = {
+        completed: people.filter(person => person.idpStatus === "completed").length,
+        in_progress: people.filter(person => person.idpStatus === "in_progress").length,
+        pending: people.filter(person => person.idpStatus === "pending").length,
+        draft: people.filter(person => person.idpStatus === "draft").length,
+        no_idp: people.filter(person => person.idpStatus === "no_idp").length
+    };
+    const total = Math.max(1, people.length);
+    const noIdpPeople = people.filter(person => person.idpStatus === "no_idp");
+    const noIdpGroups = deptGroups
+        .map(group => ({ ...group, members: group.members.filter(person => person.idpStatus === "no_idp") }))
+        .filter(group => group.members.length > 0);
+
+    return (
+        <>
+            <div className="mb20">
+                <div className="sec-t">ภาพรวมแผนพัฒนารายบุคคลคณะ</div>
+                <div className="sec-s">ติดตามคอขวดแผนพัฒนารายบุคคลสำหรับเจ้าหน้าที่บุคคลและคณบดี · รอบประเมิน 2568</div>
+            </div>
+
+            <div className="card mb14" style={{ borderLeft: "4px solid var(--teal)" }}>
+                <div className="cb">
+                    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 2fr", gap: "22px", alignItems: "center" }}>
+                        <div>
+                            <div className="fw7 fs12 muted mb6">ผู้มีช่องว่างสมรรถนะและเริ่มทำแผนแล้ว</div>
+                            <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                                <span style={{ color: "var(--teal)", fontSize: "36px", fontWeight: 800 }}>{people.length - stats.no_idp}</span>
+                                <span className="fw7 muted">/ {people.length} คน</span>
+                            </div>
+                            <div className="fs12 muted">ยังไม่ทำแผน <span className="rc fw8">{stats.no_idp} คน</span></div>
+                        </div>
+                        <div>
+                            <div className="fs11 fw7 muted mb6">สัดส่วนสถานะแผนพัฒนา</div>
+                            <div style={{ height: "22px", borderRadius: "8px", overflow: "hidden", display: "flex", background: "var(--border)" }}>
+                                {Object.entries(stats).map(([key, value]) => (
+                                    <div key={key} title={`${idpStatusMeta[key as FacultyOverviewPerson["idpStatus"]].label} ${value} คน`} style={{ width: `${(value / total) * 100}%`, background: idpStatusMeta[key as FacultyOverviewPerson["idpStatus"]].color }} />
+                                ))}
+                            </div>
+                            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "10px" }}>
+                                {Object.entries(stats).map(([key, value]) => {
+                                    const meta = idpStatusMeta[key as FacultyOverviewPerson["idpStatus"]];
+                                    return <span key={key} className="fs11"><span style={{ display: "inline-block", width: "10px", height: "10px", borderRadius: "3px", background: meta.color, marginRight: "4px" }} />{meta.label} <b>{value}</b></span>;
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="g4 mb14">
+                <div className="sc"><div className="sl">เสร็จสิ้น</div><div className="sv gcc">{stats.completed}</div><div className="ss muted">คน</div></div>
+                <div className="sc"><div className="sl">กำลังดำเนินการ</div><div className="sv bc">{stats.in_progress}</div><div className="ss muted">คน</div></div>
+                <div className="sc"><div className="sl">รออนุมัติ</div><div className="sv yc">{stats.pending}</div><div className="ss muted">คน</div></div>
+                <div className="sc"><div className="sl">ยังไม่ทำแผน</div><div className="sv rc">{stats.no_idp}</div><div className="ss muted">คน</div></div>
+            </div>
+
+            <div className="mb14">
+                <div className="card">
+                    <div className="ch">
+                        <div>
+                            <div className="ct">ความคืบหน้าแผนพัฒนาตามฝ่าย</div>
+                            <div className="cs">แสดงตามฝ่ายจากหน้าจัดการโครงสร้างองค์กร คลิกการ์ดเพื่อดูรายงานและรายบุคคล</div>
+                        </div>
+                    </div>
+                    <div className="cb">
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
+                            {deptGroups.map(dept => {
+                                const done = getDoneCount(dept.members);
+                                const pct = Math.round((done / Math.max(1, dept.members.length)) * 100);
+                                const missing = dept.members.length - done;
+                                const hasPeople = dept.members.length > 0;
+
+                                return (
+                                    <div
+                                        key={dept.name}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setSelectedDept(dept.name)}
+                                        onKeyDown={event => { if (event.key === "Enter" || event.key === " ") setSelectedDept(dept.name); }}
+                                        style={{ textAlign: "left", border: "1px solid var(--border)", borderRadius: "18px", background: "#fff", padding: "18px", boxShadow: "0 10px 24px rgba(15,23,42,.07)", cursor: "pointer" }}
+                                    >
+                                        <div className="flex ic jb g8 mb12">
+                                            <span className="fs11 fw8" style={{ color: "var(--teal)", letterSpacing: ".02em" }}>ฝ่าย</span>
+                                            {hasPeople
+                                                ? missing > 0 ? <span className="b br">ยังไม่ทำ {missing} คน</span> : <span className="b bg">ครบแล้ว</span>
+                                                : <span className="b bgr">ยังไม่มีบุคลากร</span>}
+                                        </div>
+                                        <div className="fw8 fs16 mb6" style={{ color: "var(--navy)" }}>{dept.name}</div>
+                                        <div className="fs12 muted mb14">ผู้บังคับบัญชา: {getFirstValue(dept.members, "higherSupervisor")}</div>
+                                        <div className="flex ic jb g8 mb10">
+                                            <div>
+                                                <div className="fw8" style={{ fontSize: "28px", lineHeight: 1, color: "var(--teal)" }}>{done}/{dept.members.length}</div>
+                                                <div className="fs11 muted mt4">คนทำ IDP แล้ว</div>
+                                            </div>
+                                            <div className="fs12 muted" style={{ textAlign: "right" }}>
+                                                <div>{getOrgWorkCount(dept.name)} งานในโครงสร้าง</div>
+                                                <div>{pct}% ความคืบหน้า</div>
+                                            </div>
+                                        </div>
+                                        <div className="pw" style={{ height: "8px", overflow: "hidden", background: "#EEF2F7" }}>
+                                            <div className="pb" style={{ width: `${pct}%`, background: "var(--teal)" }} />
+                                        </div>
+                                        <div className="flex ic jb g8 mt10">
+                                            <span className="fs11 muted">คลิกเพื่อดูรายละเอียดฝ่าย</span>
+                                            <span className="fs11 fw8" style={{ color: missing ? "var(--red)" : "var(--green)" }}>{hasPeople ? missing ? `ค้าง ${missing} คน` : "ไม่มีรายการค้าง" : "รอเชื่อมบุคลากร"}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mb14">
+                <div className="card" style={{ borderLeft: noIdpPeople.length ? "4px solid var(--red)" : "4px solid var(--green)" }}>
+                    <div className="ch">
+                        <button
+                            type="button"
+                            onClick={() => setIsIdpReminderOpen(current => !current)}
+                            style={{ border: 0, background: "transparent", padding: 0, textAlign: "left", cursor: "pointer", flex: 1 }}
+                        >
+                            <div className="ct">{isIdpReminderOpen ? "▾" : "▸"} แจ้งเตือนผู้ที่ยังไม่ทำ IDP</div>
+                            <div className="cs">
+                                {noIdpPeople.length
+                                    ? `พบ ${noIdpPeople.length} คนที่ยังไม่ทำแผนพัฒนารายบุคคล แยกตามฝ่าย/หน่วยงานด้านล่าง`
+                                    : "บุคลากรทุกคนจัดทำแผนพัฒนารายบุคคลแล้ว"}
+                            </div>
+                        </button>
+                        <button
+                            className="btn btn-p btn-sm"
+                            style={{ marginLeft: "auto" }}
+                            disabled={noIdpPeople.length === 0}
+                            onClick={() => alert(`ส่งแจ้งเตือนไปยังผู้ที่ยังไม่ทำ IDP ${noIdpPeople.length} คนแล้ว`)}
+                        >
+                            ส่งแจ้งเตือนทั้งหมด
+                        </button>
+                    </div>
+                    {isIdpReminderOpen && (
+                    <div className="cb" style={{ paddingTop: 0 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "160px minmax(0, 1fr)", gap: "14px", alignItems: "stretch" }}>
+                            <div style={{ padding: "14px", borderRadius: "14px", background: "#FEF2F2", border: "1px solid #FECACA", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                                <div className="fs12 fw8" style={{ color: "#991B1B" }}>ยังไม่ทำ IDP</div>
+                                <div className="fw8" style={{ fontSize: "28px", lineHeight: 1, color: "#B91C1C", marginTop: "6px" }}>{noIdpPeople.length}</div>
+                                <div className="fs11 muted mt6">คนที่ต้องติดตามก่อนปิดรอบแผนพัฒนา</div>
+                            </div>
+                            <div style={{ display: "grid", gap: "8px", alignContent: "start" }}>
+                                {noIdpGroups.length === 0 && (
+                                    <div style={{ padding: "18px", borderRadius: "12px", background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
+                                        <div className="fw8 fs13" style={{ color: "#166534" }}>ไม่มีรายการค้างแจ้งเตือน</div>
+                                        <div className="fs11 muted mt4">ระบบไม่พบผู้ที่ยังไม่ทำ IDP ในรอบนี้</div>
+                                    </div>
+                                )}
+                                {noIdpGroups.map(group => (
+                                    <div key={group.name} style={{ padding: "12px 14px", borderRadius: "12px", background: "#F8FAFC", border: "1px solid var(--border)" }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
+                                            <div>
+                                                <div className="fw7 fs13">{group.name}</div>
+                                                <div className="fs11 muted mt4">{group.members.length} คน · {groupReminderUnits(group.members).length} หน่วยงาน</div>
+                                            </div>
+                                            <button
+                                                className="btn btn-s btn-sm"
+                                                onClick={() => alert(`ส่งแจ้งเตือนไปยัง ${group.name} จำนวน ${group.members.length} คนแล้ว`)}
+                                            >
+                                                แจ้งเตือน {group.members.length} คน
+                                            </button>
+                                        </div>
+                                        <div style={{ display: "grid", gap: "6px", marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--border)" }}>
+                                            {groupReminderUnits(group.members).map(unit => (
+                                                <div key={unit.name}>
+                                                    <div className="fs11 fw7 muted">{unit.name}</div>
+                                                    <ReminderNames members={unit.members} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    )}
+                </div>
+            </div>
+
+            {selected && (
+                <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedDept(null)}>
+                    <div className="mo-box" style={{ width: "900px" }} onMouseDown={event => event.stopPropagation()}>
+                        <div className="mo-h">
+                            <div>
+                                <div className="fw8 fs15">ฝ่าย: {selected.name}</div>
+                                <div className="fs12 muted">ผู้บังคับบัญชา: {getFirstValue(selected.members, "higherSupervisor")} · รายละเอียดสถานะแผนพัฒนารายบุคคล</div>
+                            </div>
+                            <button className="btn btn-s btn-sm" onClick={() => setSelectedDept(null)}>ปิด</button>
+                        </div>
+                        <div className="mo-b" style={{ display: "grid", gap: "14px" }}>
+                            {selected.members.length === 0 && (
+                                <div style={{ padding: "28px", borderRadius: "14px", background: "#F8FAFC", border: "1px dashed var(--border)", textAlign: "center" }}>
+                                    <div className="fw8 fs14">ยังไม่มีบุคลากรในฝ่ายนี้</div>
+                                    <div className="fs12 muted mt4">เมื่อหน้าจัดการผู้ใช้งานเชื่อมบุคลากรเข้ากับฝ่าย/งานนี้ รายชื่อจะแสดงที่นี่อัตโนมัติ</div>
+                                </div>
+                            )}
+                            {groupPeopleBy(selected.members, "group").map(group => {
+                                const done = getDoneCount(group.members);
+                                const missing = group.members.length - done;
+
+                                return (
+                                    <div key={group.name} style={{ border: "1px solid var(--border)", borderRadius: "14px", overflow: "hidden" }}>
+                                        <div style={{ padding: "12px 14px", background: "#F8FAFC", display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
+                                            <div>
+                                                <div className="fw8 fs13">{group.name}</div>
+                                                <div className="fs11 muted">หัวหน้างาน: {getFirstValue(group.members, "supervisor")} · ทำ IDP แล้ว {done}/{group.members.length} คน</div>
+                                            </div>
+                                            {missing > 0 ? <span className="b br">ยังไม่ทำ {missing} คน</span> : <span className="b bg">ครบแล้ว</span>}
+                                        </div>
+                                        {group.members.map(person => {
+                                            const meta = idpStatusMeta[person.idpStatus];
+
+                                            return (
+                                                <div key={person.id} style={{ padding: "12px 14px", borderTop: "1px solid var(--border)" }}>
+                                                    <div className="flex ic g10 mb8">
+                                                        <div style={{ flex: 1 }}>
+                                                            <div className="fw7 fs13">{person.name}</div>
+                                                            <div className="fs11 muted">{person.position} · หน่วยงาน {person.unit} · หัวหน้างาน {person.supervisor}</div>
+                                                        </div>
+                                                        <span className={`b ${meta.badge}`}>{meta.label}</span>
+                                                    </div>
+                                                    <div className="fs12 muted mb6">คาดหวัง {person.expectedScore.toFixed(2)} · ได้จริง {person.actualScore.toFixed(2)} · ช่องว่าง <span className={person.gap < 0 ? "rc fw8" : "gcc fw8"}>{person.gap.toFixed(2)}</span></div>
+                                                    <div className="flex g6" style={{ flexWrap: "wrap" }}>
+                                                        {person.idpTopics.map(topic => <span key={topic} className="b bb">{topic}</span>)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+export const ManagerGap: React.FC<{ users: any[], supportOrg?: SupportOrgMap }> = ({ users, supportOrg }) => {
+    return <DeanHRGapOverview users={users} supportOrg={supportOrg} />;
+
     const [openDept, setOpenDept] = useState<string | null>(null);
     const [openProblem, setOpenProblem] = useState<string | null>(null);
     const [worklineFilter, setWorklineFilter] = useState("all");
@@ -674,7 +1409,9 @@ export const ManagerGap: React.FC<{ users: any[] }> = ({ users }) => {
     );
 };
 
-export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
+export const ManagerIDP: React.FC<{ users: any[], supportOrg?: SupportOrgMap }> = ({ users, supportOrg }) => {
+    return <DeanHRIDPOverview users={users} supportOrg={supportOrg} />;
+
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
     const getGroupName = (user: any) => {
         if (!user.d) return "ไม่ระบุกลุ่มงาน";
@@ -877,372 +1614,6 @@ export const ManagerIDP: React.FC<{ users: any[] }> = ({ users }) => {
                                     </div>
                                 );
                             })}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    );
-};
-
-const getApprovalRows = (users: any[]) => {
-    const activeStaff = users.filter(user => user.act !== false && user.r !== "manager").slice(0, 12);
-    const fallback = [
-        { n: "สมชาย มีสุข", t: "นาย", p: "นักวิชาการศึกษา", d: "สนับสนุนการศึกษาและวิชาการ", w: "สายสนับสนุน", sup: "กัญญารัตน์ ศรีวิชา", evaluator2: "ธนพล ไชยรักษ์" },
-        { n: "มาลี ดีเสมอ", t: "นางสาว", p: "นักทรัพยากรบุคคล", d: "ทรัพยากรบุคคล", w: "สายสนับสนุน", sup: "พรพิมล บุคคลดี", evaluator2: "ธนพล ไชยรักษ์" },
-        { n: "วิชัย ระบบดี", t: "นาย", p: "นักวิชาการคอมพิวเตอร์", d: "เทคโนโลยีสารสนเทศ", w: "สายสนับสนุน", sup: "ปกรณ์ ศิริวัฒน์", evaluator2: "ธนพล ไชยรักษ์" }
-    ];
-    const source = activeStaff.length ? activeStaff : fallback;
-
-    return source.map((user, index) => {
-        const deptParts = (user.d || "ไม่ระบุหน่วยงาน").split(" > ");
-        const dept = deptParts[0] || "ไม่ระบุหน่วยงาน";
-        const group = deptParts.length > 1 ? deptParts[deptParts.length - 1] : dept;
-        const expectedScore = 4;
-        const selfScore = 2 + (index % 3);
-        const supervisorScore = Math.min(5, selfScore + (index % 2));
-        const deptHeadScore = Math.min(5, supervisorScore + (index % 3 === 0 ? 1 : 0));
-        const finalScore = deptHeadScore;
-        const gapCount = index % 3;
-
-        return {
-        id: user.sso || `mock-${index}`,
-        employee: `${user.t || ""}${user.n}`,
-        position: user.p || "บุคลากร",
-        dept,
-        rawDept: user.d || "ไม่ระบุหน่วยงาน",
-        group,
-        workline: user.w || "ไม่ระบุสายงาน",
-        evaluator1: user.sup || "",
-        evaluator2: user.evaluator2 || "กิตติพงศ์ แสงทอง",
-        expectedScore,
-        selfScore,
-        supervisorScore,
-        deptHeadScore,
-        finalScore,
-        gapCount,
-        approvalStatus: "pending",
-        submittedAt: `${18 + (index % 6)} พ.ค. 2568`,
-        competencyDetails: [
-            { n: "AI Literacy", expected: 4, self: selfScore, supervisor: supervisorScore, deptHead: deptHeadScore, actual: finalScore, note: finalScore < 4 ? "มีช่องว่างระดับสมรรถนะ" : "ผ่านตามเกณฑ์" },
-            { n: "การใช้เทคโนโลยีดิจิทัล", expected: 4, self: Math.max(1, selfScore - 1), supervisor: supervisorScore, deptHead: finalScore, actual: finalScore, note: finalScore < 4 ? "ควรพัฒนาเพิ่มเติม" : "ผ่านตามเกณฑ์" },
-            { n: "การทำงานเป็นทีม", expected: 3, self: 3, supervisor: 3 + (index % 2), deptHead: 3 + (index % 2), actual: 3 + (index % 2), note: "อยู่ในเกณฑ์" }
-        ],
-        idpDetails: [
-            { topic: "AI Literacy", method: "Workshop + OJT", due: "ก.ค. 2568", outcome: "ใช้ AI ช่วยงานประจำได้", cost: 2500, status: "รออนุมัติ" },
-            { topic: "การวิเคราะห์ข้อมูล", method: "Online course", due: "ส.ค. 2568", outcome: "ทำ dashboard สรุปงานได้", cost: 1200, status: "รออนุมัติ" }
-        ]
-    };
-    });
-};
-
-const getApprovalFilterOptions = (rows: any[]) => ({
-    worklines: Array.from(new Set(rows.map(row => row.workline))).filter(Boolean),
-    depts: Array.from(new Set(rows.map(row => row.dept))).filter(Boolean),
-    groups: Array.from(new Set(rows.map(row => row.group))).filter(Boolean),
-    positions: Array.from(new Set(rows.map(row => row.position))).filter(Boolean)
-});
-
-const filterApprovalRows = (rows: any[], filters: Record<string, string>) => rows.filter(row => (
-    (filters.workline === "all" || row.workline === filters.workline) &&
-    (filters.dept === "all" || row.dept === filters.dept) &&
-    (filters.group === "all" || row.group === filters.group) &&
-    (filters.position === "all" || row.position === filters.position)
-));
-
-const ApprovalFilters: React.FC<{ rows: any[]; filters: Record<string, string>; setFilters: any }> = ({ rows, filters, setFilters }) => {
-    const options = getApprovalFilterOptions(rows);
-    const update = (key: string, value: string) => setFilters((prev: Record<string, string>) => ({ ...prev, [key]: value }));
-
-    return (
-        <div className="card mb14">
-            <div className="cb" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(160px, 1fr))", gap: "12px" }}>
-                {[
-                    { key: "workline", label: "สายงาน", values: options.worklines },
-                    { key: "dept", label: "หน่วยงาน", values: options.depts },
-                    { key: "group", label: "กลุ่มงาน", values: options.groups },
-                    { key: "position", label: "ตำแหน่ง", values: options.positions }
-                ].map(item => (
-                    <label key={item.key} className="fg" style={{ margin: 0 }}>
-                        <span className="lbl">{item.label}</span>
-                        <select className="sel" value={filters[item.key]} onChange={event => update(item.key, event.target.value)}>
-                            <option value="all">ทั้งหมด</option>
-                            {item.values.map(value => <option key={value} value={value}>{value}</option>)}
-                        </select>
-                    </label>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-export const ManagerAssessmentApproval: React.FC<{ users: any[] }> = ({ users }) => {
-    const [approvedIds, setApprovedIds] = useState<string[]>([]);
-    const [rejectedIds, setRejectedIds] = useState<string[]>([]);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [filters, setFilters] = useState({ workline: "all", dept: "all", group: "all", position: "all" });
-    const approvalRows = getApprovalRows(users);
-    const filteredRows = filterApprovalRows(approvalRows, filters);
-    const selected = approvalRows.find(row => row.id === selectedId);
-    const approve = (id: string) => {
-        setRejectedIds(prev => prev.filter(item => item !== id));
-        setApprovedIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    };
-    const reject = (id: string) => {
-        setApprovedIds(prev => prev.filter(item => item !== id));
-        setRejectedIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    };
-    const getDecision = (id: string) => approvedIds.includes(id)
-        ? { label: "อนุมัติแล้ว", badge: "bg" }
-        : rejectedIds.includes(id)
-            ? { label: "ไม่อนุมัติ", badge: "br" }
-            : { label: "รออนุมัติ", badge: "by" };
-
-    return (
-        <>
-            <div className="mb20">
-                <div className="sec-t">อนุมัติผลการประเมินรายบุคคล</div>
-                <div className="sec-s">ตรวจสอบผู้ถูกประเมิน หัวหน้างาน และผู้บังคับบัญชา ก่อนยืนยันผลการประเมิน</div>
-            </div>
-            <ApprovalFilters rows={approvalRows} filters={filters} setFilters={setFilters} />
-            <div className="card">
-                <div className="ch"><div className="ct">รายการผลการประเมินที่รออนุมัติ</div><div className="cs">{filteredRows.length} รายการ</div></div>
-                <div className="cb" style={{ padding: 0 }}>
-                    <table className="tbl">
-                        <thead>
-                            <tr>
-                                <th>ผู้ถูกประเมิน</th>
-                                <th>สายงาน / กลุ่มงาน</th>
-                                <th>หัวหน้างาน</th>
-                                <th>ผู้บังคับบัญชา</th>
-                                <th style={{ width: "118px" }}>สถานะ</th>
-                                <th style={{ width: "236px" }}>จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredRows.map(row => {
-                                const decision = getDecision(row.id);
-                                return (
-                                    <tr key={row.id}>
-                                        <td><div className="fw7 fs13">{row.employee}</div><div className="muted fs11">{row.position} · {row.dept}</div></td>
-                                        <td><div className="fw6 fs12">{row.workline}</div><div className="muted fs11">{row.group}</div></td>
-                                        <td><div className="fw6 fs12">{row.evaluator1 || "—"}</div></td>
-                                        <td><div className="fw6 fs12">{row.evaluator2}</div></td>
-                                        <td><span className={`b ${decision.badge}`}>{decision.label}</span></td>
-                                        <td>
-                                            <div className="flex ic g6">
-                                                <button className="btn btn-s btn-xs" onClick={() => setSelectedId(row.id)}>ดูรายละเอียด</button>
-                                                <button className="btn btn-p btn-xs" onClick={() => approve(row.id)}>อนุมัติ</button>
-                                                <button className="btn btn-r btn-xs" onClick={() => reject(row.id)}>ไม่อนุมัติ</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {selected && (
-                <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedId(null)}>
-                    <div className="mo-box" style={{ width: "1040px" }} onMouseDown={event => event.stopPropagation()}>
-                        <div className="mo-h">
-                            <div><div className="fw8 fs14">{selected.employee}</div><div className="muted fs11">{selected.evaluator1 || "ไม่มีหัวหน้างาน"} · {selected.evaluator2}</div></div>
-                            <button className="btn btn-s btn-sm" onClick={() => setSelectedId(null)}>ปิด</button>
-                        </div>
-                        <div className="mo-b">
-                            <div style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
-                                <table className="tbl" style={{ margin: 0 }}>
-                                    <thead>
-                                        <tr>
-                                            <th>สมรรถนะ</th>
-                                            <th style={{ width: "110px", textAlign: "center" }}>คาดหวัง</th>
-                                            <th style={{ width: "130px", textAlign: "center" }}>ประเมินตนเอง</th>
-                                            <th style={{ width: "120px", textAlign: "center" }}>หัวหน้าหน่วย</th>
-                                            <th style={{ width: "130px", textAlign: "center" }}>ผู้บังคับบัญชา</th>
-                                            <th style={{ width: "96px", textAlign: "center" }}>Gap</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {selected.competencyDetails.map(item => {
-                                            const gap = Math.max(0, item.expected - item.actual);
-
-                                            return (
-                                                <tr key={item.n}>
-                                                    <td><div className="fw7 fs13">{item.n}</div></td>
-                                                    <td style={{ textAlign: "center" }}><span className="b bgr" style={{ justifyContent: "center", minWidth: "54px" }}>{item.expected}</span></td>
-                                                    <td style={{ textAlign: "center" }}><span className="b bt" style={{ justifyContent: "center", minWidth: "54px" }}>{item.self}</span></td>
-                                                    <td style={{ textAlign: "center" }}><span className="b bt" style={{ justifyContent: "center", minWidth: "54px" }}>{item.supervisor}</span></td>
-                                                    <td style={{ textAlign: "center" }}><span className="b by" style={{ justifyContent: "center", minWidth: "54px" }}>{item.deptHead}</span></td>
-                                                    <td style={{ textAlign: "center" }}><span className={`b ${gap ? "br" : "bg"}`} style={{ justifyContent: "center", minWidth: "54px" }}>{gap}</span></td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div className="muted fs11 mt8">ส่งเมื่อ {selected.submittedAt}</div>
-                            <div className="flex ic g8 mt12">
-                                <button className="btn btn-p btn-sm" onClick={() => approve(selected.id)} style={{ flex: 1, justifyContent: "center" }}>อนุมัติผลการประเมิน</button>
-                                <button className="btn btn-r btn-sm" onClick={() => reject(selected.id)} style={{ flex: 1, justifyContent: "center" }}>ไม่อนุมัติ</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    );
-};
-
-export const ManagerIDPApproval: React.FC<{ users: any[] }> = ({ users }) => {
-    const [approvedIds, setApprovedIds] = useState<string[]>([]);
-    const [rejectedIds, setRejectedIds] = useState<string[]>([]);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [filters, setFilters] = useState({ workline: "all", dept: "all", group: "all", position: "all" });
-    const approvalRows = getApprovalRows(users);
-    const filteredRows = filterApprovalRows(approvalRows, filters);
-    const selected = approvalRows.find(row => row.id === selectedId);
-    const approve = (id: string) => {
-        setRejectedIds(prev => prev.filter(item => item !== id));
-        setApprovedIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    };
-    const reject = (id: string) => {
-        setApprovedIds(prev => prev.filter(item => item !== id));
-        setRejectedIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    };
-    const getDecision = (id: string) => approvedIds.includes(id)
-        ? { label: "อนุมัติแล้ว", badge: "bg" }
-        : rejectedIds.includes(id)
-            ? { label: "ไม่อนุมัติ", badge: "br" }
-            : { label: "รออนุมัติ", badge: "by" };
-
-    return (
-        <>
-            <div className="mb20">
-                <div className="sec-t">อนุมัติแผน IDP รายบุคคล</div>
-                <div className="sec-s">ตรวจสอบแผน IDP จากหัวหน้างานและผู้บังคับบัญชา ก่อนยืนยันแผนพัฒนารายบุคคล</div>
-            </div>
-            <ApprovalFilters rows={approvalRows} filters={filters} setFilters={setFilters} />
-            <div className="card">
-                <div className="ch"><div className="ct">รายการแผน IDP ที่รออนุมัติ</div><div className="cs">{filteredRows.length} รายการ</div></div>
-                <div className="cb" style={{ padding: 0 }}>
-                    <table className="tbl">
-                        <thead>
-                            <tr>
-                                <th>ผู้ถูกประเมิน</th>
-                                <th>สายงาน / กลุ่มงาน</th>
-                                <th>หัวหน้างาน</th>
-                                <th>ผู้บังคับบัญชา</th>
-                                <th>หัวข้อ IDP</th>
-                                <th style={{ width: "118px" }}>สถานะ</th>
-                                <th style={{ width: "236px" }}>จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredRows.map(row => {
-                                const decision = getDecision(row.id);
-                                return (
-                                    <tr key={row.id}>
-                                        <td><div className="fw7 fs13">{row.employee}</div><div className="muted fs11">{row.position} · {row.dept}</div></td>
-                                        <td><div className="fw6 fs12">{row.workline}</div><div className="muted fs11">{row.group}</div></td>
-                                        <td><div className="fw6 fs12">{row.evaluator1 || "—"}</div></td>
-                                        <td><div className="fw6 fs12">{row.evaluator2}</div></td>
-                                        <td><div className="flex ic g4" style={{ flexWrap: "wrap" }}>{row.idpDetails.map(item => <span key={item.topic} className="b bt">{item.topic}</span>)}</div></td>
-                                        <td><span className={`b ${decision.badge}`}>{decision.label}</span></td>
-                                        <td>
-                                            <div className="flex ic g6">
-                                                <button className="btn btn-s btn-xs" onClick={() => setSelectedId(row.id)}>ดูรายละเอียด</button>
-                                                <button className="btn btn-t btn-xs" onClick={() => approve(row.id)}>อนุมัติ</button>
-                                                <button className="btn btn-r btn-xs" onClick={() => reject(row.id)}>ไม่อนุมัติ</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {selected && (
-                <div className="mo" style={{ zIndex: 300 }} onMouseDown={() => setSelectedId(null)}>
-                    <div className="mo-box" style={{ width: "920px" }} onMouseDown={event => event.stopPropagation()}>
-                        <div className="mo-h">
-                            <div><div className="fw8 fs14">{selected.employee}</div><div className="muted fs11">{selected.evaluator1 || "ไม่มีหัวหน้างาน"} · {selected.evaluator2}</div></div>
-                            <button className="btn btn-s btn-sm" onClick={() => setSelectedId(null)}>ปิด</button>
-                        </div>
-                        <div className="mo-b">
-                            <div className="mb12" style={{ display: "grid", gap: "12px" }}>
-                                {selected.competencyDetails.map((item, index) => {
-                                    const gap = Math.max(0, item.expected - item.deptHead);
-                                    const activity = selected.idpDetails[index % selected.idpDetails.length] || { topic: item.n, method: "IDP Activity", due: "-", outcome: "พัฒนาสมรรถนะตามแผนที่เสนอ", status: "รออนุมัติ" };
-                                    const tagText = index === 1 ? "FC2" : "CC";
-                                    const tagClass = index === 1 ? "tag-fc" : "tag-cc";
-                                    const weight = 100;
-
-                                    return (
-                                        <div key={item.n} className="card supervisor-review-gap" style={{ margin: 0 }}>
-                                            <div className="ch supervisor-review-gap-head">
-                                                <div className="flex ic g8 supervisor-review-gap-title-row">
-                                                    <span className={tagClass}>{tagText}</span>
-                                                    <div className="ct supervisor-review-gap-title">{item.n}</div>
-                                                    <span className="supervisor-review-meta">คาดหวัง {item.expected} · ได้ {item.deptHead} · <span className={gap ? "rc fw7" : "gcc fw7"}>Gap {gap}</span></span>
-                                                    <span className="b bg">{weight}/100%</span>
-                                                </div>
-                                            </div>
-                                            <div className="cb supervisor-review-gap-body">
-                                                <div className="supervisor-review-section-label">เป้าหมายการพัฒนา</div>
-                                                <div className="supervisor-review-goal">{activity.outcome}</div>
-                                                <div className="supervisor-review-activity-list">
-                                                    <div className="supervisor-idp-activity-row">
-                                                        <div className="flex ic jb g8" style={{ flexWrap: "wrap" }}>
-                                                            <div style={{ minWidth: "180px", flex: 1 }}>
-                                                                <div className="fw7 supervisor-idp-activity-title">{activity.topic}</div>
-                                                                <div className="muted supervisor-idp-activity-meta">{activity.method} · - ถึง {activity.due} · น้ำหนัก {weight}%</div>
-                                                                <div className="muted supervisor-idp-activity-note">คำอธิบายกิจกรรม: {activity.outcome}</div>
-                                                            </div>
-                                                            <span className="b by">{activity.status}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
-                                <table className="tbl" style={{ margin: 0 }}>
-                                    <thead>
-                                        <tr>
-                                            <th>สมรรถนะ</th>
-                                            <th style={{ width: "110px", textAlign: "center" }}>คาดหวัง</th>
-                                            <th style={{ width: "130px", textAlign: "center" }}>ประเมินตนเอง</th>
-                                            <th style={{ width: "120px", textAlign: "center" }}>หัวหน้าหน่วย</th>
-                                            <th style={{ width: "130px", textAlign: "center" }}>ผู้บังคับบัญชา</th>
-                                            <th style={{ width: "96px", textAlign: "center" }}>Gap</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {selected.competencyDetails.map(item => {
-                                            const gap = Math.max(0, item.expected - item.deptHead);
-
-                                            return (
-                                                <tr key={item.n}>
-                                                    <td><div className="fw7 fs13">{item.n}</div></td>
-                                                    <td style={{ textAlign: "center" }}><span className="b bgr" style={{ justifyContent: "center", minWidth: "54px" }}>{item.expected}</span></td>
-                                                    <td style={{ textAlign: "center" }}><span className="b bt" style={{ justifyContent: "center", minWidth: "54px" }}>{item.self}</span></td>
-                                                    <td style={{ textAlign: "center" }}><span className="b bt" style={{ justifyContent: "center", minWidth: "54px" }}>{item.supervisor}</span></td>
-                                                    <td style={{ textAlign: "center" }}><span className="b by" style={{ justifyContent: "center", minWidth: "54px" }}>{item.deptHead}</span></td>
-                                                    <td style={{ textAlign: "center" }}><span className={`b ${gap ? "br" : "bg"}`} style={{ justifyContent: "center", minWidth: "54px" }}>{gap}</span></td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div className="flex ic g8 mt12">
-                                <button className="btn btn-t btn-sm" onClick={() => approve(selected.id)} style={{ flex: 1, justifyContent: "center" }}>อนุมัติแผน IDP</button>
-                                <button className="btn btn-r btn-sm" onClick={() => reject(selected.id)} style={{ flex: 1, justifyContent: "center" }}>ไม่อนุมัติ</button>
-                            </div>
                         </div>
                     </div>
                 </div>

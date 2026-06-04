@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ExcelImportModal } from './SharedUI';
+import { IDP_GAPS_DATA } from '../data';
 
 interface AdminDictProps {
   competencies: any[];
@@ -40,9 +41,24 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
 
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
+  const usedCompetencyCodes = new Set(IDP_GAPS_DATA.map(item => item.cd));
+
   const deleteComp = (code: string) => {
+    const competency = competencies.find(c => c.cd === code);
+    if (!competency) return;
+
+    if (competency.used || competency.inUse || usedCompetencyCodes.has(code)) {
+      setCompetencies(competencies.map(c => c.cd === code ? { ...c, active: false } : c));
+      showStatus("s", "สมรรถนะนี้มีประวัติการใช้งาน ระบบจึงปิดใช้งานแทนการลบข้อมูล");
+      return;
+    }
+
     setCompetencies(competencies.filter(c => c.cd !== code));
     showStatus("s", "ลบข้อมูลสมรรถนะเรียบร้อยแล้ว");
+  };
+
+  const toggleCompActive = (code: string) => {
+    setCompetencies(competencies.map(c => c.cd === code ? { ...c, active: c.active === false } : c));
   };
 
   const getCompType = (c: any) => {
@@ -80,7 +96,15 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   
-  const generateLevel = (l: string) => ({ lvl: l, items: ["", "", "", ""], weights: ["0.25", "0.25", "0.25", "0.25"] });
+  const calculateWeights = (count: number) => {
+    if (count <= 0) return [];
+    const weight = Number((1 / count).toFixed(4));
+    return Array.from({ length: count }, (_, index) =>
+      String(index === count - 1 ? Number((1 - weight * (count - 1)).toFixed(4)) : weight)
+    );
+  };
+
+  const generateLevel = (l: string) => ({ lvl: l, items: ["", "", "", ""], weights: calculateWeights(4) });
   const [levels, setLevels] = useState([generateLevel("1"), generateLevel("2"), generateLevel("3"), generateLevel("4"), generateLevel("5")]);
 
   const clearForm = () => {
@@ -105,8 +129,8 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
     if (c.levels) {
       setLevels(c.levels.map((l: any) => ({
         lvl: String(l.lvl),
-        items: l.indicators.length >= 4 ? l.indicators.slice(0, 4) : [...l.indicators, ...Array(4 - l.indicators.length).fill("")],
-        weights: l.weights && l.weights.length >= 4 ? l.weights.map(String).slice(0, 4) : ["0.25", "0.25", "0.25", "0.25"]
+        items: l.indicators.length ? [...l.indicators] : [""],
+        weights: calculateWeights(l.indicators.length || 1)
       })));
     } else {
       setLevels([generateLevel("1"), generateLevel("2"), generateLevel("3"), generateLevel("4"), generateLevel("5")]);
@@ -136,7 +160,9 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
     if (alreadyExistsCode) { showStatus("e", `รหัสสมรรถนะ ${code} มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น`); return; }
     if (alreadyExistsName) { showStatus("e", `ชื่อสมรรถนะ "${name}" มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น`); return; }
 
+    const existingComp = competencies.find(c => c.cd === editId);
     const newComp = {
+      ...(existingComp || {}),
       cd: code, n: name, t: type, tg: `tag-${type.toLowerCase()}`, det: desc, lv: levels.length, grp: "ทุกตำแหน่ง",
       levels: levels.map(l => ({
         lvl: parseInt(l.lvl),
@@ -163,7 +189,31 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
   };
 
   const removeLevelRow = (idx: number) => {
+    if (levels.length === 1) {
+      showStatus("e", "ต้องมีระดับสมรรถนะอย่างน้อย 1 ระดับ");
+      return;
+    }
     setLevels(levels.filter((_, i) => i !== idx));
+    setIsDirty(true);
+  };
+
+  const addIndicator = (lvIdx: number) => {
+    const next = [...levels];
+    const items = [...next[lvIdx].items, ""];
+    next[lvIdx] = { ...next[lvIdx], items, weights: calculateWeights(items.length) };
+    setLevels(next);
+    setIsDirty(true);
+  };
+
+  const removeIndicator = (lvIdx: number, itemIdx: number) => {
+    const next = [...levels];
+    if (next[lvIdx].items.length === 1) {
+      showStatus("e", "แต่ละระดับต้องมีพฤติกรรมบ่งชี้อย่างน้อย 1 ข้อ");
+      return;
+    }
+    const items = next[lvIdx].items.filter((_, index) => index !== itemIdx);
+    next[lvIdx] = { ...next[lvIdx], items, weights: calculateWeights(items.length) };
+    setLevels(next);
     setIsDirty(true);
   };
 
@@ -172,15 +222,6 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
     const nextItems = [...next[lvIdx].items];
     nextItems[itemIdx] = val;
     next[lvIdx] = { ...next[lvIdx], items: nextItems };
-    setLevels(next);
-    setIsDirty(true);
-  };
-
-  const updateWeight = (lvIdx: number, itemIdx: number, val: string) => {
-    const next = [...levels];
-    const nextWeights = [...next[lvIdx].weights];
-    nextWeights[itemIdx] = val;
-    next[lvIdx] = { ...next[lvIdx], weights: nextWeights };
     setLevels(next);
     setIsDirty(true);
   };
@@ -275,9 +316,9 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
                   {levels.map((lv, lvIdx) => (
                     <React.Fragment key={lvIdx}>
                       {lv.items.map((item, itemIdx) => (
-                        <tr key={`${lvIdx}-${itemIdx}`} style={{ borderBottom: itemIdx === 3 ? '2.5px solid #e2e8f0' : '1px solid #f1f5f9' }}>
+                        <tr key={`${lvIdx}-${itemIdx}`} style={{ borderBottom: itemIdx === lv.items.length - 1 ? '2.5px solid #e2e8f0' : '1px solid #f1f5f9' }}>
                           {itemIdx === 0 && (
-                            <td rowSpan={4} style={{ verticalAlign: 'top', background: '#fcfdfe', borderRight: '1px solid #e2e8f0' }}>
+                            <td rowSpan={lv.items.length} style={{ verticalAlign: 'top', background: '#fcfdfe', borderRight: '1px solid #e2e8f0' }}>
                               <div className="flex col ic g8" style={{ marginTop: '4px' }}>
                                 <div className="muted fs10 fw7">LEVEL</div>
                                 <input className="inp ac" style={{ width: '50px' }} value={lv.lvl} onChange={e => updateLvlNum(lvIdx, e.target.value)} />
@@ -287,10 +328,16 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
                           )}
                           <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>
                             <div className="fw5 fs11 muted mb4">น้ำหนัก</div>
-                            <input className="inp ac" style={{ width: '80px', color: 'var(--blue)', fontWeight: 800 }} type="text" value={lv.weights ? lv.weights[itemIdx] : 0.25} onChange={e => updateWeight(lvIdx, itemIdx, e.target.value)} />
+                            <input className="inp ac" style={{ width: '80px', color: 'var(--blue)', fontWeight: 800, background: '#f8fafc' }} type="text" value={lv.weights[itemIdx]} readOnly />
                           </td>
                           <td>
                             <input className="inp" placeholder={`พฤติกรรมบ่งชี้ข้อที่ ${itemIdx + 1}...`} value={item} onChange={e => updateIndicator(lvIdx, itemIdx, e.target.value)} />
+                          </td>
+                          <td>
+                            <button type="button" className="btn-icon-r" title="ลบพฤติกรรมข้อนี้" onClick={() => removeIndicator(lvIdx, itemIdx)}>ลบ</button>
+                            {itemIdx === lv.items.length - 1 && (
+                              <button type="button" className="btn btn-s btn-xs" style={{ marginLeft: '4px' }} onClick={() => addIndicator(lvIdx)}>+ ข้อ</button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -302,7 +349,7 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
           </div>
 
           <div className="flex jc g12 mt24 mb40">
-            <button className="btn btn-s w140" onClick={() => { clearForm(); setView("list"); }}>ยกเลิก</button>
+            <button className="btn btn-s w140" onClick={closeForm}>ยกเลิก</button>
             <button className="btn btn-p w140" onClick={saveComp}>บันทึกข้อมูล</button>
           </div>
         </div>
@@ -343,11 +390,16 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
                       <span className="dict-code">{c.cd}</span>
                       <span className="dict-name">{c.n}</span>
                       <span className={`dict-tag ${getCompTag(c)}`}>{getCompType(c)}</span>
+                      {c.active === false && <span className="b br">ปิดใช้งาน</span>}
                     </div>
                     <div className="dict-dots"></div>
                     <div className="flex ic g8">
                       <button className="btn btn-xs btn-s" onClick={(e) => { e.stopPropagation(); editComp(c); }}>แก้ไข</button>
-                      <button className="btn btn-xs btn-s" style={{ color: "#ef4444" }} onClick={(e) => { e.stopPropagation(); deleteComp(c.cd); }}>ลบ</button>
+                      {c.active === false ? (
+                        <button className="btn btn-xs btn-s" style={{ color: "#15803d" }} onClick={(e) => { e.stopPropagation(); toggleCompActive(c.cd); }}>เปิดใช้งาน</button>
+                      ) : (
+                        <button className="btn btn-xs btn-s" style={{ color: "#ef4444" }} onClick={(e) => { e.stopPropagation(); deleteComp(c.cd); }}>ลบ</button>
+                      )}
                       <div className="dict-arrow" style={{ transform: isExpanded ? 'rotate(90deg)' : 'none' }}>›</div>
                     </div>
                   </div>
@@ -356,7 +408,7 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
                     <div className="dict-content anim-slide-down">
                       <div className="dict-desc">{c.det}</div>
                       <div className="dict-levels-list">
-                        {[1, 2, 3, 4, 5].map(lvNum => {
+                        {(c.levels?.length ? c.levels.map((level: any) => level.lvl) : [1, 2, 3, 4, 5]).map((lvNum: number) => {
                           const isLevelExpanded = expandedLevel === lvNum;
                           const lvData = c.levels?.find((l: any) => l.lvl === lvNum);
                           const indicators = lvData?.indicators || [
@@ -372,7 +424,7 @@ const AdminDict: React.FC<AdminDictProps> = ({ competencies, setCompetencies, co
                                 className={`dict-row-lvl ${isLevelExpanded ? 'active' : ''}`}
                                 onClick={() => setExpandedLevel(isLevelExpanded ? null : lvNum)}
                               >
-                                <span className="dict-lvl-label">{LEVEL_LABELS[lvNum - 1]}</span>
+                                <span className="dict-lvl-label">{LEVEL_LABELS[lvNum - 1] || `ระดับที่ ${lvNum}`}</span>
                                 <div className="dict-dots"></div>
                                 <div className="dict-arrow" style={{ transform: isLevelExpanded ? 'rotate(90deg)' : 'none' }}>›</div>
                               </div>
