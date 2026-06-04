@@ -123,7 +123,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onSave, onDirtyChange }) => {
       p: form.position,
       l: form.workline === "สายงานบริหาร" ? form.position : form.level,
       r: form.role,
-      sup: form.role === "dean" ? "" : form.evaluator1,
+      sup: form.role === "manager" ? "" : form.evaluator1,
       evaluator2: ["employee", "hr", "admin", "supervisor"].includes(form.role) ? form.evaluator2 : "",
       act: form.active,
       em: form.email,
